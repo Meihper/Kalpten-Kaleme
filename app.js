@@ -682,7 +682,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function toggleZenMode() {
     document.body.classList.toggle('zen-mode');
     const isZen = document.body.classList.contains('zen-mode');
-    showToast(isZen ? 'Odak Modu Etkin (Çıkmak için Esc tuşuna basın)' : 'Normal Çalışma Modu');
+    const isMobile = isMobileWordStudio();
+    if (isZen) {
+      showToast(isMobile ? 'Tam Ekran Odak Modu Etkin' : 'Odak Modu Etkin (Çıkmak için Esc tuşuna basın)');
+    } else {
+      showToast('Normal Çalışma Modu');
+    }
   }
 
   document.getElementById('zenModeBtn')?.addEventListener('click', toggleZenMode);
