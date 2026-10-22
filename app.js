@@ -174,15 +174,18 @@ const docManager = {
 
   init() {
     const savedDraft = localStorage.getItem('kalpten_kaleme_word_draft') || localStorage.getItem('studio_office_word_draft');
-    const savedTitle = localStorage.getItem('kalpten_kaleme_word_title') || localStorage.getItem('studio_office_word_title') || 'Yeni Yazı.docx';
-
+    const rawSavedTitle = localStorage.getItem('kalpten_kaleme_word_title') || localStorage.getItem('studio_office_word_title') || 'Yeni Yazı.docx';
+    const isInvalidTitle = /\.(apk|zip|exe|bat|vbs|ps1|rar|7z)$/i.test(rawSavedTitle.trim());
     const isDummy = savedDraft && (savedDraft.includes('Gönülden dökülen kelimeler') || savedDraft.includes('Belge Başlığı') || savedDraft.includes('Yeni Yazı</h1>'));
+    const hasValidDraft = Boolean(savedDraft && savedDraft.trim().length > 10 && !isDummy && !isInvalidTitle);
+    const savedTitle = hasValidDraft ? rawSavedTitle : 'Yeni Yazı.docx';
+
     const initialDoc = {
       id: 'doc_' + (this.nextId++),
       title: savedTitle,
       type: 'word',
-      content: (savedDraft && savedDraft.trim().length > 10 && !isDummy) ? savedDraft : '',
-      isDefault: !savedDraft || savedDraft.trim().length <= 10 || isDummy
+      content: hasValidDraft ? savedDraft : '',
+      isDefault: !hasValidDraft
     };
     this.docs.push(initialDoc);
     this.activeDocId = initialDoc.id;
@@ -1065,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const file = new File([buffer], info.filename);
                 window.pptEditor.loadFile(file);
               }
-            } else {
+            } else if (['docx', 'doc', 'txt', 'md', 'html', 'htm'].includes(ext)) {
               switchTab('wordTab');
               addRecentDocument(info.filename, 'word');
               if (window.loadWordFromBuffer) {

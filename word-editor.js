@@ -89,20 +89,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedDraft = localStorage.getItem('kalpten_kaleme_word_draft') || localStorage.getItem('studio_office_word_draft');
   const savedTitle = localStorage.getItem('kalpten_kaleme_word_title') || localStorage.getItem('studio_office_word_title');
   const isDummy = savedDraft && (savedDraft.includes('Gönülden dökülen kelimeler') || savedDraft.includes('Belge Başlığı') || savedDraft.includes('Yeni Yazı</h1>'));
-  if (savedDraft && savedDraft.trim().length > 10 && !isDummy) {
+  const isInvalidSavedTitle = savedTitle && /\.(apk|zip|exe|bat|vbs|ps1|rar|7z)$/i.test(savedTitle.trim());
+  if (isInvalidSavedTitle) {
+    localStorage.removeItem('kalpten_kaleme_word_title');
+  }
+  if (savedDraft && savedDraft.trim().length > 10 && !isDummy && !isInvalidSavedTitle) {
     editor.innerHTML = savedDraft;
     if (savedTitle && docTitleInput) docTitleInput.value = savedTitle;
   } else {
     editor.innerHTML = '';
+    if (docTitleInput) docTitleInput.value = 'Yeni Yazı.docx';
   }
   updateStats();
 
   // 2. Open Document (.docx / .txt / .html / .md)
   window.loadWordFromBuffer = function(arrayBuffer, fileName) {
-    const ext = fileName.split('.').pop().toLowerCase();
+    const ext = (fileName || '').split('.').pop().toLowerCase();
     if (ext === 'pdf') {
       if (typeof switchTab === 'function') switchTab('pdfTab');
       if (window.loadPdfFromBuffer) window.loadPdfFromBuffer(arrayBuffer, fileName);
+      return;
+    }
+    const allowedWordExts = ['docx', 'doc', 'txt', 'md', 'html', 'htm'];
+    if (!allowedWordExts.includes(ext)) {
       return;
     }
 

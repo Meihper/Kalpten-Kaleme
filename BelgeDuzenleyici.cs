@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -8,9 +10,174 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.WinForms;
 
 namespace BelgeDuzenleyici
 {
+    public class KalptenKalemeForm : Form
+    {
+        private WebView2 webView;
+        private int serverPort;
+        private string appDir;
+        private string verifyScreenshotPath;
+
+        [DllImport("user32.dll")]
+        private static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
+
+        public KalptenKalemeForm(int port, string baseDir, string verifyShotPath = null)
+        {
+            this.serverPort = port;
+            this.appDir = baseDir;
+            this.verifyScreenshotPath = verifyShotPath;
+
+            this.Text = "Kalpten Kaleme";
+            this.Size = new Size(1360, 860);
+            this.MinimumSize = new Size(820, 560);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = Color.FromArgb(244, 246, 249);
+
+            string iconPath = Path.Combine(appDir, "BelgeDuzenleyici.ico");
+            if (!File.Exists(iconPath)) iconPath = Path.Combine(appDir, "kk_lux_app.ico");
+            if (File.Exists(iconPath))
+            {
+                try
+                {
+                    this.Icon = new Icon(iconPath);
+                }
+                catch {}
+            }
+
+            webView = new WebView2();
+            webView.Dock = DockStyle.Fill;
+            this.Controls.Add(webView);
+
+            this.Load += KalptenKalemeForm_Load;
+        }
+
+        private void KalptenKalemeForm_Load(object sender, EventArgs e)
+        {
+            try
+            {
+                string userDataFolder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "KalptenKaleme",
+                    "NativeStudioData"
+                );
+                if (!Directory.Exists(userDataFolder))
+                {
+                    Directory.CreateDirectory(userDataFolder);
+                }
+
+                var props = new CoreWebView2CreationProperties();
+                props.UserDataFolder = userDataFolder;
+                props.AdditionalBrowserArguments = "--disable-features=msHub,msEdgeSidebarV2,msEdgeHub,Translate --no-first-run --no-default-browser-check";
+                webView.CreationProperties = props;
+
+                webView.CoreWebView2InitializationCompleted += (s, ev) =>
+                {
+                    if (ev.IsSuccess && webView.CoreWebView2 != null)
+                    {
+                        try
+                        {
+                            var settings = webView.CoreWebView2.Settings;
+                            settings.IsStatusBarEnabled = false;
+                            settings.AreDefaultContextMenusEnabled = false;
+                            settings.AreDevToolsEnabled = false;
+                            settings.IsPasswordAutosaveEnabled = false;
+                            settings.IsGeneralAutofillEnabled = false;
+
+                            // Suppress Edge's "İndirmeler" (Downloads) popup 100%
+                            webView.CoreWebView2.DownloadStarting += (ds, dev) =>
+                            {
+                                try
+                                {
+                                    string fileName = Path.GetFileName(dev.ResultFilePath);
+                                    string syncDir = Program.GetSyncFolder();
+                                    if (!string.IsNullOrEmpty(syncDir) && Directory.Exists(syncDir))
+                                    {
+                                        dev.ResultFilePath = Path.Combine(syncDir, fileName);
+                                    }
+                                    dev.Handled = true;
+                                }
+                                catch {}
+                            };
+
+                            webView.CoreWebView2.IsDefaultDownloadDialogOpenChanged += (ds, dev) =>
+                            {
+                                try
+                                {
+                                    if (webView.CoreWebView2.IsDefaultDownloadDialogOpen)
+                                    {
+                                        webView.CoreWebView2.CloseDefaultDownloadDialog();
+                                    }
+                                }
+                                catch {}
+                            };
+
+                            webView.CoreWebView2.NewWindowRequested += (ns, nev) =>
+                            {
+                                nev.Handled = true;
+                            };
+                        }
+                        catch {}
+                    }
+                    else
+                    {
+                        Program.LaunchFallbackBrowserWindow(serverPort);
+                        this.Close();
+                    }
+                };
+
+                if (!string.IsNullOrEmpty(verifyScreenshotPath))
+                {
+                    webView.NavigationCompleted += (ns, nev) =>
+                    {
+                        var t = new System.Windows.Forms.Timer();
+                        t.Interval = 1800;
+                        t.Tick += async (ts, tev) =>
+                        {
+                            t.Stop();
+                            try
+                            {
+                                using (var ms = new MemoryStream())
+                                {
+                                    await webView.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, ms);
+                                    ms.Position = 0;
+                                    using (var webImg = Image.FromStream(ms))
+                                    using (var fullBmp = new Bitmap(this.Width, this.Height))
+                                    {
+                                        using (var g = Graphics.FromImage(fullBmp))
+                                        {
+                                            IntPtr hdc = g.GetHdc();
+                                            PrintWindow(this.Handle, hdc, 0);
+                                            g.ReleaseHdc(hdc);
+                                            Point clientPt = this.PointToScreen(Point.Empty);
+                                            int offsetX = clientPt.X - this.Left;
+                                            int offsetY = clientPt.Y - this.Top;
+                                            g.DrawImage(webImg, offsetX, offsetY, webView.Width, webView.Height);
+                                        }
+                                        fullBmp.Save(verifyScreenshotPath, ImageFormat.Png);
+                                    }
+                                }
+                            }
+                            catch {}
+                            this.Close();
+                        };
+                        t.Start();
+                    };
+                }
+
+                webView.Source = new Uri("http://localhost:" + serverPort + "/index.html");
+            }
+            catch
+            {
+                Program.LaunchFallbackBrowserWindow(serverPort);
+                this.Close();
+            }
+        }
+    }
+
     public static class Program
     {
         private const int DefaultPort = 52480;
@@ -20,9 +187,11 @@ namespace BelgeDuzenleyici
         private static string currentFilePath = null;
         private static HttpListener listener = null;
         private static volatile bool isRunning = true;
-        private static volatile bool isHeadlessDaemon = false;
-        private static volatile bool hasReceivedHeartbeat = false;
-        private static DateTime lastHeartbeat = DateTime.UtcNow;
+
+        private static readonly HashSet<string> SupportedDocumentExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".docx", ".doc", ".txt", ".md", ".html", ".htm", ".pdf", ".pptx", ".ppt", ".json"
+        };
 
         private static readonly Dictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -52,61 +221,63 @@ namespace BelgeDuzenleyici
             public DateTime LastWrite;
         }
 
-        // In-memory cache with automatic disk modification detection
         private static readonly Dictionary<string, CachedFile> FileCache = new Dictionary<string, CachedFile>(StringComparer.OrdinalIgnoreCase);
 
-        // Win32 APIs for Native Window Icon and Process Window Association
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
-
         [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+        private static extern bool SetProcessDPIAware();
 
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        private static extern IntPtr LoadImage(IntPtr hinst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
-
-        private const uint WM_SETICON = 0x0080;
-        private static readonly IntPtr ICON_SMALL = (IntPtr)0;
-        private static readonly IntPtr ICON_BIG = (IntPtr)1;
-        private const uint IMAGE_ICON = 1;
-        private const uint LR_LOADFROMFILE = 0x00000010;
+        public static bool IsSupportedDocumentPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            try
+            {
+                string ext = Path.GetExtension(path);
+                return !string.IsNullOrEmpty(ext) && SupportedDocumentExtensions.Contains(ext);
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         [STAThread]
         public static void Main(string[] args)
         {
+            try { SetProcessDPIAware(); } catch {}
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
             appDir = !string.IsNullOrEmpty(CustomAppDir) ? CustomAppDir : AppDomain.CurrentDomain.BaseDirectory;
             string targetFileToOpen = null;
             bool headlessServer = false;
+            string verifyShotPath = null;
 
             if (args != null && args.Length > 0)
             {
-                foreach (var a in args)
+                for (int i = 0; i < args.Length; i++)
                 {
+                    string a = args[i];
                     if (string.Equals(a, "--headless-server", StringComparison.OrdinalIgnoreCase))
                     {
                         headlessServer = true;
-                        isHeadlessDaemon = true;
+                    }
+                    else if (string.Equals(a, "--capture-verify", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                    {
+                        verifyShotPath = args[i + 1];
+                        i++;
                     }
                 }
-                if (!headlessServer)
+                if (!headlessServer && string.IsNullOrEmpty(verifyShotPath))
                 {
                     string combined = string.Join(" ", args).Trim('"', '\'');
-                    if (File.Exists(combined))
+                    if (File.Exists(combined) && IsSupportedDocumentPath(combined))
                     {
                         targetFileToOpen = Path.GetFullPath(combined);
                     }
                     else
                     {
                         string first = args[0].Trim('"', '\'');
-                        if (File.Exists(first))
+                        if (File.Exists(first) && IsSupportedDocumentPath(first))
                         {
                             targetFileToOpen = Path.GetFullPath(first);
                         }
@@ -114,71 +285,47 @@ namespace BelgeDuzenleyici
                 }
             }
 
-            // 1. Instant check if application server is already active on DefaultPort (Zero network delay)
+            currentFilePath = targetFileToOpen;
+
+            // 1. Check if server is already active on DefaultPort
             if (IsServerActive(DefaultPort))
             {
+                activePort = DefaultPort;
                 if (!string.IsNullOrEmpty(targetFileToOpen))
                 {
                     NotifyRunningInstance(DefaultPort, targetFileToOpen);
                 }
                 if (!headlessServer)
                 {
-                    LaunchBrowserWindow(DefaultPort);
+                    Application.Run(new KalptenKalemeForm(DefaultPort, appDir, verifyShotPath));
                 }
                 return;
             }
 
-            currentFilePath = targetFileToOpen;
-
-            // 2. Pre-cache essential static assets into RAM for instant response
+            // 2. Pre-cache static assets
             WarmUpCache();
 
             // 3. Start Built-in HTTP Server
             bool started = StartHttpServer();
             if (!started)
             {
-                if (!headlessServer)
-                {
-                    string localFile = Path.Combine(appDir, "index.html");
-                    try { Process.Start(localFile); } catch {}
-                }
                 return;
             }
 
             if (!headlessServer)
             {
-                // 4. Launch Browser in High-Speed Native App Mode
-                LaunchBrowserWindow(activePort);
-
-                // 5. Background Thread to set native Win32 icons on the Edge/Chrome window
-                StartWindowIconEnforcer();
+                // 4. Run 100% Native Windows Desktop Window (WinForms + WebView2)
+                Application.Run(new KalptenKalemeForm(activePort, appDir, verifyShotPath));
+                isRunning = false;
             }
-
-            // 6. Keep alive while Browser window is active (or indefinitely in --headless-server daemon mode)
-            DateTime startTime = DateTime.UtcNow;
-            while (isRunning)
+            else
             {
-                Thread.Sleep(1000);
-                if (headlessServer) continue;
-
-                if (!hasReceivedHeartbeat)
+                while (isRunning)
                 {
-                    if ((DateTime.UtcNow - startTime).TotalSeconds > 45)
-                    {
-                        break;
-                    }
-                }
-                else
-                {
-                    if ((DateTime.UtcNow - lastHeartbeat).TotalSeconds > 40)
-                    {
-                        break;
-                    }
+                    Thread.Sleep(2000);
                 }
             }
 
-            // 7. Clean shutdown
-            isRunning = false;
             try
             {
                 if (listener != null)
@@ -229,13 +376,11 @@ namespace BelgeDuzenleyici
                 }
                 catch
                 {
-                    // Port in use, continue
                 }
             }
             return false;
         }
 
-        // Instant 0ms check without hanging on HttpWebRequest timeouts
         private static bool IsServerActive(int port)
         {
             try
@@ -271,7 +416,7 @@ namespace BelgeDuzenleyici
         }
 
         // ========================================================================
-        // Google Drive / Sync Folder Detection & Management
+        // Google Drive & OneDrive Cloud Sync Folder Detection
         // ========================================================================
         private static string cachedSyncFolder = null;
 
@@ -301,12 +446,9 @@ namespace BelgeDuzenleyici
                                 int q2 = json.IndexOf('"', q1 + 1);
                                 if (q2 > q1)
                                 {
-                                    string folder = json.Substring(q1 + 1, q2 - q1 - 1).Replace("\\\\", "\\");
+     string folder = json.Substring(q1 + 1, q2 - q1 - 1).Replace("\\\\", "\\");
                                     if (!string.IsNullOrEmpty(folder))
                                     {
-                                        // Portability & Cloud-Upgrade check:
-                                        // 1) If config.json came from another PC's C:\Users\<other>, ignore it and auto-detect.
-                                        // 2) If config.json was pointing to the local MyDocuments fallback ("local") while OneDrive/Google Drive exists, upgrade to Cloud!
                                         bool isForeignUserPath = folder.StartsWith("C:\\Users\\", StringComparison.OrdinalIgnoreCase) &&
                                                                  !folder.StartsWith(userProfile, StringComparison.OrdinalIgnoreCase);
                                         string defaultLocalFallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Kalpten Kaleme");
@@ -330,7 +472,6 @@ namespace BelgeDuzenleyici
                 catch {}
             }
 
-            // Auto-detect standard Google Drive & OneDrive Desktop locations on any PC
             var candidateList = new List<string>
             {
                 @"G:\My Drive\Kalpten Kaleme",
@@ -347,9 +488,7 @@ namespace BelgeDuzenleyici
             candidateList.Add(Path.Combine(userProfile, "OneDrive", "Kalpten Kaleme"));
             candidateList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Kalpten Kaleme"));
 
-            string[] candidates = candidateList.ToArray();
-
-            foreach (string path in candidates)
+            foreach (string path in candidateList)
             {
                 string parent = Path.GetDirectoryName(path);
                 if (Directory.Exists(parent) || path.StartsWith("G:\\", StringComparison.OrdinalIgnoreCase))
@@ -414,148 +553,10 @@ namespace BelgeDuzenleyici
             return GetCloudProvider(path) != "local";
         }
 
-        private static void LaunchBrowserWindow(int port)
+        public static void LaunchFallbackBrowserWindow(int port)
         {
-            string[] browserPaths = new string[]
-            {
-                @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-                @"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\Edge\Application\msedge.exe"),
-                @"C:\Program Files\Google\Chrome\Application\chrome.exe",
-                @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Google\Chrome\Application\chrome.exe")
-            };
-
-            string browserExe = null;
-            foreach (var p in browserPaths)
-            {
-                if (File.Exists(p))
-                {
-                    browserExe = p;
-                    break;
-                }
-            }
-
-            if (string.IsNullOrEmpty(browserExe))
-            {
-                string[] appPathKeys = new string[]
-                {
-                    @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe",
-                    @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe",
-                    @"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe",
-                    @"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe"
-                };
-
-                foreach (var k in appPathKeys)
-                {
-                    try
-                    {
-                        object val = Microsoft.Win32.Registry.GetValue(k, "", null);
-                        if (val != null)
-                        {
-                            string regPath = val.ToString().Trim('"', ' ');
-                            if (File.Exists(regPath))
-                            {
-                                browserExe = regPath;
-                                break;
-                            }
-                        }
-                    }
-                    catch {}
-                }
-            }
-
             string appUrl = "http://localhost:" + port + "/index.html";
-            string profileDir = Path.Combine(appDir, "profile");
-
-            // Ensure profile suppresses first-run sync dialogs and welcome pages instantly
-            try
-            {
-                if (!Directory.Exists(profileDir))
-                {
-                    Directory.CreateDirectory(profileDir);
-                }
-                string firstRunFile = Path.Combine(profileDir, "First Run");
-                if (!File.Exists(firstRunFile))
-                {
-                    File.WriteAllText(firstRunFile, "");
-                }
-                string defaultDir = Path.Combine(profileDir, "Default");
-                if (!Directory.Exists(defaultDir))
-                {
-                    Directory.CreateDirectory(defaultDir);
-                }
-                string prefFile = Path.Combine(defaultDir, "Preferences");
-                if (!File.Exists(prefFile))
-                {
-                    File.WriteAllText(prefFile, "{\"browser\":{\"has_seen_welcome_page\":true},\"signin\":{\"allowed\":false},\"sync\":{\"has_setup_completed\":true}}");
-                }
-            }
-            catch {}
-
-            if (!string.IsNullOrEmpty(browserExe))
-            {
-                try
-                {
-                    string args = string.Format(
-                        "--app={0} --user-data-dir=\"{1}\" --app-id=KalptenKaleme --app-name=\"Kalpten Kaleme\" --class=KalptenKaleme --no-first-run --no-default-browser-check --disable-sync --disable-features=Translate,msEdgeAutoSignIn,msEdgeFirstRunExperience,msEdgeFreV2,msEdgeSyncNotice,msEdgeShowFirstRunNotification,msEdgeSignInOptIn,msHub,msEdgeSidebarV2,msEdgeHub --disable-component-update --disable-background-networking --disable-extensions --hide-scrollbars --window-size=1280,840",
-                        appUrl, profileDir
-                    );
-
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = browserExe,
-                        Arguments = args,
-                        UseShellExecute = false
-                    };
-                    Process.Start(psi);
-                    return;
-                }
-                catch {}
-            }
-
-            // Fallback
             try { Process.Start(appUrl); } catch {}
-        }
-
-        private static void StartWindowIconEnforcer()
-        {
-            Thread t = new Thread(() =>
-            {
-                string iconPath = Path.Combine(appDir, "BelgeDuzenleyici.ico");
-                if (!File.Exists(iconPath)) iconPath = Path.Combine(appDir, "kk_lux_app.ico");
-                if (!File.Exists(iconPath)) return;
-
-                IntPtr hIconBig = LoadImage(IntPtr.Zero, iconPath, IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
-                IntPtr hIconSmall = LoadImage(IntPtr.Zero, iconPath, IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
-
-                if (hIconBig == IntPtr.Zero && hIconSmall == IntPtr.Zero) return;
-
-                // Try setting icon for 6 seconds as window appears
-                for (int iter = 0; iter < 12; iter++)
-                {
-                    Thread.Sleep(500);
-                    EnumWindows((hWnd, lParam) =>
-                    {
-                        var sb = new StringBuilder(256);
-                        GetWindowText(hWnd, sb, 256);
-                        string title = sb.ToString();
-
-                        if (!string.IsNullOrEmpty(title) && title.IndexOf("Kalpten Kaleme", StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            if (hIconSmall != IntPtr.Zero)
-                                SendMessage(hWnd, WM_SETICON, ICON_SMALL, hIconSmall);
-                            if (hIconBig != IntPtr.Zero)
-                                SendMessage(hWnd, WM_SETICON, ICON_BIG, hIconBig);
-                        }
-                        return true;
-                    }, IntPtr.Zero);
-                }
-            })
-            {
-                IsBackground = true
-            };
-            t.Start();
         }
 
         private static void RunServerLoop()
@@ -578,9 +579,6 @@ namespace BelgeDuzenleyici
         {
             var req = context.Request;
             var res = context.Response;
-
-            lastHeartbeat = DateTime.UtcNow;
-            hasReceivedHeartbeat = true;
 
             res.Headers.Add("Access-Control-Allow-Origin", "*");
             res.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -626,17 +624,13 @@ namespace BelgeDuzenleyici
                     res.StatusCode = 200;
                     res.OutputStream.Write(bye, 0, bye.Length);
                     res.Close();
-                    if (!isHeadlessDaemon)
-                    {
-                        isRunning = false;
-                    }
                     return;
                 }
 
                 if (rawUrl == "/api/opened-file-info")
                 {
                     string json;
-                    if (!string.IsNullOrEmpty(currentFilePath) && File.Exists(currentFilePath))
+                    if (!string.IsNullOrEmpty(currentFilePath) && File.Exists(currentFilePath) && IsSupportedDocumentPath(currentFilePath))
                     {
                         string fn = Path.GetFileName(currentFilePath);
                         string ext = Path.GetExtension(currentFilePath).TrimStart('.').ToLower();
@@ -645,6 +639,7 @@ namespace BelgeDuzenleyici
                     }
                     else
                     {
+                        currentFilePath = null;
                         json = "{\"hasFile\":false}";
                     }
 
@@ -658,10 +653,13 @@ namespace BelgeDuzenleyici
 
                 if (rawUrl == "/api/opened-file-data")
                 {
-                    if (!string.IsNullOrEmpty(currentFilePath) && File.Exists(currentFilePath))
+                    string pathToServe = currentFilePath;
+                    currentFilePath = null; // Consume once so subsequent windows start clean!
+
+                    if (!string.IsNullOrEmpty(pathToServe) && File.Exists(pathToServe) && IsSupportedDocumentPath(pathToServe))
                     {
-                        byte[] fileBytes = File.ReadAllBytes(currentFilePath);
-                        string ext = Path.GetExtension(currentFilePath);
+                        byte[] fileBytes = File.ReadAllBytes(pathToServe);
+                        string ext = Path.GetExtension(pathToServe);
                         string mime = MimeTypes.ContainsKey(ext) ? MimeTypes[ext] : "application/octet-stream";
                         res.ContentType = mime;
                         res.ContentLength64 = fileBytes.Length;
@@ -683,7 +681,7 @@ namespace BelgeDuzenleyici
                     using (var reader = new StreamReader(req.InputStream, Encoding.UTF8))
                     {
                         string path = reader.ReadToEnd().Trim();
-                        if (File.Exists(path))
+                        if (File.Exists(path) && IsSupportedDocumentPath(path))
                         {
                             currentFilePath = path;
                         }
@@ -736,7 +734,6 @@ namespace BelgeDuzenleyici
                         }
                     }
 
-                    currentFilePath = savePath;
                     string timeStr = DateTime.Now.ToString("HH:mm");
                     string provider = GetCloudProvider(targetFolder);
                     bool isGDrive = (provider == "gdrive");
@@ -868,7 +865,7 @@ namespace BelgeDuzenleyici
                     using (var reader = new StreamReader(req.InputStream, Encoding.UTF8))
                     {
                         string path = reader.ReadToEnd().Trim();
-                        if (File.Exists(path))
+                        if (File.Exists(path) && IsSupportedDocumentPath(path))
                         {
                             currentFilePath = path;
                         }
@@ -881,7 +878,6 @@ namespace BelgeDuzenleyici
                     return;
                 }
 
-                // Serve static files with RAM cache and auto-invalidation
                 string relPath = rawUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
                 if (string.IsNullOrEmpty(relPath)) relPath = "index.html";
 
