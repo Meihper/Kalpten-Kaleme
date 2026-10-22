@@ -69,6 +69,28 @@ namespace BelgeDuzenleyici
                     Directory.CreateDirectory(userDataFolder);
                 }
 
+                // Ensure clean print preview preferences (suppress browser headers/footers, enable backgrounds)
+                try
+                {
+                    string defaultProfileDir = Path.Combine(userDataFolder, "Default");
+                    if (!Directory.Exists(defaultProfileDir)) Directory.CreateDirectory(defaultProfileDir);
+                    string prefFile = Path.Combine(defaultProfileDir, "Preferences");
+                    string cleanPrintJson = "{\"printing\":{\"print_preview_sticky_settings\":{\"appState\":\"{\\\"headerFooter\\\":false,\\\"isCssBackgroundEnabled\\\":true,\\\"mediaSize\\\":{\\\"name\\\":\\\"ISO_A4\\\"}}\"}}}";
+                    if (!File.Exists(prefFile))
+                    {
+                        File.WriteAllText(prefFile, cleanPrintJson, System.Text.Encoding.UTF8);
+                    }
+                    else
+                    {
+                        string currentPref = File.ReadAllText(prefFile, System.Text.Encoding.UTF8);
+                        if (!currentPref.Contains("print_preview_sticky_settings"))
+                        {
+                            File.WriteAllText(prefFile, cleanPrintJson, System.Text.Encoding.UTF8);
+                        }
+                    }
+                }
+                catch {}
+
                 var props = new CoreWebView2CreationProperties();
                 props.UserDataFolder = userDataFolder;
                 props.AdditionalBrowserArguments = "--disable-features=msHub,msEdgeSidebarV2,msEdgeHub,Translate --no-first-run --no-default-browser-check";

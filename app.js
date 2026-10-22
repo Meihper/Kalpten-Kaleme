@@ -769,24 +769,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (appState.currentTab === 'pptTab' && window.pptEditor) {
       window.pptEditor.syncCurrentSlideFromDOM();
       const isPortrait = window.pptEditor.state.aspectRatio === 'a4-portrait';
-      pageStyle.textContent = `@media print { @page { size: A4 ${isPortrait ? 'portrait' : 'landscape'}; margin: 0mm !important; } }`;
+      pageStyle.textContent = `@page { size: A4 ${isPortrait ? 'portrait' : 'landscape'}; margin: 0; }`;
       const theme = window.pptEditor.state.theme || 'theme-clean-light';
       const ratioClass = isPortrait ? 'ratio-a4-portrait' : 'ratio-16-9';
 
-      const slidesHtml = (window.pptEditor.state.slides || []).map((s) => {
+      const slidesHtml = (window.pptEditor.state.slides || []).map((s, idx, arr) => {
         let inner = '';
         if (s.layout === 'title') {
-          inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><h1 style="font-size:38px;font-weight:800;margin-bottom:14px;">${s.title || ''}</h1><p style="font-size:18px;opacity:0.85;">${s.subtitle || ''}</p></div>`;
+          inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><h1 style="font-size:38px;font-weight:800;margin-bottom:14px;line-height:1.2;">${s.title || ''}</h1><p style="font-size:18px;opacity:0.85;line-height:1.4;">${s.subtitle || ''}</p></div>`;
         } else if (s.layout === 'two_col') {
-          inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;">${s.title || ''}</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1;"><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);">${s.leftCol || ''}</div><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);">${s.rightCol || ''}</div></div>`;
+          inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;line-height:1.25;">${s.title || ''}</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1;"><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);overflow:hidden;">${s.leftCol || ''}</div><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);overflow:hidden;">${s.rightCol || ''}</div></div>`;
         } else if (s.layout === 'quote') {
-          inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><div style="font-size:56px;opacity:0.35;font-family:Georgia,serif;">“</div><div style="font-size:26px;font-style:italic;line-height:1.5;margin-bottom:14px;">${s.quote || ''}</div><div style="font-size:15px;font-weight:700;">${s.author ? '— ' + s.author : ''}</div></div>`;
+          inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><div style="font-size:56px;opacity:0.35;font-family:Georgia,serif;line-height:1;">“</div><div style="font-size:26px;font-style:italic;line-height:1.5;margin-bottom:14px;">${s.quote || ''}</div><div style="font-size:15px;font-weight:700;">${s.author ? '— ' + s.author : ''}</div></div>`;
         } else if (s.layout === 'blank') {
-          inner = `<div style="font-size:16px;line-height:1.75;flex:1;height:100%;">${s.content || ''}</div>`;
+          inner = `<div style="font-size:16px;line-height:1.75;flex:1;height:100%;overflow:hidden;">${s.content || ''}</div>`;
         } else {
-          inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;">${s.title || ''}</h2><div style="font-size:16px;line-height:1.75;flex:1;">${s.content || ''}</div>`;
+          inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;line-height:1.25;">${s.title || ''}</h2><div style="font-size:16px;line-height:1.75;flex:1;overflow:hidden;">${s.content || ''}</div>`;
         }
-        return `<div class="kalpten-print-slide ${theme} ${ratioClass}">${inner}</div>`;
+        const isLast = (idx === arr.length - 1);
+        const breakStyle = isLast ? 'page-break-after: auto !important; break-after: auto !important;' : 'page-break-after: always !important; break-after: page !important;';
+        return `<div class="kalpten-print-slide ${theme} ${ratioClass}" style="${breakStyle}">${inner}</div>`;
       }).join('');
 
       printRoot.innerHTML = slidesHtml;
@@ -794,7 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (appState.currentTab === 'pdfTab') {
-      pageStyle.textContent = `@media print { @page { size: auto; margin: 0mm !important; } }`;
+      pageStyle.textContent = `@page { size: auto; margin: 0; }`;
       if (window.preparePdfPrintPages) {
         const ok = await window.preparePdfPrintPages(printRoot);
         if (ok) return;
@@ -823,17 +825,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Default: Word Document (wordTab)
     const editor = document.getElementById('wordEditor');
     const isLandscape = editor ? editor.classList.contains('orientation-landscape') : false;
-    let pad = '15mm 18mm';
+    let pageMargin = '15mm 18mm';
     if (editor) {
-      if (editor.classList.contains('margin-narrow')) pad = '10mm 12mm';
-      else if (editor.classList.contains('margin-wide')) pad = '20mm 25mm';
+      if (editor.classList.contains('margin-narrow')) pageMargin = '10mm 12mm';
+      else if (editor.classList.contains('margin-wide')) pageMargin = '20mm 25mm';
     }
-    pageStyle.textContent = `@media print { @page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: 0mm !important; } }`;
+    pageStyle.textContent = `@page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: ${pageMargin}; }`;
     const computed = editor ? window.getComputedStyle(editor) : null;
     const fontFam = (editor && editor.style.fontFamily) ? editor.style.fontFamily : (computed ? computed.fontFamily : "'Georgia', serif");
     const fontSz = (editor && editor.style.fontSize) ? editor.style.fontSize : (computed ? computed.fontSize : '16px');
     const lineHt = (editor && editor.style.lineHeight) ? editor.style.lineHeight : (computed ? computed.lineHeight : '1.7');
-    printRoot.innerHTML = `<div class="kalpten-print-word-sheet" style="padding: ${pad}; font-family: ${fontFam}; font-size: ${fontSz}; line-height: ${lineHt};">${editor ? editor.innerHTML : ''}</div>`;
+    printRoot.innerHTML = `<div class="kalpten-print-word-sheet" style="font-family: ${fontFam}; font-size: ${fontSz}; line-height: ${lineHt};">${editor ? editor.innerHTML : ''}</div>`;
   };
 
   window.executeCleanPrint = async function() {
@@ -842,7 +844,22 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.addEventListener('beforeprint', () => {
-    window.prepareCleanPrintRoot();
+    if (appState.currentTab === 'wordTab') {
+      const { printRoot, pageStyle } = ensurePrintElements();
+      const editor = document.getElementById('wordEditor');
+      const isLandscape = editor ? editor.classList.contains('orientation-landscape') : false;
+      let pageMargin = '15mm 18mm';
+      if (editor) {
+        if (editor.classList.contains('margin-narrow')) pageMargin = '10mm 12mm';
+        else if (editor.classList.contains('margin-wide')) pageMargin = '20mm 25mm';
+      }
+      pageStyle.textContent = `@page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: ${pageMargin}; }`;
+      const computed = editor ? window.getComputedStyle(editor) : null;
+      const fontFam = (editor && editor.style.fontFamily) ? editor.style.fontFamily : (computed ? computed.fontFamily : "'Georgia', serif");
+      const fontSz = (editor && editor.style.fontSize) ? editor.style.fontSize : (computed ? computed.fontSize : '16px');
+      const lineHt = (editor && editor.style.lineHeight) ? editor.style.lineHeight : (computed ? computed.lineHeight : '1.7');
+      printRoot.innerHTML = `<div class="kalpten-print-word-sheet" style="font-family: ${fontFam}; font-size: ${fontSz}; line-height: ${lineHt};">${editor ? editor.innerHTML : ''}</div>`;
+    }
   });
 
   document.getElementById('globalPrintBtn')?.addEventListener('click', () => {

@@ -3671,7 +3671,7 @@ body.zen-mode .word-status-bar:hover {
 @media print {
   @page {
     size: auto;
-    margin: 0mm !important;
+    margin: 0;
   }
 
   * {
@@ -3752,19 +3752,36 @@ body.zen-mode .word-status-bar:hover {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
+    padding: 0 !important;
     background: #FFFFFF !important;
-    color: #111111 !important;
+    color: inherit;
     word-break: break-word;
     border: none !important;
     box-shadow: none !important;
-    text-rendering: optimizeLegibility !important;
+    text-rendering: geometricPrecision !important;
     -webkit-font-smoothing: antialiased !important;
     image-rendering: -webkit-optimize-contrast !important;
   }
-  .kalpten-print-word-sheet h1 { font-size: 26pt; font-weight: 800; margin-bottom: 12pt; color: #111111; line-height: 1.25; }
-  .kalpten-print-word-sheet h2 { font-size: 20pt; font-weight: 700; margin-top: 18pt; margin-bottom: 8pt; color: #111111; line-height: 1.3; }
-  .kalpten-print-word-sheet h3 { font-size: 15pt; font-weight: 600; margin-top: 14pt; margin-bottom: 6pt; color: #111111; line-height: 1.35; }
-  .kalpten-print-word-sheet p { margin-bottom: 8pt; text-align: justify; }
+  .kalpten-print-word-sheet h1,
+  .kalpten-print-word-sheet h2,
+  .kalpten-print-word-sheet h3,
+  .kalpten-print-word-sheet h4,
+  .kalpten-print-word-sheet h5,
+  .kalpten-print-word-sheet h6 {
+    break-after: avoid-page !important;
+    page-break-after: avoid !important;
+    break-inside: avoid-page !important;
+    page-break-inside: avoid !important;
+    line-height: 1.3;
+  }
+  .kalpten-print-word-sheet h1 { font-size: 26pt; font-weight: 800; margin-bottom: 12pt; }
+  .kalpten-print-word-sheet h2 { font-size: 20pt; font-weight: 700; margin-top: 18pt; margin-bottom: 8pt; }
+  .kalpten-print-word-sheet h3 { font-size: 15pt; font-weight: 600; margin-top: 14pt; margin-bottom: 6pt; }
+  .kalpten-print-word-sheet p {
+    margin-bottom: 8pt;
+    orphans: 3;
+    widows: 3;
+  }
   .kalpten-print-word-sheet ul, .kalpten-print-word-sheet ol { margin-left: 24pt; margin-bottom: 10pt; }
   .kalpten-print-word-sheet blockquote {
     border-left: 3.5pt solid #0072DE;
@@ -3773,13 +3790,21 @@ body.zen-mode .word-status-bar:hover {
     border-radius: 0 4pt 4pt 0;
     margin: 12pt 0;
     font-style: italic;
+    break-inside: avoid-page !important;
+    page-break-inside: avoid !important;
   }
   .kalpten-print-word-sheet table {
     width: 100%;
     border-collapse: collapse;
     margin: 14pt 0;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    break-inside: auto;
+  }
+  .kalpten-print-word-sheet thead {
+    display: table-header-group !important;
+  }
+  .kalpten-print-word-sheet tr {
+    break-inside: avoid-page !important;
+    page-break-inside: avoid !important;
   }
   .kalpten-print-word-sheet th, .kalpten-print-word-sheet td {
     border: 1pt solid #CBD5E1;
@@ -3787,14 +3812,21 @@ body.zen-mode .word-status-bar:hover {
     text-align: left;
   }
   .kalpten-print-word-sheet th { background: #F1F5F9; font-weight: 700; }
-  .kalpten-print-word-sheet img { max-width: 100%; height: auto; margin: 8pt 0; }
+  .kalpten-print-word-sheet img,
+  .kalpten-print-word-sheet figure {
+    max-width: 100%;
+    height: auto;
+    margin: 8pt 0;
+    break-inside: avoid-page !important;
+    page-break-inside: avoid !important;
+  }
 
   /* 2. PowerPoint Clean Print Slides (Exact Physical A4 Sizing - Zero Stretch) */
   .kalpten-print-slide {
     width: 297mm !important;
     height: 210mm !important;
     max-height: 210mm !important;
-    padding: 18mm 22mm !important;
+    padding: 16mm 20mm !important;
     display: flex !important;
     flex-direction: column !important;
     position: relative !important;
@@ -3805,7 +3837,7 @@ body.zen-mode .word-status-bar:hover {
     border-radius: 0 !important;
     box-shadow: none !important;
     box-sizing: border-box !important;
-    text-rendering: optimizeLegibility !important;
+    text-rendering: geometricPrecision !important;
     -webkit-font-smoothing: antialiased !important;
   }
   .kalpten-print-slide.ratio-a4-portrait {
@@ -3822,7 +3854,6 @@ body.zen-mode .word-status-bar:hover {
   .kalpten-print-pdf-page {
     position: relative !important;
     width: 100% !important;
-    max-width: 210mm !important;
     margin: 0 auto !important;
     padding: 0 !important;
     page-break-after: always !important;
@@ -3831,6 +3862,7 @@ body.zen-mode .word-status-bar:hover {
     border: none !important;
     background: #FFFFFF !important;
     overflow: hidden !important;
+    box-sizing: border-box !important;
   }
   .kalpten-print-pdf-page:last-child {
     page-break-after: auto !important;
@@ -3839,11 +3871,9 @@ body.zen-mode .word-status-bar:hover {
   .kalpten-print-pdf-page .pdf-page-canvas {
     display: block !important;
     width: 100% !important;
-    height: auto !important;
+    height: 100% !important;
     margin: 0 auto !important;
     image-rendering: -webkit-optimize-contrast !important;
-  }
-    margin: 0 auto !important;
   }
   .kalpten-print-pdf-page .pdf-text-line:not(.text-modified) {
     display: none !important;

@@ -1815,36 +1815,47 @@ document.addEventListener('DOMContentLoaded', () => {
     printRoot.innerHTML = '';
     const numPages = pdfState.pageOrder.length;
     // 300 DPI render scale (~2400px width for standard A4 page)
-    const printScale = 2.8;
+    const printScale = 3.5;
 
     for (let idx = 0; idx < numPages; idx++) {
       const origNum = pdfState.pageOrder[idx];
       const displayNum = idx + 1;
       const page = await pdfState.pdfDoc.getPage(origNum);
       const rotation = (pdfState.pageRotations[origNum] || 0);
+
+      const unscaledViewport = page.getViewport({ scale: 1.0, rotation: rotation });
+      const widthMm = (unscaledViewport.width / 72) * 25.4;
+      const heightMm = (unscaledViewport.height / 72) * 25.4;
+
       const viewport = page.getViewport({ scale: printScale, rotation: rotation });
 
       const pageDiv = document.createElement('div');
       pageDiv.className = 'kalpten-print-pdf-page';
       pageDiv.style.position = 'relative';
-      pageDiv.style.width = '100%';
-      pageDiv.style.maxWidth = '210mm';
+      pageDiv.style.width = widthMm.toFixed(2) + 'mm';
+      pageDiv.style.height = heightMm.toFixed(2) + 'mm';
+      pageDiv.style.maxWidth = widthMm.toFixed(2) + 'mm';
+      pageDiv.style.maxHeight = heightMm.toFixed(2) + 'mm';
       pageDiv.style.margin = '0 auto';
       pageDiv.style.backgroundColor = '#FFFFFF';
+      pageDiv.style.pageBreakAfter = (idx === numPages - 1) ? 'auto' : 'always';
+      pageDiv.style.breakAfter = (idx === numPages - 1) ? 'auto' : 'page';
+      pageDiv.style.overflow = 'hidden';
+      pageDiv.style.boxSizing = 'border-box';
 
       const canvas = document.createElement('canvas');
       canvas.className = 'pdf-page-canvas';
       canvas.width = Math.floor(viewport.width);
       canvas.height = Math.floor(viewport.height);
       canvas.style.width = '100%';
-      canvas.style.height = 'auto';
+      canvas.style.height = '100%';
       canvas.style.display = 'block';
 
       const ctx = canvas.getContext('2d');
       await page.render({ canvasContext: ctx, viewport: viewport }).promise;
       pageDiv.appendChild(canvas);
 
-      // Render edited texts on print page
+      // Render edited texts on print page with exact physical point matching
       const pageEditedTexts = (pdfState.editedTexts || []).filter(e => e.page === displayNum);
       pageEditedTexts.forEach(editItem => {
         const textEl = document.createElement('div');
@@ -1853,7 +1864,7 @@ document.addEventListener('DOMContentLoaded', () => {
         textEl.style.position = 'absolute';
         textEl.style.left = (editItem.pctX * 100) + '%';
         textEl.style.top = (editItem.pctY * 100) + '%';
-        textEl.style.fontSize = (editItem.fontSize * printScale) + 'px';
+        textEl.style.fontSize = editItem.fontSize + 'pt';
         textEl.style.lineHeight = '1.15';
         textEl.style.whiteSpace = 'pre';
         if (editItem.color) textEl.style.color = editItem.color;
