@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (readingTimeStat) readingTimeStat.textContent = `~${readingTime} dk okuma (${pages} sayfa)`;
 
       const endMarkerWords = document.getElementById('mobileDocEndWords');
-      if (endMarkerWords) endMarkerWords.textContent = `✍️ ${words.toLocaleString()} Kelime`;
+      if (endMarkerWords) endMarkerWords.textContent = `${words.toLocaleString()} Kelime`;
 
       const sheetWordCount = document.getElementById('sheetWordCount');
       if (sheetWordCount) sheetWordCount.textContent = words.toLocaleString();

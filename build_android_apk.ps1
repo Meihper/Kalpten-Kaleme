@@ -197,6 +197,9 @@ public class MainActivity extends Activity {
         window.setNavigationBarColor(0xFF0D111A);
 
         webView = new WebView(this);
+        webView.setVerticalScrollBarEnabled(false);
+        webView.setHorizontalScrollBarEnabled(false);
+        webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
         setContentView(webView);
 
         WebSettings settings = webView.getSettings();
@@ -228,12 +231,9 @@ public class MainActivity extends Activity {
                 String[] mimes = {
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     "application/msword",
-                    "application/pdf",
-                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                    "application/vnd.ms-powerpoint",
-                    "application/json",
                     "text/plain",
                     "text/html",
+                    "text/markdown",
                     "image/*"
                 };
                 intent.putExtra(Intent.EXTRA_MIME_TYPES, mimes);
@@ -405,6 +405,7 @@ public class MainActivity extends Activity {
                     String name = f.getName();
                     int dot = name.lastIndexOf('.');
                     String ext = dot >= 0 ? name.substring(dot + 1).toLowerCase(Locale.ROOT) : "docx";
+                    if (!ext.equals("docx") && !ext.equals("doc") && !ext.equals("txt") && !ext.equals("html") && !ext.equals("md")) continue;
                     long kb = Math.max(1, f.length() / 1024);
                     String sizeStr = kb > 1024 ? String.format(Locale.US, "%.1f MB", kb / 1024.0) : (kb + " KB");
                     String dateStr = sdf.format(new Date(f.lastModified()));

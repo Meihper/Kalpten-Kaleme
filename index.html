@@ -33,11 +33,9 @@
     
     <!-- Left: Document Title + Auto-Save Status -->
     <div class="header-left">
-      <button class="mobile-mode-badge mobile-only-btn" id="mobileModeBadge" title="Bölüm Değiştir (Yazı, PDF, Araçlar)">
-        <img src="docx_file.png" id="mobileModeIcon" class="mobile-mode-icon-img" alt="Yazı">
-        <span id="mobileModeText">Yazı</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg>
-      </button>
+      <div class="mobile-brand-mark mobile-only-btn" id="mobileBrandMark" title="Kalpten Kaleme">
+        <img src="app.png" class="mobile-brand-logo-img" alt="Kalpten Kaleme">
+      </div>
 
       <div class="doc-capsule">
         <img src="docx_file.png" class="doc-capsule-type-icon" id="docCapsuleTypeIcon" alt="Belge">
@@ -358,7 +356,7 @@
         </div>
         <!-- Natural Document End Marker on Mobile -->
         <div class="mobile-doc-end-marker mobile-only-btn" id="mobileDocEndMarker">
-          <span id="mobileDocEndWords">✍️ 0 Kelime</span>
+          <span id="mobileDocEndWords">0 Kelime</span>
           <span class="dot-sep">•</span>
           <span id="mobileDocEndSave">Otomatik korundu</span>
         </div>
@@ -890,73 +888,144 @@
     <span id="toastMessage">İşlem tamamlandı.</span>
   </div>
 
-  <!-- Mobile Action Sheet Modal (Bottom Drawer) -->
+  <!-- Mobile Action Sheet Modal (Redesigned Word-Only Studio Drawer) -->
   <div class="modal-backdrop" id="mobileActionSheetModal">
     <div class="mobile-action-sheet">
       <div class="mobile-sheet-drag-handle"></div>
       <div class="mobile-sheet-header">
-        <div class="mobile-sheet-title">Kalpten Kaleme</div>
-        <button class="icon-btn" onclick="closeModal('mobileActionSheetModal')">✕</button>
-      </div>
-
-      <!-- Mobile Mode Tabs (Clean Mode Switcher) -->
-      <div class="mobile-sheet-mode-tabs">
-        <button class="sheet-mode-tab active" data-tab="wordTab">
-          <span class="sheet-tab-icon">✍️</span>
-          <span class="sheet-tab-text">Yazı</span>
-        </button>
-        <button class="sheet-mode-tab" data-tab="pdfTab">
-          <span class="sheet-tab-icon">📄</span>
-          <span class="sheet-tab-text">PDF</span>
-        </button>
-        <button class="sheet-mode-tab" data-tab="toolsTab">
-          <span class="sheet-tab-icon">⚡</span>
-          <span class="sheet-tab-text">Araçlar</span>
-        </button>
-      </div>
-
-      <!-- Live Document Stats -->
-      <div class="mobile-sheet-stat-card">
-        <div class="sheet-stat-row">
-          <div class="stat-pill"><span class="stat-num" id="sheetWordCount">0</span> kelime</div>
-          <div class="stat-pill"><span class="stat-num" id="sheetCharCount">0</span> karakter</div>
-          <div class="stat-pill"><span class="stat-num" id="sheetReadTime">1 dk</span> okuma</div>
+        <div class="mobile-sheet-brand">
+          <img src="app.png" class="mobile-sheet-brand-icon" alt="Kalpten Kaleme">
+          <div class="mobile-sheet-brand-info">
+            <div class="mobile-sheet-title">Kalpten Kaleme</div>
+            <div class="mobile-sheet-subtitle" id="sheetSaveStatus">● Otomatik korundu</div>
+          </div>
         </div>
-        <div class="sheet-stat-status" id="sheetSaveStatus">● Değişiklikler otomatik korundu</div>
+        <button class="icon-btn mobile-sheet-close-btn" onclick="closeModal('mobileActionSheetModal')" title="Kapat">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
-      <div class="mobile-sheet-grid">
-        <button class="mobile-sheet-item" id="mobileNewDocBtn">
-          <div class="sheet-icon-circle">📄</div>
-          <span>Yeni Belge</span>
-        </button>
-        <button class="mobile-sheet-item" id="mobileOpenDocBtn">
-          <div class="sheet-icon-circle">📂</div>
-          <span>Dosya Aç</span>
-        </button>
-        <button class="mobile-sheet-item" id="mobileRecentDocsBtn">
-          <div class="sheet-icon-circle">🕒</div>
-          <span>Son Belgeler</span>
-        </button>
-        <button class="mobile-sheet-item" id="mobilePaperToneBtn">
-          <div class="sheet-icon-circle">🎨</div>
-          <span id="mobilePaperLabel">Kitap Kağıdı</span>
-        </button>
-        <button class="mobile-sheet-item" id="mobileThemeBtn">
-          <div class="sheet-icon-circle">🌙</div>
-          <span id="mobileThemeLabel">Karanlık Mod</span>
-        </button>
-        <button class="mobile-sheet-item" id="mobileFindBtn">
-          <div class="sheet-icon-circle">🔍</div>
-          <span>Bul & Değiştir</span>
-        </button>
-        <button class="mobile-sheet-item" id="mobilePrintBtn">
-          <div class="sheet-icon-circle">🖨️</div>
-          <span>Yazdır / PDF</span>
-        </button>
-        <button class="mobile-sheet-item" id="mobileDriveBtn">
-          <div class="sheet-icon-circle">☁️</div>
-          <span>Kayıt Klasörü</span>
-        </button>
+
+      <!-- Live Document Stats Bar -->
+      <div class="mobile-sheet-stat-card">
+        <div class="sheet-stat-box">
+          <span class="stat-num" id="sheetWordCount">0</span>
+          <span class="stat-lbl">KELİME</span>
+        </div>
+        <div class="sheet-stat-divider"></div>
+        <div class="sheet-stat-box">
+          <span class="stat-num" id="sheetCharCount">0</span>
+          <span class="stat-lbl">KARAKTER</span>
+        </div>
+        <div class="sheet-stat-divider"></div>
+        <div class="sheet-stat-box">
+          <span class="stat-num" id="sheetReadTime">1 dk</span>
+          <span class="stat-lbl">OKUMA SÜRESİ</span>
+        </div>
+      </div>
+
+      <!-- Reading & Writing Atmosphere Switcher (3-Way Segmented Control) -->
+      <div class="mobile-sheet-section">
+        <div class="mobile-sheet-section-label">YAZMA ATMOSFERİ</div>
+        <div class="mobile-atmosphere-group" id="mobileAtmosphereGroup">
+          <button class="mobile-atmo-btn" data-atmo="white" id="atmoWhiteBtn">
+            <span class="atmo-swatch atmo-swatch-white"></span>
+            <span>Beyaz Kağıt</span>
+          </button>
+          <button class="mobile-atmo-btn active" data-atmo="cream" id="atmoCreamBtn">
+            <span class="atmo-swatch atmo-swatch-cream"></span>
+            <span>Kitap Kağıdı</span>
+          </button>
+          <button class="mobile-atmo-btn" data-atmo="dark" id="atmoDarkBtn">
+            <span class="atmo-swatch atmo-swatch-dark"></span>
+            <span>Gece Modu</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Typography & Page Controls -->
+      <div class="mobile-sheet-section">
+        <div class="mobile-sheet-section-label">YAZI TİPİ VE SATIR ARALIĞI</div>
+        <div class="mobile-typo-controls">
+          <div class="mobile-typo-row">
+            <select class="mobile-typo-select" id="mobileFontFamilySelect" title="Yazı Tipi">
+              <option value="Georgia, serif" selected>Georgia (Edebi Klasik)</option>
+              <option value="'Garamond', serif">Garamond (Roman)</option>
+              <option value="'Palatino Linotype', serif">Palatino (Şiir / Deneme)</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+              <option value="'Segoe UI', sans-serif">Segoe UI (Modern)</option>
+              <option value="'Courier New', monospace">Courier (Daktilo)</option>
+            </select>
+            <select class="mobile-typo-select mobile-typo-size-select" id="mobileFontSizeSelect" title="Punto">
+              <option value="11pt">11 pt</option>
+              <option value="12pt" selected>12 pt</option>
+              <option value="14pt">14 pt</option>
+              <option value="16pt">16 pt</option>
+              <option value="18pt">18 pt</option>
+              <option value="24pt">24 pt</option>
+            </select>
+          </div>
+          <div class="mobile-spacing-pills" id="mobileSpacingPills">
+            <span class="mobile-spacing-label">Satır Aralığı:</span>
+            <button class="mobile-spacing-pill" data-lh="1.2">Dar (1.2)</button>
+            <button class="mobile-spacing-pill active" data-lh="1.65">Kitap (1.65)</button>
+            <button class="mobile-spacing-pill" data-lh="2.0">Geniş (2.0)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Crisp Vector SVG Action Grid (Word Studio Actions Only) -->
+      <div class="mobile-sheet-section">
+        <div class="mobile-sheet-section-label">BELGE İŞLEMLERİ</div>
+        <div class="mobile-sheet-grid">
+          <button class="mobile-sheet-item" id="mobileNewDocBtn">
+            <div class="sheet-icon-circle">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            </div>
+            <span>Yeni Yazı</span>
+          </button>
+          <button class="mobile-sheet-item" id="mobileOpenDocBtn">
+            <div class="sheet-icon-circle">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <span>Belge Aç</span>
+          </button>
+          <button class="mobile-sheet-item" id="mobileSaveDocBtn">
+            <div class="sheet-icon-circle">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            </div>
+            <span>Kaydet (.docx)</span>
+          </button>
+          <button class="mobile-sheet-item" id="mobileDriveBtn">
+            <div class="sheet-icon-circle">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            </div>
+            <span>Kayıtlı Yazılar</span>
+          </button>
+          <button class="mobile-sheet-item" id="mobileRecentDocsBtn">
+            <div class="sheet-icon-circle">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <span>Son Belgeler</span>
+          </button>
+          <button class="mobile-sheet-item" id="mobileFindBtn">
+            <div class="sheet-icon-circle">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+            <span>Bul & Değiştir</span>
+          </button>
+          <button class="mobile-sheet-item" id="mobileZenModeBtn">
+            <div class="sheet-icon-circle">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+            </div>
+            <span>Odak Modu</span>
+          </button>
+          <button class="mobile-sheet-item" id="mobilePrintBtn">
+            <div class="sheet-icon-circle">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            </div>
+            <span>Yazdır / PDF</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>

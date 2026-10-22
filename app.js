@@ -105,14 +105,17 @@ function setTheme(theme) {
   }
 }
 
+function isMobileWordStudio() {
+  return window.innerWidth <= 768 || Boolean(window.AndroidBridge);
+}
+
 function switchTab(tabId) {
+  if (isMobileWordStudio()) {
+    tabId = 'wordTab';
+  }
   appState.currentTab = tabId;
 
   document.querySelectorAll('.nav-pill-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tabId);
-  });
-
-  document.querySelectorAll('.sheet-mode-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabId);
   });
 
@@ -138,25 +141,6 @@ function switchTab(tabId) {
     else if (tabId === 'pptTab') capsuleIcon.src = 'pptx_file.png';
     else if (tabId === 'toolsTab') capsuleIcon.src = 'tools_file.png';
     else capsuleIcon.src = 'docx_file.png';
-  }
-
-  // Update mobile header badge
-  const modeIcon = document.getElementById('mobileModeIcon');
-  const modeText = document.getElementById('mobileModeText');
-  if (modeIcon && modeText) {
-    if (tabId === 'pdfTab') {
-      modeIcon.src = 'pdf_file.png';
-      modeText.textContent = 'PDF';
-    } else if (tabId === 'pptTab') {
-      modeIcon.src = 'pptx_file.png';
-      modeText.textContent = 'Sunum';
-    } else if (tabId === 'toolsTab') {
-      modeIcon.src = 'tools_file.png';
-      modeText.textContent = 'Araçlar';
-    } else {
-      modeIcon.src = 'docx_file.png';
-      modeText.textContent = 'Yazı';
-    }
   }
 }
 
@@ -571,9 +555,18 @@ const docManager = {
 
   renderTabs() {
     const track = document.getElementById('docTabsTrack');
+    const tabsBar = document.getElementById('documentTabsBar');
     if (!track) return;
 
-    track.innerHTML = this.docs.map(doc => {
+    const visibleDocs = isMobileWordStudio()
+      ? this.docs.filter(d => d.type === 'word')
+      : this.docs;
+
+    if (tabsBar) {
+      tabsBar.classList.toggle('has-multiple-docs', visibleDocs.length > 1);
+    }
+
+    track.innerHTML = visibleDocs.map(doc => {
       const isActive = doc.id === this.activeDocId;
       let iconSrc = 'docx_file.png';
       let typeLabel = 'DOCX';
@@ -692,6 +685,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function openAnySelectedFile(file) {
     if (!file) return;
     const name = (file.name || '').toLowerCase();
+    if (isMobileWordStudio()) {
+      switchTab('wordTab');
+      if (window.loadWordFile) window.loadWordFile(file);
+      return;
+    }
     if (name.endsWith('.pdf')) {
       switchTab('pdfTab');
       if (window.loadPdfFile) window.loadPdfFile(file);
@@ -1418,36 +1416,94 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ========================================================================
-  // Mobile Action Sheet & More Button
+  // Mobile Word Studio Drawer (100% Word-Focused Mobile Experience)
   // ========================================================================
+  if (isMobileWordStudio() && wordFileInput) {
+    wordFileInput.setAttribute('accept', '.docx,.doc,.txt,.html,.md');
+  }
+
+  function syncMobileAtmosphereUI() {
+    const isDark = appState.theme === 'dark';
+    const isBook = document.documentElement.getAttribute('data-paper') === 'book';
+    const activeAtmo = isDark ? 'dark' : (isBook ? 'cream' : 'white');
+
+    document.querySelectorAll('#mobileAtmosphereGroup .mobile-atmo-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.atmo === activeAtmo);
+    });
+  }
+
   document.getElementById('mobileMoreBtn')?.addEventListener('click', () => {
-    const paperLabel = document.getElementById('mobilePaperLabel');
-    if (paperLabel) {
-      paperLabel.textContent = document.documentElement.getAttribute('data-paper') === 'book' ? 'Kitap Kağıdı' : 'Beyaz Kağıt';
-    }
-    const themeLabel = document.getElementById('mobileThemeLabel');
-    if (themeLabel) {
-      themeLabel.textContent = appState.theme === 'dark' ? 'Aydınlık Mod' : 'Karanlık Mod';
-    }
+    syncMobileAtmosphereUI();
+    if (window.updateWordStats) window.updateWordStats();
     openModal('mobileActionSheetModal');
   });
 
-  // Mobile Mode Badge in Header opens Options & Mode Switcher
-  document.getElementById('mobileModeBadge')?.addEventListener('click', () => {
+  // Tapping brand icon on mobile also opens the studio drawer
+  document.getElementById('mobileBrandMark')?.addEventListener('click', () => {
     document.getElementById('mobileMoreBtn')?.click();
   });
 
-  // Mobile Mode Tabs in Action Sheet
-  document.querySelectorAll('.sheet-mode-tab').forEach(btn => {
+  // 3-Way Atmosphere Switcher (Beyaz Kağıt / Kitap Kağıdı / Gece Modu)
+  document.querySelectorAll('#mobileAtmosphereGroup .mobile-atmo-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const targetTab = btn.dataset.tab;
-      if (targetTab) {
-        switchTab(targetTab);
-        closeModal('mobileActionSheetModal');
+      const mode = btn.dataset.atmo;
+      if (mode === 'dark') {
+        setTheme('dark');
+        showToast('Gece Yazma Modu Etkin');
+      } else if (mode === 'cream') {
+        setTheme('light');
+        setPaperTone('book');
+        showToast('Sıcak Kitap Kağıdı Etkin');
+      } else {
+        setTheme('light');
+        setPaperTone('white');
+        showToast('Klasik Beyaz Kağıt Etkin');
       }
+      syncMobileAtmosphereUI();
     });
   });
 
+  // Mobile Typography Controls (Font Family, Size, Line Spacing)
+  const mobileFontFamilySelect = document.getElementById('mobileFontFamilySelect');
+  const mobileFontSizeSelect = document.getElementById('mobileFontSizeSelect');
+
+  mobileFontFamilySelect?.addEventListener('change', (e) => {
+    const val = e.target.value;
+    const editor = document.getElementById('wordEditor');
+    if (editor) editor.style.fontFamily = val;
+    const desktopFont = document.getElementById('wordFontFamily');
+    if (desktopFont) {
+      desktopFont.value = val;
+      desktopFont.dispatchEvent(new Event('change'));
+    }
+    showToast('Yazı tipi güncellendi');
+  });
+
+  mobileFontSizeSelect?.addEventListener('change', (e) => {
+    const val = e.target.value;
+    const editor = document.getElementById('wordEditor');
+    if (editor) editor.style.fontSize = val;
+    showToast('Yazı boyutu: ' + val);
+  });
+
+  document.querySelectorAll('#mobileSpacingPills .mobile-spacing-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const lh = pill.dataset.lh;
+      document.querySelectorAll('#mobileSpacingPills .mobile-spacing-pill').forEach(p => {
+        p.classList.toggle('active', p === pill);
+      });
+      const editor = document.getElementById('wordEditor');
+      if (editor && lh) editor.style.lineHeight = lh;
+      const desktopLh = document.getElementById('wordLineHeight');
+      if (desktopLh && lh) {
+        desktopLh.value = lh;
+        desktopLh.dispatchEvent(new Event('change'));
+      }
+      showToast('Satır aralığı: ' + lh);
+    });
+  });
+
+  // 8 Crisp Vector SVG Action Tiles
   document.getElementById('mobileNewDocBtn')?.addEventListener('click', () => {
     closeModal('mobileActionSheetModal');
     document.getElementById('wordNewBtn')?.click();
@@ -1458,42 +1514,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('wordFileInput')?.click();
   });
 
-  document.getElementById('mobileRecentDocsBtn')?.addEventListener('click', () => {
+  document.getElementById('mobileSaveDocBtn')?.addEventListener('click', () => {
     closeModal('mobileActionSheetModal');
-    renderRecentDocs();
-    openModal('recentDocsModal');
-  });
-
-  document.getElementById('mobilePaperToneBtn')?.addEventListener('click', () => {
-    document.getElementById('paperToneBtn')?.click();
-    const paperLabel = document.getElementById('mobilePaperLabel');
-    if (paperLabel) {
-      paperLabel.textContent = document.documentElement.getAttribute('data-paper') === 'book' ? 'Kitap Kağıdı' : 'Beyaz Kağıt';
-    }
-    closeModal('mobileActionSheetModal');
-  });
-
-  document.getElementById('mobileThemeBtn')?.addEventListener('click', () => {
-    document.getElementById('themeToggleBtn')?.click();
-    const themeLabel = document.getElementById('mobileThemeLabel');
-    if (themeLabel) {
-      themeLabel.textContent = appState.theme === 'dark' ? 'Aydınlık Mod' : 'Karanlık Mod';
-    }
-    closeModal('mobileActionSheetModal');
-  });
-
-  document.getElementById('mobileFindBtn')?.addEventListener('click', () => {
-    closeModal('mobileActionSheetModal');
-    if (appState.currentTab === 'pdfTab') {
-      if (window.openPdfFindBar) window.openPdfFindBar();
-    } else {
-      document.getElementById('wordFindBtn')?.click();
-    }
-  });
-
-  document.getElementById('mobilePrintBtn')?.addEventListener('click', () => {
-    closeModal('mobileActionSheetModal');
-    document.getElementById('globalPrintBtn')?.click();
+    document.getElementById('globalSaveBtn')?.click();
   });
 
   document.getElementById('mobileDriveBtn')?.addEventListener('click', () => {
@@ -1501,6 +1524,27 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchDriveStatus();
     loadDriveFiles();
     openModal('driveModal');
+  });
+
+  document.getElementById('mobileRecentDocsBtn')?.addEventListener('click', () => {
+    closeModal('mobileActionSheetModal');
+    renderRecentDocs();
+    openModal('recentDocsModal');
+  });
+
+  document.getElementById('mobileFindBtn')?.addEventListener('click', () => {
+    closeModal('mobileActionSheetModal');
+    document.getElementById('wordFindBtn')?.click();
+  });
+
+  document.getElementById('mobileZenModeBtn')?.addEventListener('click', () => {
+    closeModal('mobileActionSheetModal');
+    toggleZenMode();
+  });
+
+  document.getElementById('mobilePrintBtn')?.addEventListener('click', () => {
+    closeModal('mobileActionSheetModal');
+    document.getElementById('globalPrintBtn')?.click();
   });
 
   // Initial Drive status fetch
