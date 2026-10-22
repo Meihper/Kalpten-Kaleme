@@ -5,8 +5,6 @@ android/obj/
 android/bin/
 android/res/
 android/assets/
-android/src/
-android/AndroidManifest.xml
 *.log
 tmp_*
 test_*.ps1
