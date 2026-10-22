@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Kalpten Kaleme</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=3">
+  <link rel="shortcut icon" href="favicon.ico?v=3">
+  <link rel="apple-touch-icon" href="app.png?v=3">
+  <link rel="manifest" href="manifest.json?v=3">
+  <meta name="theme-color" content="#1C2438">
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Offline Core Libraries (Deferred for instantaneous initial paint) -->
+  <script src="vendor/jszip.min.js" defer></script>
+  <script src="vendor/mammoth.browser.min.js" defer></script>
+  <script src="vendor/html-docx.js" defer></script>
+  <script src="vendor/pdf.min.js" defer></script>
+  <script src="vendor/pdf.worker.min.js" defer></script>
+  <script src="vendor/pdf-lib.min.js" defer></script>
+</head>
+<body>
+  <!-- Hover zone and exit pill for Zen Mode -->
+  <div class="zen-hover-trigger"></div>
+  <button class="exit-zen-pill" id="exitZenBtn" title="Odak Modundan Çık (Esc)">
+    ✕ Odaktan Çık [Esc]
+  </button>
+
+  <!-- ========================================================================
+       UNIFIED HEADER BAR (Row 1: Brand + File Name + Tabs + Actions)
+       ======================================================================== -->
+  <header class="unified-header">
+    
+    <!-- Left: Document Title + Auto-Save Status -->
+    <div class="header-left">
+      <button class="mobile-mode-badge mobile-only-btn" id="mobileModeBadge" title="Bölüm Değiştir (Yazı, PDF, Araçlar)">
+        <img src="docx_file.png" id="mobileModeIcon" class="mobile-mode-icon-img" alt="Yazı">
+        <span id="mobileModeText">Yazı</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+
+      <div class="doc-capsule">
+        <img src="docx_file.png" class="doc-capsule-type-icon" id="docCapsuleTypeIcon" alt="Belge">
+        <input type="text" class="doc-name-pill" id="wordDocTitle" value="Yeni Yazı.docx" title="Yazı Başlığını Düzenle" spellcheck="false">
+        <input type="text" class="doc-name-pill" id="pdfDocTitle" style="display: none;" value="PDF Seçilmedi.pdf" title="PDF Dosya Adını Düzenle" spellcheck="false">
+        <input type="text" class="doc-name-pill" id="pptDocTitle" style="display: none;" value="Sunum 1.pptx" title="Sunum Başlığını Düzenle" spellcheck="false">
+      </div>
+      <span class="auto-save-pill" id="wordSaveStatus" title="Otomatik Yazı Koruma">● Otomatik korundu</span>
+      <div class="drive-sync-pill" id="driveSyncPill" title="Google Drive Senkronizasyon Durumu (Yazıları Yönetmek İçin Tıklayın)">
+        <span class="drive-status-dot" id="driveStatusDot"></span>
+        <span id="driveStatusText">☁️ Drive</span>
+      </div>
+    </div>
+
+    <!-- Center: Segmented Navigation -->
+    <div class="header-center">
+      <nav class="nav-segmented">
+        <button class="nav-pill-btn active" data-tab="wordTab">Yazı</button>
+        <button class="nav-pill-btn" data-tab="pdfTab">PDF</button>
+        <button class="nav-pill-btn" data-tab="pptTab">Sunum</button>
+        <button class="nav-pill-btn" data-tab="toolsTab">Araçlar</button>
+      </nav>
+    </div>
+
+    <!-- Right: Streamlined Action Buttons -->
+    <div class="header-right">
+      <button class="pill-btn pill-btn-primary" id="globalSaveBtn" title="Kaydet (Ctrl+S)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+        <span class="btn-text">Kaydet</span>
+      </button>
+
+      <button class="pill-btn pill-btn-secondary" id="zenModeBtn" title="Odaklanma Modu (F11)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+      </button>
+
+      <button class="pill-btn pill-btn-secondary" id="paperToneBtn" title="Gözü Dinlendiren Kağıt Tonu (Kitap / Beyaz)">
+        <span class="paper-dot" style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#FAF7EE; border:1px solid #C4BAA9;"></span>
+        <span class="btn-text">Kitap Kağıdı</span>
+      </button>
+
+      <button class="pill-btn pill-btn-secondary" id="globalOpenBtn" title="Dosya Aç">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span class="btn-text">Aç</span>
+      </button>
+
+      <button class="pill-btn pill-btn-secondary" id="wordNewBtn" title="Yeni Boş Belge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span class="btn-text">Yeni</span>
+      </button>
+
+      <div class="tool-sep"></div>
+
+      <button class="icon-btn" id="recentDocsBtn" title="Son Kullanılan Belgeler">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      </button>
+
+      <button class="icon-btn" id="wordFindBtn" title="Bul ve Değiştir (Ctrl+F)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      </button>
+
+      <button class="icon-btn" id="globalPrintBtn" title="Yazdır / PDF (Ctrl+P)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+      </button>
+
+      <button class="icon-btn" id="themeToggleBtn" title="Karanlık/Aydınlık Tema">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+      </button>
+
+      <!-- Mobile Dedicated Options Menu Button -->
+      <button class="icon-btn mobile-only-btn" id="mobileMoreBtn" title="Seçenekler Menüsü">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+          <circle cx="12" cy="12" r="1.5"></circle>
+          <circle cx="12" cy="5" r="1.5"></circle>
+          <circle cx="12" cy="19" r="1.5"></circle>
+        </svg>
+      </button>
+
+      <!-- Hidden file pickers (Unified format support) -->
+      <input type="file" id="wordFileInput" accept=".docx,.doc,.txt,.html,.md,.pdf,.pptx,.ppt,.json" style="display: none;">
+      <input type="file" id="pdfFileInput" accept=".pdf,.docx,.doc" style="display: none;">
+    </div>
+  </header>
+
+  <!-- Multi-Document Tabs Bar -->
+  <div class="document-tabs-bar" id="documentTabsBar">
+    <div class="doc-tabs-track" id="docTabsTrack">
+      <!-- Tabs rendered dynamically -->
+    </div>
+    <button class="new-tab-btn" id="newDocTabBtn" title="Yeni Boş Belge Aç (Word / Not)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span>Yeni Belge</span>
+    </button>
+  </div>
+
+  <!-- ========================================================================
+       MAIN APPLICATION CONTAINER
+       ======================================================================== -->
+  <main class="main-container">
+
+    <!-- ====================================================================
+         TAB 1: WORD DÜZENLEYİCİ
+         ==================================================================== -->
+    <section class="tab-pane active" id="wordTab">
+      
+      <!-- Find & Replace Toolbar (Ctrl+F) -->
+      <div class="find-replace-bar" id="findReplaceBar">
+        <span style="font-size: 11.5px; font-weight: 700;">🔍 Bul & Değiştir:</span>
+        <input type="text" class="find-input" id="findInputText" placeholder="Aranan kelime...">
+        <input type="text" class="find-input" id="replaceInputText" placeholder="Yeni kelime...">
+        <button class="pill-btn pill-btn-secondary" id="findNextBtn" style="padding: 4px 10px;">Bul</button>
+        <button class="pill-btn pill-btn-secondary" id="replaceBtn" style="padding: 4px 10px;">Değiştir</button>
+        <button class="pill-btn pill-btn-primary" id="replaceAllBtn" style="padding: 4px 10px;">Tümünü Değiştir</button>
+        <button class="icon-btn" id="closeFindBarBtn" style="width: 26px; height: 26px;">✕</button>
+      </div>
+
+      <!-- Slim Formatting Bar (Row 2 - Decluttered & Spacious) -->
+      <div class="slim-toolbar">
+        <button class="tool-item" data-command="undo" title="Geri Al (Ctrl+Z)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+        </button>
+        <button class="tool-item" data-command="redo" title="İleri Al (Ctrl+Y)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+        </button>
+
+        <div class="tool-sep"></div>
+
+        <select class="slim-select" id="wordFormatBlock">
+          <option value="p">Normal Metin</option>
+          <option value="h1">Büyük Başlık (H1)</option>
+          <option value="h2">Orta Başlık (H2)</option>
+          <option value="h3">Küçük Başlık (H3)</option>
+          <option value="blockquote">Alıntı Paragrafı</option>
+        </select>
+
+        <select class="slim-select" id="wordFontFamily">
+          <option value="'Georgia', serif" selected>Georgia (Roman & Edebi)</option>
+          <option value="'Garamond', serif">Garamond (Kitap)</option>
+          <option value="'Palatino Linotype', 'Book Antiqua', serif">Palatino (Deneme)</option>
+          <option value="'Segoe UI', sans-serif">Segoe UI (Modern)</option>
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="'Times New Roman', serif">Times New Roman</option>
+          <option value="'Courier New', monospace">Daktilo (Courier)</option>
+        </select>
+
+        <select class="slim-select" id="wordFontSize">
+          <option value="1">10 pt</option>
+          <option value="2">12 pt</option>
+          <option value="3">14 pt</option>
+          <option value="4" selected>16 pt (İdeal Okuma)</option>
+          <option value="5">18 pt</option>
+          <option value="6">24 pt</option>
+        </select>
+
+        <div class="tool-sep"></div>
+
+        <button class="tool-item" data-command="bold" title="Kalın (Ctrl+B)"><b>B</b></button>
+        <button class="tool-item" data-command="italic" title="İtalik (Ctrl+I)"><i>I</i></button>
+        <button class="tool-item" data-command="underline" title="Altı Çizili (Ctrl+U)"><u>U</u></button>
+
+        <!-- Text Color with Instant Presets & Custom Picker -->
+        <div class="color-dropdown-container">
+          <button type="button" class="tool-item color-tool-btn" id="wordTextColorBtn" title="Yazı Rengi (Hazır Renkler & Skala)">
+            <span class="color-btn-letter">A</span>
+            <span class="color-btn-bar" id="wordTextColorBar" style="background-color: #111827;"></span>
+          </button>
+          <div class="color-preset-popover" id="wordTextColorPopover">
+            <div class="color-preset-header">
+              <span class="preset-title">Yazı Rengi</span>
+              <button type="button" class="preset-default-btn" data-color="#111827">Varsayılan</button>
+            </div>
+            <div class="color-preset-grid">
+              <button type="button" class="preset-swatch active" data-color="#111827" style="background:#111827;" title="Siyah / Koyu Füme"></button>
+              <button type="button" class="preset-swatch" data-color="#4B5563" style="background:#4B5563;" title="Koyu Gri"></button>
+              <button type="button" class="preset-swatch" data-color="#1E40AF" style="background:#1E40AF;" title="Lacivert"></button>
+              <button type="button" class="preset-swatch" data-color="#0284C7" style="background:#0284C7;" title="Mavi / Gökyüzü"></button>
+              <button type="button" class="preset-swatch" data-color="#16A34A" style="background:#16A34A;" title="Zümrüt Yeşili"></button>
+              <button type="button" class="preset-swatch" data-color="#DC2626" style="background:#DC2626;" title="Kırmızı"></button>
+              <button type="button" class="preset-swatch" data-color="#7C3AED" style="background:#7C3AED;" title="Asil Mor"></button>
+              <button type="button" class="preset-swatch" data-color="#854D0E" style="background:#854D0E;" title="Kahverengi"></button>
+              <button type="button" class="preset-swatch" data-color="#EA580C" style="background:#EA580C;" title="Yanık Turuncu"></button>
+              <button type="button" class="preset-swatch" data-color="#DB2777" style="background:#DB2777;" title="Gül Pembesi"></button>
+            </div>
+            <div class="color-preset-footer">
+              <label class="custom-color-trigger" title="Renk Skalasından Özel Renk Seç">
+                <span class="custom-color-icon">🎨</span>
+                <span class="custom-color-text">Özel Renk Seç (Skala)...</span>
+                <input type="color" class="color-input-hidden" id="wordTextColor" value="#191B1F">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text Highlight Color with Instant Presets & Clear -->
+        <div class="color-dropdown-container">
+          <button type="button" class="tool-item color-tool-btn" id="wordHighlightColorBtn" title="Vurgu / Fosforlu İşaretleyici">
+            <span class="color-btn-letter highlight-symbol">H</span>
+            <span class="color-btn-bar" id="wordHighlightColorBar" style="background-color: #FEF08A;"></span>
+          </button>
+          <div class="color-preset-popover" id="wordHighlightColorPopover">
+            <div class="color-preset-header">
+              <span class="preset-title">Vurgu Rengi</span>
+              <button type="button" class="preset-default-btn remove-highlight" data-color="transparent">Vurguyu Kaldır</button>
+            </div>
+            <div class="color-preset-grid">
+              <button type="button" class="preset-swatch" data-color="#FEF08A" style="background:#FEF08A;" title="Güneş Sarısı"></button>
+              <button type="button" class="preset-swatch" data-color="#BBF7D0" style="background:#BBF7D0;" title="Nane Yeşili"></button>
+              <button type="button" class="preset-swatch" data-color="#BAE6FD" style="background:#BAE6FD;" title="Bebek Mavisi"></button>
+              <button type="button" class="preset-swatch" data-color="#FBCFE8" style="background:#FBCFE8;" title="Gül Pembesi"></button>
+              <button type="button" class="preset-swatch" data-color="#FED7AA" style="background:#FED7AA;" title="Şeftali"></button>
+              <button type="button" class="preset-swatch" data-color="#E9D5FF" style="background:#E9D5FF;" title="Lavanta"></button>
+            </div>
+            <div class="color-preset-footer">
+              <label class="custom-color-trigger" title="Özel Vurgu Tonu Seç">
+                <span class="custom-color-icon">🎨</span>
+                <span class="custom-color-text">Özel Vurgu Rengi...</span>
+                <input type="color" class="color-input-hidden" id="wordHighlightColor" value="#FFF500">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <button class="tool-item" data-command="justifyLeft" title="Sola Yasla">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+        </button>
+        <button class="tool-item" data-command="justifyCenter" title="Ortala">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="18" y1="18" x2="6" y2="18"></line></svg>
+        </button>
+        <button class="tool-item" data-command="justifyFull" title="İki Yana Yasla (Kitap Düzeni)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+        </button>
+
+        <select class="slim-select" id="wordLineHeight" title="Satır Aralığı">
+          <option value="1.2">1.2x</option>
+          <option value="1.5" selected>1.5x (Rahat)</option>
+          <option value="2.0">2.0x (Geniş)</option>
+        </select>
+
+        <div class="tool-sep"></div>
+
+        <button class="tool-item" data-command="insertUnorderedList" title="Madde İşaretli Liste">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+        </button>
+        <button class="tool-item" data-command="insertOrderedList" title="Numaralı Liste">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
+        </button>
+
+        <div class="tool-sep"></div>
+
+        <button class="tool-item" id="wordInsertImageBtn" title="Resim Ekle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        </button>
+        <input type="file" id="wordImageInput" accept="image/*" style="display: none;">
+
+        <button class="tool-item" id="wordInsertTableBtn" title="Tablo Ekle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+        </button>
+
+
+        <div class="tool-sep"></div>
+
+        <!-- Sleek Page Layout Native Dropdown (100% Native HTML5 details/summary) -->
+        <details class="page-layout-dropdown" id="pageLayoutDetails">
+          <summary class="pill-btn pill-btn-secondary" id="pageLayoutMenuBtn" style="height: 28px; padding: 0 10px; font-size: 11.5px; gap: 5px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="4" y="2" width="16" height="20" rx="2"></rect></svg>
+            Sayfa Düzeni ▾
+          </summary>
+
+          <div class="page-layout-menu" id="pageLayoutMenu">
+            <div class="menu-group-label">Sayfa Boşlukları</div>
+            <select class="slim-select full-width" id="wordMarginsSelect">
+              <option value="normal" selected>Normal (2.5 cm)</option>
+              <option value="narrow">Dar (1.25 cm)</option>
+              <option value="wide">Geniş (Kitap Düzeni)</option>
+            </select>
+
+            <div class="menu-group-label" style="margin-top: 8px;">Sayfa Yönü</div>
+            <button class="menu-item-btn" id="wordOrientationBtn" type="button">
+              <span>🔄 Sayfa Yönü</span>
+              <strong id="wordOrientationLabel" style="color: var(--accent-primary);">Dikey</strong>
+            </button>
+
+            <div class="menu-group-label" style="margin-top: 8px;">Görünüm Modu</div>
+            <button class="menu-item-btn" id="wordToggleViewBtn" type="button">
+              <span>📐 Ekran Modu</span>
+              <strong id="wordToggleViewLabel" style="color: var(--accent-primary);">A4 Sayfa</strong>
+            </button>
+
+            <div class="menu-divider"></div>
+
+            <button class="menu-item-btn" id="wordInsertPageBreakBtn" type="button">
+              📄 Sayfa Sonu Ekle
+            </button>
+            <button class="menu-item-btn" id="wordInsertLinkBtn" type="button">
+              🔗 Bağlantı (Link) Ekle
+            </button>
+
+            <div class="menu-divider"></div>
+
+            <div class="subscript-tools-row">
+              <button class="tool-item" data-command="strikeThrough" title="Üstü Çizili"><s>S</s></button>
+              <button class="tool-item" data-command="subscript" title="Alt Simge">X₂</button>
+              <button class="tool-item" data-command="superscript" title="Üst Simge">X²</button>
+              <button class="tool-item" data-command="justifyRight" title="Sağa Yasla">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
+        </details>
+
+      </div>
+
+      <!-- Word Workspace (A4 Canvas) -->
+      <div class="word-workspace" id="wordWorkspaceArea">
+        <div class="editor-page-container" id="editorContainer">
+          <div class="word-canvas-sheet" id="wordEditor" contenteditable="true" spellcheck="true"></div>
+        </div>
+        <!-- Natural Document End Marker on Mobile -->
+        <div class="mobile-doc-end-marker mobile-only-btn" id="mobileDocEndMarker">
+          <span id="mobileDocEndWords">✍️ 0 Kelime</span>
+          <span class="dot-sep">•</span>
+          <span id="mobileDocEndSave">Otomatik korundu</span>
+        </div>
+      </div>
+
+      <!-- Word Status Bar -->
+      <footer class="word-status-bar">
+        <div class="status-stats">
+          <span id="wordCountStat">0 Kelime</span>
+          <span>•</span>
+          <span id="charCountStat">0 Karakter</span>
+          <span>•</span>
+          <span id="readingTimeStat">1 dk</span>
+        </div>
+        <div id="wordSaveState">Tüm değişiklikler kaydedildi</div>
+      </footer>
+
+    </section>
+
+    <!-- ====================================================================
+         TAB 2: ADOBE & PDF EDITÖRÜ
+         ==================================================================== -->
+    <section class="tab-pane" id="pdfTab">
+      
+      <!-- PDF Find & Replace Toolbar (Ctrl+F) -->
+      <div class="find-replace-bar" id="pdfFindReplaceBar" style="display: none;">
+        <span style="font-size: 11.5px; font-weight: 700;">🔍 PDF Bul & Değiştir:</span>
+        <input type="text" class="find-input" id="pdfFindInput" placeholder="PDF içinde ara...">
+        <input type="text" class="find-input" id="pdfReplaceInput" placeholder="Yeni metin ile değiştir...">
+        <span id="pdfFindCount" style="font-size: 11px; font-weight: 600; color: var(--text-secondary); min-width: 40px; text-align: center;">0/0</span>
+        <button class="pill-btn pill-btn-secondary" id="pdfFindPrevBtn" style="padding: 4px 8px;" title="Önceki Eşleşme">▲</button>
+        <button class="pill-btn pill-btn-secondary" id="pdfFindNextBtn" style="padding: 4px 8px;" title="Sonraki Eşleşme">▼</button>
+        <button class="pill-btn pill-btn-secondary" id="pdfReplaceOneBtn" style="padding: 4px 10px;">Değiştir</button>
+        <button class="pill-btn pill-btn-primary" id="pdfReplaceAllBtn" style="padding: 4px 10px;">Tümünü Değiştir</button>
+        <button class="icon-btn" id="pdfCloseFindBarBtn" style="width: 26px; height: 26px;">✕</button>
+      </div>
+
+      <!-- PDF Slim Toolbar (Row 2 - Unified & Luxury Architecture) -->
+      <div class="slim-toolbar pdf-toolbar-pro">
+        <button class="icon-btn tool-item-rounded" id="pdfToggleSidebarBtn" title="Sayfa Minyatürleri (Sol Panel)" style="width: 32px; height: 32px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+        </button>
+
+        <!-- Page Navigation Capsule -->
+        <div class="tool-capsule-group">
+          <button class="capsule-sub-btn" id="pdfPrevPageBtn" title="Önceki Sayfa">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <span class="capsule-label" id="pdfPageIndicator">0 / 0</span>
+          <button class="capsule-sub-btn" id="pdfNextPageBtn" title="Sonraki Sayfa">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+        </div>
+
+        <!-- Zoom Capsule -->
+        <div class="tool-capsule-group">
+          <button class="capsule-sub-btn" id="pdfZoomOutBtn" title="Uzaklaştır">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+          <span class="capsule-label zoom-label" id="pdfZoomLabel">%125</span>
+          <button class="capsule-sub-btn" id="pdfZoomInBtn" title="Yakınlaştır">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Segmented PDF Editing Tools Cluster -->
+        <div class="pdf-tools-segmented">
+          <button class="tool-item active" data-tool="editText" id="pdfEditTextBtn" title="Metin Düzenle (PDF üzerindeki herhangi bir yazıya tıklayıp düzenleyin)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <span class="tool-item-label">Metni Düzenle</span>
+          </button>
+
+          <button class="tool-item" data-tool="text" title="Yeni Metin Ekle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+            <span class="tool-item-label">Yazı Ekle</span>
+          </button>
+
+          <button class="tool-item" data-tool="highlight" title="Fosforlu Vurgu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l-6 6v3h3l6-6"></path><path d="M22 2l-7 7 3 3 7-7z"></path></svg>
+          </button>
+
+          <button class="tool-item" id="pdfInsertImageBtn" title="Resim Ekle (PNG/JPG)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </button>
+          <input type="file" id="pdfImageFileInput" accept="image/png,image/jpeg,image/webp" style="display: none;">
+
+          <button class="tool-item" id="pdfFindToggleBtn" title="Bul ve Değiştir (Ctrl+F)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Page Operations Cluster -->
+        <div class="tool-capsule-group">
+          <button class="capsule-sub-btn with-text" id="pdfOrganizePagesBtn" disabled title="Sayfaları Yönet / Sırala">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Sayfalar</span>
+          </button>
+          <button class="capsule-sub-btn" id="pdfRotateBtn" title="Seçili Sayfayı 90° Döndür">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          </button>
+          <button class="capsule-sub-btn danger" id="pdfDeletePageBtn" title="Sayfayı Sil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Luxury Word Integration Action -->
+        <button class="pill-btn pill-btn-primary word-convert-pill" id="pdfEditInWordBtn" disabled title="Tüm PDF metinlerini, tablolarını ve düzenini koruyarak Word editöründe serbestçe düzenleyin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+          <span>Word Olarak Düzenle</span>
+        </button>
+      </div>
+
+      <!-- PDF Viewport -->
+      <div class="pdf-main-layout">
+        <aside class="pdf-sidebar" id="pdfSidebar"></aside>
+        
+        <div class="pdf-viewport-container" id="pdfViewportContainer">
+          <div class="dropzone-overlay" id="pdfDropZone">
+            <div class="tool-icon-wrapper tool-icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+            </div>
+            <h3 style="font-size: 16px; font-weight: 700;">Bir PDF Dosyası Sürükleyin veya Seçin</h3>
+            <p style="font-size: 12.5px; color: var(--text-secondary); max-width: 320px;">
+              İmzalamak, form doldurmak veya düzenlemek için PDF seçin.
+            </p>
+            <button class="pill-btn pill-btn-primary" onclick="document.getElementById('pdfFileInput').click();">
+              Dosya Seç (.pdf)
+            </button>
+          </div>
+
+          <div id="pdfPagesContainer" style="display: none; width: 100%; flex-direction: column; align-items: center;"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ====================================================================
+         TAB 3: POWERPOINT SUNUM STÜDYOSU (SLIDES)
+         ==================================================================== -->
+    <section class="tab-pane" id="pptTab">
+      <!-- PowerPoint Slim Toolbar -->
+      <div class="slim-toolbar ppt-toolbar" id="pptToolbar">
+        <!-- Add Slide with layout dropdown -->
+        <div class="dropdown-wrapper" style="position: relative;">
+          <button class="pill-btn pill-btn-primary" id="pptAddSlideBtn" style="height: 28px; padding: 0 10px; font-size: 12px;" title="Yeni Slayt Ekle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span class="btn-text">Yeni Slayt</span>
+          </button>
+          <div class="dropdown-menu" id="pptLayoutDropdown" style="display: none; position: fixed; z-index: 999999; min-width: 190px; background: var(--surface); border: 1px solid var(--border-light); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.16); padding: 5px;">
+            <button class="dropdown-item" data-layout="title" style="display: block; width: 100%; text-align: left; padding: 7px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 6px; font-size: 12.5px; font-weight: 500;">Başlık Slaytı</button>
+            <button class="dropdown-item" data-layout="title_content" style="display: block; width: 100%; text-align: left; padding: 7px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 6px; font-size: 12.5px; font-weight: 500;">Başlık ve İçerik</button>
+            <button class="dropdown-item" data-layout="two_col" style="display: block; width: 100%; text-align: left; padding: 7px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 6px; font-size: 12.5px; font-weight: 500;">İki Sütunlu Karşılaştırma</button>
+            <button class="dropdown-item" data-layout="quote" style="display: block; width: 100%; text-align: left; padding: 7px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 6px; font-size: 12.5px; font-weight: 500;">Büyük Alıntı / Vurgu</button>
+            <button class="dropdown-item" data-layout="blank" style="display: block; width: 100%; text-align: left; padding: 7px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 6px; font-size: 12.5px; font-weight: 500;">Boş Kanvas</button>
+          </div>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Theme Selector -->
+        <div class="toolbar-group">
+          <select id="pptThemeSelect" class="slim-select toolbar-select" style="max-width: 110px;" title="Sunum Temasını Değiştir">
+            <option value="theme-clean-light" selected>Klasik Beyaz</option>
+            <option value="theme-sepia-book">Kitap Kağıdı</option>
+            <option value="theme-luxury-dark">Gece Laciverti</option>
+            <option value="theme-sunset">Gün Batımı</option>
+            <option value="theme-emerald">Modern Zümrüt</option>
+          </select>
+        </div>
+
+        <!-- Slide Sizing / Aspect Ratio Selector -->
+        <div class="toolbar-group">
+          <select id="pptAspectSelect" class="slim-select toolbar-select" style="max-width: 96px;" title="Slayt Boyutu / Kağıt Düzeni">
+            <option value="16:9" selected>16:9 Geniş</option>
+            <option value="4:3">4:3 Standart</option>
+            <option value="a4-portrait">A4 Dikey</option>
+            <option value="a4-landscape">A4 Yatay</option>
+          </select>
+        </div>
+
+        <!-- Zoom / Scale Selector -->
+        <div class="toolbar-group">
+          <select id="pptZoomSelect" class="slim-select toolbar-select" style="width: 64px;" title="Kanvas Yakınlaştırma / Ölçek">
+            <option value="100" selected>%100</option>
+            <option value="75">%75</option>
+            <option value="50">%50</option>
+            <option value="125">%125</option>
+            <option value="fit">Sığdır</option>
+          </select>
+        </div>
+
+        <!-- Layout Selector for active slide -->
+        <div class="toolbar-group">
+          <select id="pptCurrentLayoutSelect" class="slim-select toolbar-select" style="max-width: 110px;" title="Aktif Slayt Düzeni">
+            <option value="title">Başlık Slaytı</option>
+            <option value="title_content">Başlık & İçerik</option>
+            <option value="two_col">İki Sütunlu</option>
+            <option value="quote">Edebi Alıntı</option>
+            <option value="blank">Boş Kanvas</option>
+          </select>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Text formatting -->
+        <div class="toolbar-group">
+          <button class="tool-item" id="pptBoldBtn" title="Kalın (Ctrl+B)"><b>B</b></button>
+          <button class="tool-item" id="pptItalicBtn" title="İtalik (Ctrl+I)"><i>I</i></button>
+          <button class="tool-item" id="pptUnderlineBtn" title="Altı Çizili (Ctrl+U)"><u>U</u></button>
+          <button class="tool-item" id="pptAlignLeftBtn" title="Sola Hizala">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+          </button>
+          <button class="tool-item" id="pptAlignCenterBtn" title="Ortala">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="18" y1="18" x2="6" y2="18"></line></svg>
+          </button>
+          <select id="pptFontFamily" class="slim-select toolbar-select" style="max-width: 92px;" title="Yazı Tipi">
+            <option value="'Segoe UI', sans-serif">Segoe UI</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="Garamond, serif">Garamond</option>
+            <option value="'Times New Roman', serif">Times New Roman</option>
+            <option value="Arial, sans-serif">Arial</option>
+          </select>
+          <select id="pptFontSize" class="slim-select toolbar-select" style="width: 62px;" title="Yazı Boyutu">
+            <option value="18px">18 pt</option>
+            <option value="24px">24 pt</option>
+            <option value="32px" selected>32 pt</option>
+            <option value="42px">42 pt</option>
+            <option value="54px">54 pt</option>
+          </select>
+          <!-- Quick Color Select -->
+          <div class="dropdown-wrapper" style="position: relative;">
+            <button class="tool-item color-tool-btn" id="pptTextColorBtn" title="Metin Rengi">
+              <span class="color-btn-letter">A</span>
+              <span class="color-btn-bar" id="pptTextColorBar" style="background-color: #1E293B;"></span>
+            </button>
+            <div class="dropdown-menu" id="pptColorMenu" style="display: none; position: fixed; z-index: 999999; min-width: 140px; background: var(--surface); border: 1px solid var(--border-light); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.16); padding: 8px; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+              <button class="ppt-color-dot" data-color="#0F172A" style="width: 24px; height: 24px; border-radius: 6px; background: #0F172A; border: 1px solid rgba(0,0,0,0.2); cursor: pointer;" title="Siyah / Lacivert"></button>
+              <button class="ppt-color-dot" data-color="#2563EB" style="width: 24px; height: 24px; border-radius: 6px; background: #2563EB; border: 1px solid rgba(0,0,0,0.2); cursor: pointer;" title="Kraliyet Mavisi"></button>
+              <button class="ppt-color-dot" data-color="#DC2626" style="width: 24px; height: 24px; border-radius: 6px; background: #DC2626; border: 1px solid rgba(0,0,0,0.2); cursor: pointer;" title="Kırmızı"></button>
+              <button class="ppt-color-dot" data-color="#059669" style="width: 24px; height: 24px; border-radius: 6px; background: #059669; border: 1px solid rgba(0,0,0,0.2); cursor: pointer;" title="Zümrüt Yeşili"></button>
+              <button class="ppt-color-dot" data-color="#D97706" style="width: 24px; height: 24px; border-radius: 6px; background: #D97706; border: 1px solid rgba(0,0,0,0.2); cursor: pointer;" title="Altın Kehribar"></button>
+              <button class="ppt-color-dot" data-color="#7C3AED" style="width: 24px; height: 24px; border-radius: 6px; background: #7C3AED; border: 1px solid rgba(0,0,0,0.2); cursor: pointer;" title="Asil Mor"></button>
+              <button class="ppt-color-dot" data-color="#475569" style="width: 24px; height: 24px; border-radius: 6px; background: #475569; border: 1px solid rgba(0,0,0,0.2); cursor: pointer;" title="Koyu Gri"></button>
+              <button class="ppt-color-dot" data-color="#FFFFFF" style="width: 24px; height: 24px; border-radius: 6px; background: #FFFFFF; border: 1px solid #CBD5E1; cursor: pointer;" title="Beyaz"></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Add Elements -->
+        <div class="tool-capsule-group">
+          <button class="capsule-sub-btn with-text" id="pptAddTextBoxBtn" title="Metin Kutusu Ekle">
+            <span>+ Metin</span>
+          </button>
+          <button class="capsule-sub-btn with-text" id="pptAddBulletBtn" title="Madde Listesi Ekle">
+            <span>+ Liste</span>
+          </button>
+          <button class="capsule-sub-btn with-text" id="pptAddCardBtn" title="Vurgu / Bilgi Kartı Ekle">
+            <span>+ Kart</span>
+          </button>
+          <button class="capsule-sub-btn with-text" id="pptAddImageBtn" title="Görsel Ekle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>Görsel</span>
+          </button>
+          <input type="file" id="pptImageInput" accept="image/*" style="display: none;">
+        </div>
+
+        <div class="tool-sep"></div>
+
+        <!-- Slide Actions -->
+        <div class="tool-capsule-group">
+          <button class="capsule-sub-btn" id="pptMoveUpBtn" title="Slaytı Yukarı Taşı">▲</button>
+          <button class="capsule-sub-btn" id="pptMoveDownBtn" title="Slaytı Aşağı Taşı">▼</button>
+          <button class="capsule-sub-btn with-text" id="pptDuplicateSlideBtn" title="Seçili Slaytı Çoğalt">
+            <span>Çoğalt</span>
+          </button>
+          <button class="capsule-sub-btn danger" id="pptDeleteSlideBtn" title="Slaytı Sil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        </div>
+
+        <!-- Right Side: Presentation Mode (F5) & Export -->
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
+          <!-- Export Dropdown -->
+          <div class="dropdown-wrapper" style="position: relative;">
+            <button class="pill-btn pill-btn-secondary" id="pptExportDropdownBtn" style="height: 28px; padding: 0 9px; font-size: 11.5px;" title="Sunumu Dışa Aktar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span class="btn-text">İndir ▾</span>
+            </button>
+            <div class="dropdown-menu" id="pptExportMenu" style="display: none; position: fixed; z-index: 999999; min-width: 220px; background: var(--surface); border: 1px solid var(--border-light); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.16); padding: 5px;">
+              <button class="dropdown-item" id="pptExportHtmlBtn" style="display: block; width: 100%; text-align: left; padding: 8px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 6px; font-size: 12.5px; font-weight: 500;">Bağımsız HTML Sunumu (.html)</button>
+              <button class="dropdown-item" id="pptExportPrintBtn" style="display: block; width: 100%; text-align: left; padding: 8px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 6px; font-size: 12.5px; font-weight: 500;">PDF Olarak Yazdır / Kaydet</button>
+              <button class="dropdown-item" id="pptExportJsonBtn" style="display: block; width: 100%; text-align: left; padding: 8px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 6px; font-size: 12.5px; font-weight: 500;">Sunum Proje Dosyası (.json)</button>
+            </div>
+          </div>
+
+          <button class="pill-btn pill-btn-primary" id="pptPresentBtn" style="height: 28px; padding: 0 10px; font-size: 11.5px; font-weight: 700;" title="Slayt Gösterisini Başlat (F5)">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <span class="btn-text">Sunum (F5)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PowerPoint Main Workspace -->
+      <div class="ppt-workspace">
+        <!-- Left Sidebar: Slayt Şeridi (Slide Thumbnails) -->
+        <aside class="ppt-sidebar">
+          <div class="ppt-sidebar-header">
+            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.5px;">Slaytlar</span>
+            <span id="pptSlideCountBadge" class="ppt-count-badge">1 / 1</span>
+          </div>
+          <div class="ppt-thumbnails-track" id="pptThumbnailsTrack">
+            <!-- Dynamically populated slide thumbnail cards -->
+          </div>
+          <div class="ppt-sidebar-footer">
+            <button class="pill-btn pill-btn-secondary" id="pptSidebarAddSlideBtn" style="width: 100%; justify-content: center;">
+              + Yeni Slayt Ekle
+            </button>
+          </div>
+        </aside>
+
+        <!-- Center Stage: 16:9 Cinematic Slide Canvas -->
+        <div class="ppt-stage" id="pptStage">
+          <div class="ppt-slide-wrapper">
+            <div class="ppt-slide-canvas theme-luxury-dark" id="pptActiveSlideCanvas">
+              <!-- Rendered slide content -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         TAB 4: ACROBAT HIZLI ARAÇLAR
+         ==================================================================== -->
+    <section class="tab-pane" id="toolsTab">
+      <div class="tools-container">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 4px;">PDF Hızlı Araçları</h2>
+          <p style="font-size: 13px; color: var(--text-secondary);">Dönüştürme, birleştirme ve sayfa yönetimi araçları.</p>
+        </div>
+
+        <div class="tools-grid">
+          <!-- Merge -->
+          <div class="tool-card">
+            <div class="tool-icon-wrapper tool-icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M12 11h4"></path><path d="M12 16h4"></path></svg>
+            </div>
+            <h3>PDF Birleştirici</h3>
+            <p>Birden çok PDF dosyasını tek dosyada birleştirin.</p>
+            <button class="pill-btn pill-btn-primary" id="toolMergeBtn">PDF'leri Seç ve Birleştir</button>
+            <input type="file" id="toolMergeInput" accept="application/pdf" multiple style="display: none;">
+          </div>
+
+          <!-- Split -->
+          <div class="tool-card">
+            <div class="tool-icon-wrapper tool-icon-mint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line></svg>
+            </div>
+            <h3>PDF Sayfa Ayırıcı</h3>
+            <p>Büyük bir PDF'ten sadece istediğiniz sayfaları ayıklayın.</p>
+            <button class="pill-btn pill-btn-secondary" id="toolSplitBtn">Sayfa Ayıkla</button>
+            <input type="file" id="toolSplitInput" accept="application/pdf" style="display: none;">
+          </div>
+
+          <!-- Images to PDF -->
+          <div class="tool-card">
+            <div class="tool-icon-wrapper tool-icon-violet">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            </div>
+            <h3>Görselleri PDF'e Dönüştür</h3>
+            <p>Fotoğraf ve taranmış evrakları (JPG/PNG) tek tıkla PDF yapın.</p>
+            <button class="pill-btn pill-btn-secondary" id="toolImgToPdfBtn">Resimleri Seç (JPG/PNG)</button>
+            <input type="file" id="toolImgToPdfInput" accept="image/jpeg,image/png,image/webp" multiple style="display: none;">
+          </div>
+
+          <!-- PDF to Word -->
+          <div class="tool-card">
+            <div class="tool-icon-wrapper tool-icon-coral">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+            </div>
+            <h3>PDF'i Word'e Dönüştür</h3>
+            <p>PDF metinlerini ayıklayıp Word editörüne aktarın.</p>
+            <button class="pill-btn pill-btn-secondary" id="toolExtractTextBtn">Word'e Dönüştür</button>
+            <input type="file" id="toolExtractTextInput" accept="application/pdf" style="display: none;">
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================
+       MODALS
+       ======================================================================== -->
+  
+  <!-- Page Organizer Modal -->
+  <div class="modal-backdrop" id="organizePagesModal">
+    <div class="studio-modal" style="max-width: 760px;">
+      <div class="modal-header">
+        <h3>Sayfa Yöneticisi</h3>
+        <button class="icon-btn" onclick="closeModal('organizePagesModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="page-organizer-grid" id="pageOrganizerGrid"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="pill-btn pill-btn-secondary" onclick="closeModal('organizePagesModal')">Kapat</button>
+        <button class="pill-btn pill-btn-primary" id="savePageOrganizerBtn">Uygula</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Modal -->
+  <div class="modal-backdrop" id="tableModal">
+    <div class="studio-modal" style="max-width: 340px;">
+      <div class="modal-header">
+        <h3>Tablo Ekle</h3>
+        <button class="icon-btn" onclick="closeModal('tableModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div>
+            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Satır:</label>
+            <input type="number" id="tableRows" value="3" min="1" max="25" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid var(--border-light); background: var(--bg-secondary); color: var(--text-primary);">
+          </div>
+          <div>
+            <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Sütun:</label>
+            <input type="number" id="tableCols" value="3" min="1" max="10" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid var(--border-light); background: var(--bg-secondary); color: var(--text-primary);">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="pill-btn pill-btn-secondary" onclick="closeModal('tableModal')">İptal</button>
+        <button class="pill-btn pill-btn-primary" id="confirmInsertTableBtn">Ekle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kayıt Klasörü ve Belgelerim Modal -->
+  <div class="modal-backdrop" id="driveModal">
+    <div class="studio-modal" style="max-width: 580px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; color: var(--accent-primary);"><path d="M19 18H6a4 4 0 0 1-4-4 4 4 0 0 1 4-4 5 5 0 0 1 9.9-1A4.5 4.5 0 0 1 22 13.5 4.5 4.5 0 0 1 19 18z"></path></svg>
+          <h3>Kayıt Klasörü ve Belgelerim</h3>
+        </div>
+        <button class="icon-btn" onclick="closeModal('driveModal')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 14px 18px;">
+        <!-- Drive Folder Status Card -->
+        <div class="drive-card-header">
+          <div class="drive-card-top">
+            <span class="drive-badge-status" id="driveModalBadge">
+              <span class="drive-status-dot" id="driveModalDot"></span>
+              <span id="driveModalBadgeText">Kayıt &amp; Eşitleme Durumu</span>
+            </span>
+            <div class="drive-actions-bar">
+              <button class="pill-btn pill-btn-secondary" id="refreshDriveFilesBtn" title="Listeyi Yenile" style="font-size: 11.5px; padding: 4px 10px;">
+                🔄 Yenile
+              </button>
+              <button class="pill-btn pill-btn-secondary" id="openDriveFolderBtn" title="Klasörü Dosya Gezgininde Aç" style="font-size: 11.5px; padding: 4px 10px;">
+                📁 Klasörü Aç
+              </button>
+              <button class="pill-btn pill-btn-secondary" id="changeDriveFolderBtn" title="Farklı Bir Google Drive veya OneDrive Klasörü Seç" style="font-size: 11.5px; padding: 4px 10px;">
+                ⚙️ Klasör Değiştir
+              </button>
+            </div>
+          </div>
+          <div class="drive-path-text" id="driveModalPath">Klasör yükleniyor...</div>
+        </div>
+
+        <!-- Files Header -->
+        <div class="drive-files-header">
+          <span class="drive-files-title">Eşitlenen Belgeler</span>
+          <span style="font-size: 11.5px; color: var(--text-tertiary);" id="driveFilesCount">0 belge</span>
+        </div>
+
+        <!-- Document List -->
+        <div id="driveFileList" class="recent-docs-list" style="max-height: 280px;">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Mobile Sync Tip -->
+        <div class="drive-mobile-tip">
+          📱 <strong>Telefon - Bilgisayar Senkronu Nasıl Çalışır?</strong><br>
+          • <strong>Bilgisayarda:</strong> Yazılarınız yukarıdaki klasöre kaydedilir. Eğer <em>Google Drive</em> veya <em>OneDrive</em> klasörünü seçerseniz belgeleriniz anında buluta yedeklenir.<br>
+          • <strong>Telefonda:</strong> Telefonunuzdaki <em>Google Drive</em> uygulamasını açtığınızda bilgisayarda yazdığınız tüm yazıları anında görebilirsiniz. Telefondan yazdığınız yazıları da tek tıkla Drive'a gönderebilirsiniz.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="pill-btn pill-btn-primary" onclick="closeModal('driveModal')">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Documents Modal -->
+  <div class="modal-backdrop" id="recentDocsModal">
+    <div class="studio-modal" style="max-width: 520px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; color: var(--accent-primary);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <h3>Son Kullanılan Belgeler</h3>
+        </div>
+        <button class="icon-btn" onclick="closeModal('recentDocsModal')">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 12px 18px;">
+        <div id="recentDocsList" class="recent-docs-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button class="pill-btn pill-btn-secondary" id="clearRecentDocsBtn" style="color: var(--accent-coral);">Geçmişi Temizle</button>
+        <button class="pill-btn pill-btn-primary" onclick="closeModal('recentDocsModal')">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="studio-toast" id="oneuiToast">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-mint)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    <span id="toastMessage">İşlem tamamlandı.</span>
+  </div>
+
+  <!-- Mobile Action Sheet Modal (Bottom Drawer) -->
+  <div class="modal-backdrop" id="mobileActionSheetModal">
+    <div class="mobile-action-sheet">
+      <div class="mobile-sheet-drag-handle"></div>
+      <div class="mobile-sheet-header">
+        <div class="mobile-sheet-title">Kalpten Kaleme</div>
+        <button class="icon-btn" onclick="closeModal('mobileActionSheetModal')">✕</button>
+      </div>
+
+      <!-- Mobile Mode Tabs (Clean Mode Switcher) -->
+      <div class="mobile-sheet-mode-tabs">
+        <button class="sheet-mode-tab active" data-tab="wordTab">
+          <span class="sheet-tab-icon">✍️</span>
+          <span class="sheet-tab-text">Yazı</span>
+        </button>
+        <button class="sheet-mode-tab" data-tab="pdfTab">
+          <span class="sheet-tab-icon">📄</span>
+          <span class="sheet-tab-text">PDF</span>
+        </button>
+        <button class="sheet-mode-tab" data-tab="toolsTab">
+          <span class="sheet-tab-icon">⚡</span>
+          <span class="sheet-tab-text">Araçlar</span>
+        </button>
+      </div>
+
+      <!-- Live Document Stats -->
+      <div class="mobile-sheet-stat-card">
+        <div class="sheet-stat-row">
+          <div class="stat-pill"><span class="stat-num" id="sheetWordCount">0</span> kelime</div>
+          <div class="stat-pill"><span class="stat-num" id="sheetCharCount">0</span> karakter</div>
+          <div class="stat-pill"><span class="stat-num" id="sheetReadTime">1 dk</span> okuma</div>
+        </div>
+        <div class="sheet-stat-status" id="sheetSaveStatus">● Değişiklikler otomatik korundu</div>
+      </div>
+      <div class="mobile-sheet-grid">
+        <button class="mobile-sheet-item" id="mobileNewDocBtn">
+          <div class="sheet-icon-circle">📄</div>
+          <span>Yeni Belge</span>
+        </button>
+        <button class="mobile-sheet-item" id="mobileOpenDocBtn">
+          <div class="sheet-icon-circle">📂</div>
+          <span>Dosya Aç</span>
+        </button>
+        <button class="mobile-sheet-item" id="mobileRecentDocsBtn">
+          <div class="sheet-icon-circle">🕒</div>
+          <span>Son Belgeler</span>
+        </button>
+        <button class="mobile-sheet-item" id="mobilePaperToneBtn">
+          <div class="sheet-icon-circle">🎨</div>
+          <span id="mobilePaperLabel">Kitap Kağıdı</span>
+        </button>
+        <button class="mobile-sheet-item" id="mobileThemeBtn">
+          <div class="sheet-icon-circle">🌙</div>
+          <span id="mobileThemeLabel">Karanlık Mod</span>
+        </button>
+        <button class="mobile-sheet-item" id="mobileFindBtn">
+          <div class="sheet-icon-circle">🔍</div>
+          <span>Bul & Değiştir</span>
+        </button>
+        <button class="mobile-sheet-item" id="mobilePrintBtn">
+          <div class="sheet-icon-circle">🖨️</div>
+          <span>Yazdır / PDF</span>
+        </button>
+        <button class="mobile-sheet-item" id="mobileDriveBtn">
+          <div class="sheet-icon-circle">☁️</div>
+          <span>Kayıt Klasörü</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       FULLSCREEN PRESENTATION OVERLAY (SLAYT GÖSTERİSİ - F5)
+       ======================================================================== -->
+  <div class="ppt-presentation-overlay" id="pptPresentationOverlay" style="display: none;">
+    <div class="ppt-presentation-canvas-container" id="pptPresentationCanvasContainer">
+      <div class="ppt-presentation-slide" id="pptPresentationSlide">
+        <!-- Current slide in fullscreen -->
+      </div>
+    </div>
+    
+    <!-- Floating Bottom Controls HUD (auto-hides on idle) -->
+    <div class="ppt-hud-controls" id="pptHudControls">
+      <button class="ppt-hud-btn" id="pptHudPrevBtn" title="Önceki Slayt (Sol Ok)">◀</button>
+      <span class="ppt-hud-counter" id="pptHudCounter">1 / 1</span>
+      <button class="ppt-hud-btn" id="pptHudNextBtn" title="Sonraki Slayt (Sağ Ok / Boşluk)">▶</button>
+      <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2); margin: 0 4px;"></div>
+      <button class="ppt-hud-btn" id="pptHudExitBtn" title="Gösteriden Çık (ESC)">✕ Çıkış</button>
+    </div>
+  </div>
+
+  <!-- App Scripts -->
+  <script src="app.js" defer></script>
+  <script src="word-editor.js" defer></script>
+  <script src="pdf-editor.js" defer></script>
+  <script src="pdf-tools.js" defer></script>
+  <script src="ppt-editor.js" defer></script>
+</body>
+</html>

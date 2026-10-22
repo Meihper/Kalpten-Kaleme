@@ -1,0 +1,23 @@
+# User-specific runtime data & caches
+profile/
+config.json
+android/obj/
+android/bin/
+android/res/
+android/assets/
+android/src/
+android/AndroidManifest.xml
+*.log
+tmp_*
+test_*.ps1
+audit_*.ps1
+capture_*.ps1
+fix_*.ps1
+generate_*.ps1
+rebuild_*.ps1
+verify_*.ps1
+create_*.ps1
+clean_*.ps1
+crop_*.ps1
+make_*.ps1
+update_*.ps1
