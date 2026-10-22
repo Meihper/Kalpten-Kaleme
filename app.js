@@ -107,10 +107,11 @@ function setTheme(theme) {
 
 function isMobileWordStudio() {
   if (Boolean(window.AndroidBridge)) return true;
-  if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) return true;
+  const ua = navigator.userAgent || '';
+  if (/Android|iPhone|iPad|iPod|Mobile|Silk/i.test(ua)) return true;
   const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  const isSmallOrLandscape = window.innerWidth <= 768 || (window.innerHeight <= 560 && window.innerWidth <= 1050);
-  return Boolean(isTouch && isSmallOrLandscape) || (window.innerWidth <= 768) || (window.innerHeight <= 560 && window.innerWidth <= 1050);
+  if (isTouch && window.innerWidth <= 768) return true;
+  return false;
 }
 
 function syncMobileAppMode() {
@@ -721,6 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Global Header Actions: Aç (Open File)
   const wordFileInput = document.getElementById('wordFileInput');
   const pdfFileInput = document.getElementById('pdfFileInput');
+  const pptFileInput = document.getElementById('pptFileInput');
 
   function openAnySelectedFile(file) {
     if (!file) return;
@@ -738,9 +740,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.pptEditor && window.pptEditor.loadFile) {
         window.pptEditor.loadFile(file);
       }
-    } else {
+    } else if (['.docx', '.doc', '.txt', '.md', '.html', '.htm'].some(ext => name.endsWith(ext))) {
       switchTab('wordTab');
       if (window.loadWordFile) window.loadWordFile(file);
+    } else {
+      showToast('Desteklenmeyen dosya türü. Lütfen Word (.docx), PDF veya PowerPoint (.pptx) dosyası seçin.', 'error');
     }
   }
 
@@ -758,8 +762,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  pptFileInput?.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      openAnySelectedFile(e.target.files[0]);
+      e.target.value = '';
+    }
+  });
+
+  document.getElementById('pptOpenBtn')?.addEventListener('click', () => {
+    pptFileInput?.click();
+  });
+
   document.getElementById('globalOpenBtn')?.addEventListener('click', () => {
-    wordFileInput?.click();
+    if (appState.currentTab === 'pptTab' && pptFileInput) {
+      pptFileInput.click();
+    } else if (appState.currentTab === 'pdfTab' && pdfFileInput) {
+      pdfFileInput.click();
+    } else {
+      wordFileInput?.click();
+    }
   });
 
   document.getElementById('globalSaveBtn')?.addEventListener('click', () => {
@@ -909,24 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('drop', (e) => {
     e.preventDefault();
     if (!e.dataTransfer || !e.dataTransfer.files.length) return;
-
-    const file = e.dataTransfer.files[0];
-    const name = file.name.toLowerCase();
-
-    if (name.endsWith('.docx') || name.endsWith('.txt') || name.endsWith('.html') || name.endsWith('.md')) {
-      switchTab('wordTab');
-      if (window.loadWordFile) window.loadWordFile(file);
-    } else if (name.endsWith('.pdf')) {
-      switchTab('pdfTab');
-      if (window.loadPdfFile) window.loadPdfFile(file);
-    } else if (name.endsWith('.pptx') || name.endsWith('.ppt') || name.endsWith('.json') || name.endsWith('.slides')) {
-      switchTab('pptTab');
-      if (window.pptEditor && window.pptEditor.loadFile) {
-        window.pptEditor.loadFile(file);
-      }
-    } else {
-      showToast('Desteklenmeyen dosya türü. Lütfen DOCX, PDF veya PPTX sürükleyin.', 'error');
-    }
+    openAnySelectedFile(e.dataTransfer.files[0]);
   });
 
   // Global Keyboard Shortcuts
@@ -1037,15 +1041,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
 
     listEl.querySelectorAll('.recent-doc-item').forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', async () => {
         const type = item.dataset.type;
+        const fileName = item.dataset.name;
         closeModal('recentDocsModal');
+
+        if (isOnlineServer && fileName) {
+          try {
+            const checkRes = await fetch('/api/open-specific-file', {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+              body: fileName
+            });
+            const data = await checkRes.json();
+            if (data && data.success) {
+              await checkForOpenedFile();
+              return;
+            }
+          } catch (_) {}
+        }
+
         if (type === 'pdf') {
           switchTab('pdfTab');
           document.getElementById('pdfFileInput')?.click();
         } else if (type === 'ppt') {
           switchTab('pptTab');
-          document.getElementById('pptImportFileInput')?.click();
+          document.getElementById('pptFileInput')?.click();
         } else {
           switchTab('wordTab');
           document.getElementById('wordFileInput')?.click();
@@ -1102,7 +1123,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Windows "Open With" / CLI file integration polling (Desktop only)
   let isCheckingFile = false;
-  let lastLoadedFile = '';
   async function checkForOpenedFile() {
     if (!isOnlineServer || isCheckingFile) return;
     isCheckingFile = true;
@@ -1110,8 +1130,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/opened-file-info');
       if (res.ok) {
         const info = await res.json();
-        if (info.hasFile && info.filename && info.filename !== lastLoadedFile) {
-          lastLoadedFile = info.filename;
+        if (info.hasFile && info.filename) {
           const dataRes = await fetch('/api/opened-file-data');
           if (dataRes.ok) {
             const buffer = await dataRes.arrayBuffer();
@@ -1119,12 +1138,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ext === 'pdf') {
               switchTab('pdfTab');
               addRecentDocument(info.filename, 'pdf');
+              let retries = 25;
+              while (!window.loadPdfFromBuffer && retries-- > 0) {
+                await new Promise(r => setTimeout(r, 80));
+              }
               if (window.loadPdfFromBuffer) {
                 window.loadPdfFromBuffer(buffer, info.filename);
               }
-            } else if (ext === 'pptx' || ext === 'ppt' || ext === 'json') {
+            } else if (ext === 'pptx' || ext === 'ppt' || ext === 'json' || ext === 'slides') {
               switchTab('pptTab');
               addRecentDocument(info.filename, 'ppt');
+              let retries = 25;
+              while ((!window.pptEditor || !window.pptEditor.loadFile) && retries-- > 0) {
+                await new Promise(r => setTimeout(r, 80));
+              }
               if (window.pptEditor && window.pptEditor.loadFile) {
                 const file = new File([buffer], info.filename);
                 window.pptEditor.loadFile(file);
@@ -1132,6 +1159,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (['docx', 'doc', 'txt', 'md', 'html', 'htm'].includes(ext)) {
               switchTab('wordTab');
               addRecentDocument(info.filename, 'word');
+              let retries = 25;
+              while (!window.loadWordFromBuffer && retries-- > 0) {
+                await new Promise(r => setTimeout(r, 80));
+              }
               if (window.loadWordFromBuffer) {
                 window.loadWordFromBuffer(buffer, info.filename);
               }

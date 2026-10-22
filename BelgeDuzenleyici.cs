@@ -212,7 +212,7 @@ namespace BelgeDuzenleyici
 
         private static readonly HashSet<string> SupportedDocumentExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            ".docx", ".doc", ".txt", ".md", ".html", ".htm", ".pdf", ".pptx", ".ppt", ".json"
+            ".docx", ".doc", ".txt", ".md", ".html", ".htm", ".pdf", ".pptx", ".ppt", ".json", ".slides"
         };
 
         private static readonly Dictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -247,6 +247,33 @@ namespace BelgeDuzenleyici
 
         [DllImport("user32.dll")]
         private static extern bool SetProcessDPIAware();
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_RESTORE = 9;
+
+        private static void BringExistingInstanceToFront()
+        {
+            try
+            {
+                int currentId = Process.GetCurrentProcess().Id;
+                string processName = Process.GetCurrentProcess().ProcessName;
+                foreach (var p in Process.GetProcessesByName(processName))
+                {
+                    if (p.Id != currentId && p.MainWindowHandle != IntPtr.Zero)
+                    {
+                        ShowWindow(p.MainWindowHandle, SW_RESTORE);
+                        SetForegroundWindow(p.MainWindowHandle);
+                        break;
+                    }
+                }
+            }
+            catch {}
+        }
 
         public static bool IsSupportedDocumentPath(string path)
         {
@@ -317,11 +344,16 @@ namespace BelgeDuzenleyici
                 {
                     NotifyRunningInstance(DefaultPort, targetFileToOpen);
                 }
-                if (!headlessServer)
+                if (string.IsNullOrEmpty(verifyShotPath))
+                {
+                    BringExistingInstanceToFront();
+                    return; // Avoid duplicate window & race conditions
+                }
+                else
                 {
                     Application.Run(new KalptenKalemeForm(DefaultPort, appDir, verifyShotPath));
+                    return;
                 }
-                return;
             }
 
             // 2. Pre-cache static assets
@@ -702,10 +734,22 @@ namespace BelgeDuzenleyici
                 {
                     using (var reader = new StreamReader(req.InputStream, Encoding.UTF8))
                     {
-                        string path = reader.ReadToEnd().Trim();
-                        if (File.Exists(path) && IsSupportedDocumentPath(path))
+                        string path = reader.ReadToEnd().Trim().Trim('"', '\'');
+                        if (!string.IsNullOrEmpty(path))
                         {
-                            currentFilePath = path;
+                            if (File.Exists(path) && IsSupportedDocumentPath(path))
+                            {
+                                currentFilePath = Path.GetFullPath(path);
+                            }
+                            else
+                            {
+                                string sync = GetSyncFolder();
+                                string combined = Path.Combine(sync, path);
+                                if (File.Exists(combined) && IsSupportedDocumentPath(combined))
+                                {
+                                    currentFilePath = Path.GetFullPath(combined);
+                                }
+                            }
                         }
                     }
                     res.StatusCode = 200;
@@ -886,13 +930,26 @@ namespace BelgeDuzenleyici
                 {
                     using (var reader = new StreamReader(req.InputStream, Encoding.UTF8))
                     {
-                        string path = reader.ReadToEnd().Trim();
-                        if (File.Exists(path) && IsSupportedDocumentPath(path))
+                        string path = reader.ReadToEnd().Trim().Trim('"', '\'');
+                        if (!string.IsNullOrEmpty(path))
                         {
-                            currentFilePath = path;
+                            if (File.Exists(path) && IsSupportedDocumentPath(path))
+                            {
+                                currentFilePath = Path.GetFullPath(path);
+                            }
+                            else
+                            {
+                                string sync = GetSyncFolder();
+                                string combined = Path.Combine(sync, path);
+                                if (File.Exists(combined) && IsSupportedDocumentPath(combined))
+                                {
+                                    currentFilePath = Path.GetFullPath(combined);
+                                }
+                            }
                         }
                     }
-                    respBytes = Encoding.UTF8.GetBytes("{\"success\":true}");
+                    bool success = !string.IsNullOrEmpty(currentFilePath);
+                    respBytes = Encoding.UTF8.GetBytes(success ? "{\"success\":true}" : "{\"success\":false}");
                     res.ContentType = "application/json; charset=utf-8";
                     res.StatusCode = 200;
                     res.OutputStream.Write(respBytes, 0, respBytes.Length);

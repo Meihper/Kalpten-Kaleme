@@ -116,6 +116,7 @@
       <!-- Hidden file pickers (Unified format support) -->
       <input type="file" id="wordFileInput" accept=".docx,.doc,.txt,.html,.md,.pdf,.pptx,.ppt,.json" style="display: none;">
       <input type="file" id="pdfFileInput" accept=".pdf,.docx,.doc" style="display: none;">
+      <input type="file" id="pptFileInput" accept=".pptx,.ppt,.json,.slides" style="display: none;">
     </div>
   </header>
 
@@ -647,6 +648,12 @@
 
         <!-- Right Side: Presentation Mode (F5) & Export -->
         <div style="margin-left: auto; display: flex; align-items: center; gap: 5px;">
+          <!-- Open Presentation Button -->
+          <button class="pill-btn pill-btn-secondary" id="pptOpenBtn" style="height: 28px; padding: 0 9px; font-size: 11.5px;" title="Sunum Aç (.pptx, .ppt, .json)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            <span class="btn-text">Sunum Aç</span>
+          </button>
+
           <!-- Export Dropdown -->
           <div class="dropdown-wrapper" style="position: relative;">
             <button class="pill-btn pill-btn-secondary" id="pptExportDropdownBtn" style="height: 28px; padding: 0 9px; font-size: 11.5px;" title="Sunumu Dışa Aktar">

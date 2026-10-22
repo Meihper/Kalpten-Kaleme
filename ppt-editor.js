@@ -1015,6 +1015,7 @@ const pptEditor = {
 
   async loadFile(file) {
     if (!file) return;
+    if (typeof switchTab === 'function') switchTab('pptTab');
     const name = (file.name || '').toLowerCase();
     try {
       if (name.endsWith('.json')) {
@@ -1036,58 +1037,66 @@ const pptEditor = {
         }
       }
 
-      if (name.endsWith('.pptx') && window.JSZip) {
-        const zip = await window.JSZip.loadAsync(file);
-        const slideFiles = Object.keys(zip.files).filter(k => /^ppt\/slides\/slide\d+\.xml$/i.test(k));
-        if (slideFiles.length > 0) {
-          slideFiles.sort((a, b) => {
-            const na = parseInt(a.match(/\d+/)[0], 10);
-            const nb = parseInt(b.match(/\d+/)[0], 10);
-            return na - nb;
-          });
-
-          const parsedSlides = [];
-          for (let i = 0; i < slideFiles.length; i++) {
-            const xmlText = await zip.files[slideFiles[i]].async('text');
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-            const textNodes = Array.from(xmlDoc.getElementsByTagName('a:t')).map(t => t.textContent.trim()).filter(Boolean);
-
-            const slideTitle = textNodes[0] || `Slayt ${i + 1}`;
-            const slideBullets = textNodes.slice(1);
-            let contentHtml = '';
-            if (slideBullets.length > 0) {
-              contentHtml = '<ul>' + slideBullets.map(b => `<li>${escapeHtml(b)}</li>`).join('') + '</ul>';
-            } else {
-              contentHtml = '<p>' + escapeHtml(slideTitle) + '</p>';
-            }
-
-            parsedSlides.push({
-              id: 'slide_' + Date.now() + '_' + i,
-              layout: i === 0 ? 'title' : 'title_content',
-              title: slideTitle,
-              subtitle: i === 0 && slideBullets[0] ? slideBullets[0] : '',
-              content: contentHtml,
-              leftCol: '',
-              rightCol: '',
-              quote: '',
-              author: ''
+      if (name.endsWith('.pptx') || name.endsWith('.ppt')) {
+        let retries = 25;
+        while (!window.JSZip && retries-- > 0) {
+          await new Promise(r => setTimeout(r, 80));
+        }
+        if (window.JSZip) {
+          const zip = await window.JSZip.loadAsync(file);
+          const slideFiles = Object.keys(zip.files).filter(k => /^ppt\/slides\/slide\d+\.xml$/i.test(k.replace(/\\/g, '/')));
+          if (slideFiles.length > 0) {
+            slideFiles.sort((a, b) => {
+              const na = parseInt(a.replace(/\\/g, '/').match(/\d+/)[0], 10);
+              const nb = parseInt(b.replace(/\\/g, '/').match(/\d+/)[0], 10);
+              return na - nb;
             });
-          }
 
-          if (parsedSlides.length > 0) {
-            this.state.slides = parsedSlides;
-            this.state.fileName = file.name;
-            this.state.currentIndex = 0;
-            this.saveToStorage();
-            this.render();
-            if (window.docManager) {
-              window.docManager.onPptLoaded(file.name, this.state);
+            const parsedSlides = [];
+            for (let i = 0; i < slideFiles.length; i++) {
+              const xmlText = await zip.files[slideFiles[i]].async('text');
+              const parser = new DOMParser();
+              const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+              const textNodes = Array.from(xmlDoc.getElementsByTagName('a:t')).map(t => t.textContent.trim()).filter(Boolean);
+
+              const slideTitle = textNodes[0] || `Slayt ${i + 1}`;
+              const slideBullets = textNodes.slice(1);
+              let contentHtml = '';
+              if (slideBullets.length > 0) {
+                contentHtml = '<ul>' + slideBullets.map(b => `<li>${escapeHtml(b)}</li>`).join('') + '</ul>';
+              } else {
+                contentHtml = '<p>' + escapeHtml(slideTitle) + '</p>';
+              }
+
+              parsedSlides.push({
+                id: 'slide_' + Date.now() + '_' + i,
+                layout: i === 0 ? 'title' : 'title_content',
+                title: slideTitle,
+                subtitle: i === 0 && slideBullets[0] ? slideBullets[0] : '',
+                content: contentHtml,
+                leftCol: '',
+                rightCol: '',
+                quote: '',
+                author: ''
+              });
             }
-            if (window.showToast) window.showToast(`"${file.name}" dosyasından ${parsedSlides.length} slayt aktarıldı.`);
-            return;
+
+            if (parsedSlides.length > 0) {
+              this.state.slides = parsedSlides;
+              this.state.fileName = file.name;
+              this.state.currentIndex = 0;
+              this.saveToStorage();
+              this.render();
+              if (window.docManager) {
+                window.docManager.onPptLoaded(file.name, this.state);
+              }
+              if (window.showToast) window.showToast(`"${file.name}" dosyasından ${parsedSlides.length} slayt aktarıldı.`);
+              return;
+            }
           }
         }
+        if (window.showToast) window.showToast(`"${file.name}" sunum dosyası işlenemedi.`, 'error');
+        return;
       }
 
       // Fallback for txt / markdown

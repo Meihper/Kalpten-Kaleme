@@ -118,22 +118,93 @@ document.addEventListener('DOMContentLoaded', () => {
     if (docTitleInput) docTitleInput.value = fileName;
     if (window.addRecentDocument) window.addRecentDocument(fileName, 'word');
 
-    if (ext === 'docx') {
-      if (window.mammoth) {
-        window.mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
-          .then(result => {
-            editor.innerHTML = result.value || '<p></p>';
-            updateStats();
-            if (window.docManager) {
-              window.docManager.onWordLoaded(fileName, editor.innerHTML, arrayBuffer);
+    if (ext === 'docx' || ext === 'doc') {
+      const parseWordDoc = async () => {
+        let retries = 25;
+        while ((!window.mammoth || !window.JSZip) && retries-- > 0) {
+          await new Promise(r => setTimeout(r, 80));
+        }
+
+        // Try normalizing zip entries in case it was packed on Windows with backslashes
+        let finalBuffer = arrayBuffer;
+        if (window.JSZip) {
+          try {
+            const zip = await window.JSZip.loadAsync(arrayBuffer);
+            const hasBackslashes = Object.keys(zip.files).some(k => k.includes('\\'));
+            if (hasBackslashes) {
+              const newZip = new window.JSZip();
+              for (const [k, v] of Object.entries(zip.files)) {
+                if (!v.dir) {
+                  const content = await v.async('arraybuffer');
+                  newZip.file(k.replace(/\\/g, '/'), content);
+                }
+              }
+              finalBuffer = await newZip.generateAsync({ type: 'arraybuffer' });
             }
-            showToast(`"${fileName}" Word belgesi başarıyla açıldı.`);
-          })
-          .catch(err => {
-            console.error(err);
-            showToast('DOCX belgesi açılırken hata oluştu: ' + err.message, 'error');
-          });
-      }
+          } catch (_) {}
+        }
+
+        if (window.mammoth) {
+          try {
+            const result = await window.mammoth.convertToHtml({ arrayBuffer: finalBuffer });
+            if (result && result.value && result.value.trim().length > 0) {
+              editor.innerHTML = result.value;
+              updateStats();
+              if (window.docManager) {
+                window.docManager.onWordLoaded(fileName, editor.innerHTML, arrayBuffer);
+              }
+              showToast(`"${fileName}" Word belgesi başarıyla açıldı.`);
+              return;
+            }
+          } catch (mErr) {
+            console.warn('Mammoth convert failed, trying XML text extractor:', mErr);
+          }
+        }
+
+        // Fallback: If mammoth couldn't convert, extract XML text directly from word/document.xml
+        if (window.JSZip) {
+          try {
+            const zip = await window.JSZip.loadAsync(arrayBuffer);
+            const docEntry = Object.keys(zip.files).find(k => /^word[\/\\]document\.xml$/i.test(k));
+            if (docEntry) {
+              const xmlText = await zip.files[docEntry].async('text');
+              const parser = new DOMParser();
+              const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+              const pNodes = Array.from(xmlDoc.getElementsByTagName('w:p'));
+              if (pNodes.length > 0) {
+                const paragraphs = pNodes.map(p => {
+                  const tNodes = Array.from(p.getElementsByTagName('w:t')).map(t => t.textContent).join('');
+                  return `<p>${escapeHtml(tNodes || '') || '<br>'}</p>`;
+                }).join('');
+                editor.innerHTML = paragraphs || '<p></p>';
+                updateStats();
+                if (window.docManager) window.docManager.onWordLoaded(fileName, editor.innerHTML, arrayBuffer);
+                showToast(`"${fileName}" Word belgesi başarıyla aktarıldı.`);
+                return;
+              }
+            }
+          } catch (zErr) {
+            console.warn('Zip XML extractor failed:', zErr);
+          }
+        }
+
+        // Plain text fallback
+        try {
+          const text = new TextDecoder('utf-8', { fatal: false }).decode(arrayBuffer);
+          const clean = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ' ').trim();
+          if (clean.length > 0 && !clean.startsWith('PK')) {
+            editor.innerHTML = `<p>${escapeHtml(clean)}</p>`;
+            updateStats();
+            if (window.docManager) window.docManager.onWordLoaded(fileName, editor.innerHTML, arrayBuffer);
+            showToast(`"${fileName}" açıldı.`);
+            return;
+          }
+        } catch (_) {}
+
+        showToast(`"${fileName}" Word belgesi açılırken hata oluştu.`, 'error');
+      };
+
+      parseWordDoc();
     } else if (ext === 'txt' || ext === 'md') {
       try {
         const text = new TextDecoder('utf-8').decode(arrayBuffer);
@@ -147,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         showToast('Metin dosyası açılamadı: ' + err.message, 'error');
       }
-    } else if (ext === 'html') {
+    } else if (ext === 'html' || ext === 'htm') {
       try {
         const html = new TextDecoder('utf-8').decode(arrayBuffer);
         editor.innerHTML = html;
