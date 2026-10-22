@@ -1633,7 +1633,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initial Drive status fetch
   fetchDriveStatus();
+
+  // Check if opened via Android "Birlikte Aç" (Open With)
+  if (window.AndroidBridge && typeof window.AndroidBridge.getPendingDocumentJson === 'function') {
+    try {
+      const docJson = window.AndroidBridge.getPendingDocumentJson();
+      if (docJson) {
+        const doc = JSON.parse(docJson);
+        if (doc && doc.fileName && doc.base64) {
+          setTimeout(() => {
+            if (typeof window.__openAndroidDocument === 'function') {
+              window.__openAndroidDocument(doc.fileName, doc.base64);
+            }
+          }, 350);
+        }
+      }
+    } catch (e) {
+      console.error('Error checking pending Android document:', e);
+    }
+  }
 });
+
+// Android Native "Birlikte Aç" (Open With) Handler
+window.__openAndroidDocument = function(fileName, base64Data) {
+  try {
+    const ext = (fileName.split('.').pop() || '').toLowerCase();
+    const bin = atob(base64Data);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const buffer = bytes.buffer;
+
+    if (ext === 'pdf') {
+      switchTab('pdfTab');
+      if (window.loadPdfFromBuffer) window.loadPdfFromBuffer(buffer, fileName);
+    } else if (ext === 'pptx' || ext === 'ppt') {
+      switchTab('pptTab');
+      if (window.pptEditor) window.pptEditor.loadFile(new File([buffer], fileName));
+    } else {
+      switchTab('wordTab');
+      if (window.loadWordFromBuffer) window.loadWordFromBuffer(buffer, fileName);
+    }
+    showToast(`"${fileName}" açıldı.`);
+  } catch (err) {
+    console.error('Error opening Android document:', err);
+  }
+};
 
 // Android Native Back Button & Mobile Lifecycle Hook
 window.__handleAndroidBack = function() {
