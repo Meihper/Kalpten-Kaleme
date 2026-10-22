@@ -736,26 +736,108 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  document.getElementById('globalPrintBtn')?.addEventListener('click', () => {
-    if (appState.currentTab === 'pdfTab') {
-      if (window.printPdfDocument) {
-        window.printPdfDocument();
-      } else {
-        window.print();
-      }
-    } else if (appState.currentTab === 'pptTab') {
-      if (window.pptEditor && typeof window.pptEditor.exportPrint === 'function') {
-        window.pptEditor.exportPrint();
-      } else {
-        window.print();
-      }
-    } else {
-      if (window.printWordDocument) {
-        window.printWordDocument();
-      } else {
-        window.print();
-      }
+  // ========================================================================
+  // Unified Clean Print Engine (Word, PowerPoint, PDF)
+  // Guarantees 100% pure document output without any top headers or toolbars
+  // ========================================================================
+  function ensurePrintElements() {
+    let printRoot = document.getElementById('kalptenPrintRoot');
+    if (!printRoot) {
+      printRoot = document.createElement('div');
+      printRoot.id = 'kalptenPrintRoot';
+      document.body.appendChild(printRoot);
     }
+    let pageStyle = document.getElementById('kalptenDynamicPrintPageStyle');
+    if (!pageStyle) {
+      pageStyle = document.createElement('style');
+      pageStyle.id = 'kalptenDynamicPrintPageStyle';
+      document.head.appendChild(pageStyle);
+    }
+    return { printRoot, pageStyle };
+  }
+
+  window.prepareCleanPrintRoot = function() {
+    const { printRoot, pageStyle } = ensurePrintElements();
+
+    // Remove any legacy print iframes if present
+    document.getElementById('oneOfficePrintFrame')?.remove();
+    document.getElementById('oneOfficePptPrintFrame')?.remove();
+
+    if (appState.currentTab === 'pptTab' && window.pptEditor) {
+      window.pptEditor.syncCurrentSlideFromDOM();
+      const isPortrait = window.pptEditor.state.aspectRatio === 'a4-portrait';
+      pageStyle.textContent = `@media print { @page { size: A4 ${isPortrait ? 'portrait' : 'landscape'}; margin: 0mm !important; } }`;
+      const theme = window.pptEditor.state.theme || 'theme-clean-light';
+
+      const slidesHtml = (window.pptEditor.state.slides || []).map((s) => {
+        let inner = '';
+        if (s.layout === 'title') {
+          inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><h1 style="font-size:38px;font-weight:800;margin-bottom:14px;">${s.title || ''}</h1><p style="font-size:18px;opacity:0.85;">${s.subtitle || ''}</p></div>`;
+        } else if (s.layout === 'two_col') {
+          inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;">${s.title || ''}</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1;"><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);">${s.leftCol || ''}</div><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);">${s.rightCol || ''}</div></div>`;
+        } else if (s.layout === 'quote') {
+          inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><div style="font-size:56px;opacity:0.35;font-family:Georgia,serif;">“</div><div style="font-size:26px;font-style:italic;line-height:1.5;margin-bottom:14px;">${s.quote || ''}</div><div style="font-size:15px;font-weight:700;">${s.author ? '— ' + s.author : ''}</div></div>`;
+        } else if (s.layout === 'blank') {
+          inner = `<div style="font-size:16px;line-height:1.75;flex:1;height:100%;">${s.content || ''}</div>`;
+        } else {
+          inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;">${s.title || ''}</h2><div style="font-size:16px;line-height:1.75;flex:1;">${s.content || ''}</div>`;
+        }
+        return `<div class="kalpten-print-slide ${theme}">${inner}</div>`;
+      }).join('');
+
+      printRoot.innerHTML = slidesHtml;
+      return;
+    }
+
+    if (appState.currentTab === 'pdfTab') {
+      pageStyle.textContent = `@media print { @page { size: auto; margin: 0mm !important; } }`;
+      printRoot.innerHTML = '';
+      const wrappers = document.querySelectorAll('#pdfPagesContainer .pdf-page-wrapper');
+      wrappers.forEach((wrapper) => {
+        const pageDiv = wrapper.cloneNode(true);
+        pageDiv.className = 'kalpten-print-pdf-page';
+        pageDiv.style.width = wrapper.style.width || (wrapper.offsetWidth ? wrapper.offsetWidth + 'px' : '100%');
+        pageDiv.style.height = wrapper.style.height || (wrapper.offsetHeight ? wrapper.offsetHeight + 'px' : 'auto');
+
+        const origCanvas = wrapper.querySelector('.pdf-page-canvas');
+        const clonedCanvas = pageDiv.querySelector('.pdf-page-canvas');
+        if (origCanvas && clonedCanvas) {
+          clonedCanvas.width = origCanvas.width;
+          clonedCanvas.height = origCanvas.height;
+          const ctx = clonedCanvas.getContext('2d');
+          if (ctx) ctx.drawImage(origCanvas, 0, 0);
+        }
+        printRoot.appendChild(pageDiv);
+      });
+      return;
+    }
+
+    // Default: Word Document (wordTab)
+    const editor = document.getElementById('wordEditor');
+    const isLandscape = editor ? editor.classList.contains('orientation-landscape') : false;
+    let pad = '15mm 18mm';
+    if (editor) {
+      if (editor.classList.contains('margin-narrow')) pad = '10mm 12mm';
+      else if (editor.classList.contains('margin-wide')) pad = '20mm 25mm';
+    }
+    pageStyle.textContent = `@media print { @page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: 0mm !important; } }`;
+    const fontFam = (editor && editor.style.fontFamily) ? editor.style.fontFamily : 'inherit';
+    const fontSz = (editor && editor.style.fontSize) ? editor.style.fontSize : '15px';
+    const lineHt = (editor && editor.style.lineHeight) ? editor.style.lineHeight : '1.65';
+    printRoot.innerHTML = `<div class="kalpten-print-word-sheet" style="padding: ${pad}; font-family: ${fontFam}; font-size: ${fontSz}; line-height: ${lineHt};">${editor ? editor.innerHTML : ''}</div>`;
+  };
+
+  window.executeCleanPrint = function() {
+    window.prepareCleanPrintRoot();
+    window.print();
+  };
+
+  window.addEventListener('beforeprint', () => {
+    window.prepareCleanPrintRoot();
+  });
+
+  document.getElementById('globalPrintBtn')?.addEventListener('click', () => {
+    window.executeCleanPrint();
   });
 
   window.addEventListener('dragover', (e) => e.preventDefault());

@@ -1811,7 +1811,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Print PDF
   window.printPdfDocument = function() {
-    window.print();
+    if (window.executeCleanPrint) {
+      window.executeCleanPrint();
+    } else {
+      window.print();
+    }
   };
 
   // Expose state and rendering helpers for docManager multi-document tabs

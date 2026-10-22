@@ -943,65 +943,11 @@ const pptEditor = {
 
   exportPrint() {
     this.syncCurrentSlideFromDOM();
-    const isPortrait = this.state.aspectRatio === 'a4-portrait';
-    const pageOrientation = isPortrait ? 'A4 portrait' : 'A4 landscape';
-    const theme = this.state.theme || 'theme-clean-light';
-
-    const slidesHtml = this.state.slides.map((s) => {
-      let inner = '';
-      if (s.layout === 'title') {
-        inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><h1 style="font-size:38px;font-weight:800;margin-bottom:14px;">${s.title || ''}</h1><p style="font-size:18px;opacity:0.85;">${s.subtitle || ''}</p></div>`;
-      } else if (s.layout === 'two_col') {
-        inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;">${s.title || ''}</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1;"><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);">${s.leftCol || ''}</div><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);">${s.rightCol || ''}</div></div>`;
-      } else if (s.layout === 'quote') {
-        inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><div style="font-size:56px;opacity:0.35;">“</div><div style="font-size:26px;font-style:italic;line-height:1.5;margin-bottom:14px;">${s.quote || ''}</div><div style="font-size:15px;font-weight:700;">— ${s.author || ''}</div></div>`;
-      } else {
-        inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;">${s.title || ''}</h2><div style="font-size:16px;line-height:1.75;flex:1;">${s.content || ''}</div>`;
-      }
-      return `<div class="print-slide ${theme}">${inner}</div>`;
-    }).join('');
-
-    let iframe = document.getElementById('oneOfficePptPrintFrame');
-    if (iframe) iframe.remove();
-    iframe = document.createElement('iframe');
-    iframe.id = 'oneOfficePptPrintFrame';
-    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(`<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><title>${escapeHtml(this.state.fileName || 'Sunum')}</title>
-    <style>
-      @page { size: ${pageOrientation}; margin: 10mm; }
-      * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      body { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
-      .print-slide {
-        width: 100%;
-        height: ${isPortrait ? '275mm' : '188mm'};
-        padding: 36px 48px;
-        display: flex;
-        flex-direction: column;
-        border-radius: 8px;
-        page-break-after: always;
-        break-after: page;
-      }
-      .print-slide:last-child { page-break-after: auto; break-after: auto; }
-      .theme-luxury-dark { background: #0B1120 !important; color: #F8FAFC !important; border: 1px solid #334155; }
-      .theme-clean-light { background: #FFFFFF !important; color: #1E293B !important; border: 1px solid #CBD5E1; }
-      .theme-sepia-book { background: #FAF7EE !important; color: #382D23 !important; border: 1px solid #E7DFCB; }
-      .theme-sunset { background: #431407 !important; color: #FFEDD5 !important; border: 1px solid #9A3412; }
-      .theme-emerald { background: #022C22 !important; color: #ECFDF5 !important; border: 1px solid #065F46; }
-    </style></head><body>${slidesHtml}</body></html>`);
-    doc.close();
-
-    setTimeout(() => {
-      try {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-      } catch (e) {
-        window.print();
-      }
-    }, 250);
+    if (window.executeCleanPrint) {
+      window.executeCleanPrint();
+    } else {
+      window.print();
+    }
   },
 
   async savePresentationDocument() {

@@ -338,98 +338,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 5. Export to PDF / Print (WYSIWYG: Ekranda görünenin 1:1 aynısını yazdır)
   window.printWordDocument = function() {
-    const title = (docTitleInput?.value || 'Belge').replace(/\.docx$/i, '');
-    
-    let printIframe = document.getElementById('oneOfficePrintFrame');
-    if (printIframe) printIframe.remove();
-
-    printIframe = document.createElement('iframe');
-    printIframe.id = 'oneOfficePrintFrame';
-    printIframe.style.position = 'fixed';
-    printIframe.style.right = '0';
-    printIframe.style.bottom = '0';
-    printIframe.style.width = '0';
-    printIframe.style.height = '0';
-    printIframe.style.border = '0';
-    document.body.appendChild(printIframe);
-
-    // Uygulamanın tüm stil ve tema kurallarını birebir kopyala
-    const stylesHtml = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
-      .map(el => el.outerHTML)
-      .join('\n');
-
-    const doc = printIframe.contentWindow.document;
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html lang="tr">
-      <head>
-        <meta charset="utf-8">
-        <title>${title}</title>
-        ${stylesHtml}
-        <style>
-          @page {
-            size: auto;
-            margin: 4mm 6mm;
-          }
-          * {
-            box-sizing: border-box !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          html, body {
-            background: #fff !important;
-            color: #111 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            height: auto !important;
-            min-height: 0 !important;
-          }
-          .print-wrapper {
-            width: 100%;
-            max-width: 820px;
-            margin: 0 auto;
-            background: #fff;
-            zoom: 0.84; /* Sayfayı %16 küçülterek tek sayfaya tam sığdırır */
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-          .word-canvas-sheet {
-            background: #fff !important;
-            box-shadow: none !important;
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            min-height: 0 !important;
-            height: auto !important;
-            width: 100% !important;
-            color: #111 !important;
-          }
-          table, tr, td, p, div {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="print-wrapper">
-          <div class="word-canvas-sheet">
-            ${editor.innerHTML}
-          </div>
-        </div>
-      </body>
-      </html>
-    `);
-    doc.close();
-
-    setTimeout(() => {
-      try {
-        printIframe.contentWindow.focus();
-        printIframe.contentWindow.print();
-      } catch (err) {
-        window.print();
-      }
-    }, 250);
+    if (window.executeCleanPrint) {
+      window.executeCleanPrint();
+    } else {
+      window.print();
+    }
   };
 
   // 6. Safe Find & Replace (DOM TreeWalker based)
