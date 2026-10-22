@@ -1455,9 +1455,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Drive Buttons & Modal Events
   document.getElementById('driveSyncPill')?.addEventListener('click', () => {
-    fetchDriveStatus();
-    loadDriveFiles();
-    openModal('driveModal');
+    openLibrary();
   });
 
   document.getElementById('refreshDriveFilesBtn')?.addEventListener('click', () => {
@@ -1597,9 +1595,301 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('mobileDriveBtn')?.addEventListener('click', () => {
     closeModal('mobileActionSheetModal');
-    fetchDriveStatus();
-    loadDriveFiles();
-    openModal('driveModal');
+    openLibrary();
+  });
+
+  document.getElementById('mobileLibraryBtn')?.addEventListener('click', () => {
+    closeModal('mobileActionSheetModal');
+    openLibrary();
+  });
+
+  document.getElementById('openLibraryBtn')?.addEventListener('click', openLibrary);
+
+  // ========================================================================
+  // 📚 KÜTÜPHANEM (Library & Writing Archive) Controller
+  // ========================================================================
+  let currentLibraryFilter = 'all';
+  let libraryFilesCache = [];
+
+  async function openLibrary() {
+    openModal('libraryModal');
+    await loadLibraryFiles();
+  }
+
+  async function loadLibraryFiles() {
+    const container = document.getElementById('libraryItemsContainer');
+    const emptyState = document.getElementById('libraryEmptyState');
+    const countBadge = document.getElementById('libraryItemsCount');
+    const storageLocation = document.getElementById('libraryStorageLocation');
+    const storageSubtitle = document.getElementById('libraryStorageSubtitle');
+    const syncDot = document.getElementById('librarySyncDot');
+
+    if (!container) return;
+
+    container.innerHTML = '<div style="text-align:center; padding: 30px; color: var(--text-tertiary); font-size: 13px;">⏳ Kütüphane taranıyor...</div>';
+    if (emptyState) emptyState.style.display = 'none';
+
+    let files = [];
+
+    // 1. Android Native Storage Scan
+    if (window.AndroidBridge && typeof window.AndroidBridge.listSavedFilesJson === 'function') {
+      try {
+        files = JSON.parse(window.AndroidBridge.listSavedFilesJson() || '[]');
+        if (storageLocation) storageLocation.textContent = 'Dahili Hafıza & Belgeler/Kalpten Kaleme';
+        if (storageSubtitle) storageSubtitle.textContent = 'Cihazınızdaki tüm kayıtlı yazılar ve belgeler';
+        if (syncDot) syncDot.className = 'drive-status-dot active';
+      } catch (e) {
+        files = [];
+      }
+    } 
+    // 2. Desktop Server Storage Scan
+    else if (isOnlineServer) {
+      try {
+        const res = await fetch('/api/drive-files');
+        if (res.ok) {
+          files = await res.json();
+        }
+        const stRes = await fetch('/api/drive-status');
+        if (stRes.ok) {
+          const st = await stRes.json();
+          if (storageLocation) storageLocation.textContent = st.syncFolder || 'Belgelerim';
+          if (storageSubtitle) storageSubtitle.textContent = st.isGoogleDrive ? 'Google Drive ile anında eşitlenir' : 'Yerel bilgisayar arşiviniz';
+          if (syncDot) syncDot.className = 'drive-status-dot' + (st.isCloudSync ? ' active' : ' local');
+        }
+      } catch (e) {}
+    }
+
+    // 3. Web / Fallback Recent Cache
+    if (!files || files.length === 0) {
+      try {
+        const recents = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
+        files = recents.map(r => ({
+          name: r.name,
+          path: r.name,
+          size: 'Kayıtlı',
+          date: r.time || 'Bugün',
+          ext: (r.name.split('.').pop() || 'docx').toLowerCase(),
+          isRecentOnly: true
+        }));
+        if (storageLocation && !isOnlineServer) {
+          storageLocation.textContent = 'Tarayıcı Yerel Hafızası';
+        }
+      } catch (_) { files = []; }
+    }
+
+    libraryFilesCache = files;
+    renderLibraryGrid();
+  }
+
+  function renderLibraryGrid() {
+    const container = document.getElementById('libraryItemsContainer');
+    const emptyState = document.getElementById('libraryEmptyState');
+    const countBadge = document.getElementById('libraryItemsCount');
+    const searchVal = (document.getElementById('librarySearchInput')?.value || '').toLowerCase().trim();
+
+    // Update filter counts
+    const countAll = libraryFilesCache.length;
+    const countDocx = libraryFilesCache.filter(f => (f.ext || '').match(/^(docx|doc|txt|md|html)$/i)).length;
+    const countPdf = libraryFilesCache.filter(f => (f.ext || '').match(/^pdf$/i)).length;
+    const countOther = countAll - countDocx - countPdf;
+
+    if (document.getElementById('countFilterAll')) document.getElementById('countFilterAll').textContent = countAll;
+    if (document.getElementById('countFilterDocx')) document.getElementById('countFilterDocx').textContent = countDocx;
+    if (document.getElementById('countFilterPdf')) document.getElementById('countFilterPdf').textContent = countPdf;
+    if (document.getElementById('countFilterOther')) document.getElementById('countFilterOther').textContent = countOther;
+    if (countBadge) countBadge.textContent = `${countAll} Yazı`;
+
+    let filtered = libraryFilesCache.filter(f => {
+      const ext = (f.ext || '').toLowerCase();
+      if (currentLibraryFilter === 'docx') {
+        if (!ext.match(/^(docx|doc|txt|md|html)$/i)) return false;
+      } else if (currentLibraryFilter === 'pdf') {
+        if (ext !== 'pdf') return false;
+      } else if (currentLibraryFilter === 'other') {
+        if (ext.match(/^(docx|doc|txt|md|html|pdf)$/i)) return false;
+      }
+
+      if (searchVal) {
+        return (f.name || '').toLowerCase().includes(searchVal);
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = '';
+      if (emptyState) emptyState.style.display = 'block';
+      return;
+    }
+
+    if (emptyState) emptyState.style.display = 'none';
+
+    container.innerHTML = filtered.map(file => {
+      const ext = (file.ext || '').toLowerCase();
+      let iconSrc = 'docx_file.png';
+      let chipClass = 'chip-docx';
+      let chipLabel = 'WORD';
+
+      if (ext === 'pdf') {
+        iconSrc = 'pdf_file.png';
+        chipClass = 'chip-pdf';
+        chipLabel = 'PDF';
+      } else if (ext === 'pptx' || ext === 'ppt') {
+        iconSrc = 'pptx_file.png';
+        chipClass = 'chip-pptx';
+        chipLabel = 'SUNUM';
+      } else if (ext === 'txt' || ext === 'md') {
+        chipLabel = 'METİN';
+      }
+
+      const safeName = escapeHtml(file.name);
+      const safeDate = escapeHtml(file.date || '');
+      const safeSize = escapeHtml(file.size || '');
+
+      return `
+        <div class="library-card" data-name="${safeName}" data-path="${escapeHtml(file.path || file.name)}" data-ext="${ext}">
+          <div class="library-card-left" title="Açmak için tıklayın">
+            <img src="${iconSrc}" class="library-card-icon-img" alt="${chipLabel}">
+            <div class="library-card-details">
+              <div class="library-card-title">${safeName}</div>
+              <div class="library-card-meta">
+                <span class="library-ext-chip ${chipClass}">${chipLabel}</span>
+                <span>${safeDate}</span>
+                <span>•</span>
+                <span>${safeSize}</span>
+              </div>
+            </div>
+          </div>
+          <div class="library-card-actions">
+            <button class="library-btn-open" title="Belgeyi Aç ve Düzenle">Aç</button>
+            <button class="library-btn-del" title="Kütüphaneden Sil">🗑️</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach card action listeners
+    container.querySelectorAll('.library-card').forEach(card => {
+      const fileName = card.dataset.name;
+      const filePath = card.dataset.path;
+      const ext = card.dataset.ext;
+
+      // Click card or Aç button to open
+      const openFile = async () => {
+        closeModal('libraryModal');
+        // Android Bridge load
+        if (window.AndroidBridge && typeof window.AndroidBridge.readBase64File === 'function') {
+          try {
+            const b64 = window.AndroidBridge.readBase64File(fileName);
+            if (b64) {
+              window.__openAndroidDocument(fileName, b64);
+              return;
+            }
+          } catch (e) {}
+        }
+        // Online Server load
+        if (isOnlineServer) {
+          try {
+            const res = await fetch('/api/open-specific-file', {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+              body: filePath
+            });
+            if (res.ok) {
+              await checkForOpenedFile();
+              showToast(`"${fileName}" açıldı.`);
+              return;
+            }
+          } catch (e) {}
+        }
+        // Standalone file picker fallback
+        showToast(`"${fileName}" açılıyor...`);
+        document.getElementById('wordFileInput')?.click();
+      };
+
+      card.querySelector('.library-card-left')?.addEventListener('click', openFile);
+      card.querySelector('.library-btn-open')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openFile();
+      });
+
+      // Delete file action
+      card.querySelector('.library-btn-del')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`"${fileName}" adlı yazıyı silmek istediğinize emin misiniz?`)) return;
+
+        let deleted = false;
+        if (window.AndroidBridge && typeof window.AndroidBridge.deleteSavedFile === 'function') {
+          try {
+            deleted = window.AndroidBridge.deleteSavedFile(fileName);
+          } catch (_) {}
+        } else if (isOnlineServer) {
+          try {
+            const res = await fetch('/api/delete-file', {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+              body: filePath
+            });
+            if (res.ok) {
+              const r = await res.json();
+              deleted = r.success;
+            }
+          } catch (_) {}
+        } else {
+          // Remove from local storage
+          try {
+            const recents = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
+            const filtered = recents.filter(r => r.name !== fileName);
+            localStorage.setItem('belge_recent_documents', JSON.stringify(filtered));
+            deleted = true;
+          } catch (_) {}
+        }
+
+        if (deleted) {
+          showToast(`"${fileName}" silindi.`);
+          await loadLibraryFiles();
+        } else {
+          showToast('Dosya silinemedi veya zaten mevcut değil.', 'error');
+        }
+      });
+    });
+  }
+
+  document.getElementById('refreshLibraryBtn')?.addEventListener('click', loadLibraryFiles);
+  document.getElementById('openLibraryFolderBtn')?.addEventListener('click', () => {
+    if (isOnlineServer) {
+      fetch('/api/open-sync-folder').catch(() => {});
+    } else {
+      document.getElementById('wordFileInput')?.click();
+    }
+  });
+
+  document.getElementById('libraryChangeFolderBtn')?.addEventListener('click', async () => {
+    if (isOnlineServer) {
+      try {
+        const res = await fetch('/api/select-sync-folder');
+        if (res.ok) {
+          await loadLibraryFiles();
+          showToast('Kayıt klasörü güncellendi.');
+        }
+      } catch (_) {}
+    } else {
+      showToast('Kayıt klasörü mobil cihazda "Belgeler/Kalpten Kaleme" olarak belirlenmiştir.');
+    }
+  });
+
+  // Filter chips
+  document.querySelectorAll('.library-filter-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.library-filter-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentLibraryFilter = btn.dataset.filter || 'all';
+      renderLibraryGrid();
+    });
+  });
+
+  // Search input live filtering
+  document.getElementById('librarySearchInput')?.addEventListener('input', () => {
+    renderLibraryGrid();
   });
 
   document.getElementById('mobileRecentDocsBtn')?.addEventListener('click', () => {
@@ -1655,6 +1945,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Android Native "Birlikte Aç" (Open With) Handler
+window.__openAndroidDocumentDirect = function(jsonPayload) {
+  try {
+    const data = typeof jsonPayload === 'string' ? JSON.parse(jsonPayload) : jsonPayload;
+    if (data && data.fileName && data.base64) {
+      window.__openAndroidDocument(data.fileName, data.base64);
+    }
+  } catch (err) {
+    console.error('Error in __openAndroidDocumentDirect:', err);
+  }
+};
+
 window.__openAndroidDocument = function(fileName, base64Data) {
   try {
     const ext = (fileName.split('.').pop() || '').toLowerCase();

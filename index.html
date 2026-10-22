@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr" data-theme="light">
 <head>
   <meta charset="UTF-8">
@@ -48,6 +48,10 @@
         <span class="drive-status-dot" id="driveStatusDot"></span>
         <span id="driveStatusText">☁️ Drive</span>
       </div>
+      <button class="pill-btn pill-btn-primary library-top-btn" id="openLibraryBtn" title="Kütüphanem &amp; Yazı Arşivi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        <span class="btn-text">📚 Kütüphanem</span>
+      </button>
     </div>
 
     <!-- Center: Segmented Navigation -->
@@ -860,6 +864,86 @@
     </div>
   </div>
 
+  <!-- ====================================================================
+       KÜTÜPHANEM & BELGE ARŞİVİ MODAL (Lüks Edebi Kütüphane)
+       ==================================================================== -->
+  <div class="modal-backdrop" id="libraryModal">
+    <div class="studio-modal library-modal" style="max-width: 680px; width: 92vw; max-height: 85vh; display: flex; flex-direction: column;">
+      
+      <!-- Modal Header -->
+      <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(0, 114, 222, 0.12); display: flex; align-items: center; justify-content: center; font-size: 18px;">
+            📚
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-primary);">Kütüphanem &amp; Yazı Arşivi</h3>
+              <span class="library-badge-count" id="libraryItemsCount">0 Yazı</span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-tertiary); margin-top: 2px;" id="libraryStorageSubtitle">
+              Kayıtlı eserleriniz, notlarınız ve belgeleriniz
+            </div>
+          </div>
+        </div>
+        <button class="icon-btn" onclick="closeModal('libraryModal')" title="Kapat">✕</button>
+      </div>
+
+      <!-- Search & Filters Toolbar -->
+      <div style="padding: 12px 20px; background: var(--bg-surface-2); border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="position: relative; flex: 1;">
+            <input type="text" id="librarySearchInput" class="studio-input" placeholder="Yazılarda veya dosya adında ara..." style="width: 100%; padding-left: 32px; font-size: 13px; height: 36px; border-radius: 8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 10px; top: 10px; width: 16px; height: 16px; color: var(--text-tertiary);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </div>
+          <button class="pill-btn pill-btn-secondary" id="refreshLibraryBtn" title="Listeyi Yenile" style="height: 36px; padding: 0 12px; font-size: 12px; gap: 4px;">
+            🔄 Yenile
+          </button>
+          <button class="pill-btn pill-btn-secondary" id="openLibraryFolderBtn" title="Klasörü Dosya Gezgininde Aç" style="height: 36px; padding: 0 12px; font-size: 12px; gap: 4px;">
+            📁 Klasörü Aç
+          </button>
+        </div>
+
+        <!-- Filter Category Tabs -->
+        <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px;">
+          <button class="library-filter-pill active" data-filter="all">Tümü (<span id="countFilterAll">0</span>)</button>
+          <button class="library-filter-pill" data-filter="docx">Word (.docx) (<span id="countFilterDocx">0</span>)</button>
+          <button class="library-filter-pill" data-filter="pdf">PDF (<span id="countFilterPdf">0</span>)</button>
+          <button class="library-filter-pill" data-filter="other">Diğer (<span id="countFilterOther">0</span>)</button>
+        </div>
+      </div>
+
+      <!-- Documents Scroll Area -->
+      <div class="modal-body" style="padding: 16px 20px; overflow-y: auto; flex: 1; min-height: 240px; max-height: 480px;">
+        <div id="libraryItemsContainer" class="library-grid">
+          <!-- Populated dynamically via JS -->
+        </div>
+        <div id="libraryEmptyState" style="display: none; text-align: center; padding: 40px 20px;">
+          <div style="font-size: 40px; margin-bottom: 12px;">✍️</div>
+          <h4 style="font-size: 15px; margin: 0 0 6px 0; color: var(--text-primary);">Henüz Kayıtlı Yazı Bulunmuyor</h4>
+          <p style="font-size: 12.5px; color: var(--text-tertiary); max-width: 360px; margin: 0 auto 16px auto; line-height: 1.5;">
+            Yeni bir yazı yazıp kaydettiğinizde veya dışarıdan bir Word/PDF belgesi açtığınızda tüm eserleriniz kütüphanenizde burada listelenecektir.
+          </p>
+          <button class="pill-btn pill-btn-primary" onclick="closeModal('libraryModal'); document.getElementById('wordNewBtn').click();" style="margin: 0 auto;">
+            ✨ Yeni Yazı Başlat
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer" style="padding: 12px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 11.5px; color: var(--text-tertiary); display: flex; align-items: center; gap: 6px;">
+          <span class="drive-status-dot" id="librarySyncDot" style="display: inline-block;"></span>
+          <span id="libraryStorageLocation">Klasör taranıyor...</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="pill-btn pill-btn-secondary" id="libraryChangeFolderBtn" style="font-size: 12px;">⚙️ Kayıt Yolu</button>
+          <button class="pill-btn pill-btn-primary" onclick="closeModal('libraryModal')">Tamam</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Kayıt Klasörü ve Belgelerim Modal -->
   <div class="modal-backdrop" id="driveModal">
     <div class="studio-modal" style="max-width: 580px;">
@@ -1139,11 +1223,11 @@
             </div>
             <span>Kaydet (.docx)</span>
           </button>
-          <button class="mobile-sheet-item" id="mobileDriveBtn">
-            <div class="sheet-icon-circle">
+          <button class="mobile-sheet-item highlight-library-item" id="mobileLibraryBtn">
+            <div class="sheet-icon-circle" style="background: rgba(0, 114, 222, 0.15); color: var(--accent-primary);">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
             </div>
-            <span>Kayıtlı Yazılar</span>
+            <span style="font-weight: 700;">📚 Kütüphanem</span>
           </button>
           <button class="mobile-sheet-item" id="mobileRecentDocsBtn">
             <div class="sheet-icon-circle">

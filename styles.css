@@ -4434,3 +4434,205 @@ html.is-mobile-landscape .word-canvas-sheet {
   background: #10B981;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
 }
+
+/* ==============================================================================
+   Lüks Edebi Kütüphane (Library & Writing Archive) Styles
+   ============================================================================== */
+.library-top-btn {
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  padding: 4px 12px !important;
+  gap: 5px !important;
+  box-shadow: 0 2px 8px rgba(0, 114, 222, 0.25) !important;
+}
+
+.library-modal {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.library-badge-count {
+  background: rgba(0, 114, 222, 0.12);
+  color: var(--accent-primary);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.library-filter-pill {
+  background: var(--bg-surface-3, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.library-filter-pill:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+  background: rgba(0, 114, 222, 0.08);
+}
+
+.library-filter-pill.active {
+  background: var(--accent-primary);
+  color: #FFFFFF;
+  border-color: var(--accent-primary);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 114, 222, 0.3);
+}
+
+.library-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.library-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-surface-1, rgba(255, 255, 255, 0.025));
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  gap: 12px;
+}
+
+.library-card:hover {
+  background: var(--bg-surface-2, rgba(255, 255, 255, 0.06));
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.library-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.library-card-icon-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+}
+
+.library-card-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-card-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.library-card-meta {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.library-ext-chip {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.library-ext-chip.chip-docx {
+  background: rgba(37, 99, 235, 0.15);
+  color: #3B82F6;
+}
+
+.library-ext-chip.chip-pdf {
+  background: rgba(220, 38, 38, 0.15);
+  color: #EF4444;
+}
+
+.library-ext-chip.chip-pptx {
+  background: rgba(234, 88, 12, 0.15);
+  color: #F97316;
+}
+
+.library-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.library-btn-open {
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--accent-primary);
+  color: #FFFFFF;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.library-btn-open:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.library-btn-del {
+  padding: 5px 8px;
+  font-size: 11.5px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--accent-coral, #EF4444);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.library-btn-del:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #EF4444;
+}
+
+@media (max-width: 768px) {
+  .library-top-btn {
+    display: none !important;
+  }
+  .library-card {
+    padding: 8px 10px;
+  }
+  .library-card-icon-img {
+    width: 30px;
+    height: 30px;
+  }
+  .library-btn-open {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}

@@ -434,6 +434,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         showToast(`"${title}" Word dosyası olarak indirildi.`);
       }
+      if (typeof window.addRecentDocument === 'function') {
+        window.addRecentDocument(title);
+      }
     } catch (err) {
       console.error(err);
       if (saveStatusEl) saveStatusEl.classList.remove('saving');
