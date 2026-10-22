@@ -1942,6 +1942,10 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error checking pending Android document:', e);
     }
   }
+
+  if (location.hash === '#open-library') {
+    setTimeout(openLibrary, 200);
+  }
 });
 
 // Android Native "Birlikte Aç" (Open With) Handler
