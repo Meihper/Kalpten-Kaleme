@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="tr" data-theme="light">
 <head>
   <meta charset="UTF-8">
@@ -105,6 +105,16 @@
       </button>
 
       <!-- Mobile Dedicated Options Menu Button -->
+            <!-- Suite Download Modal Pill Button -->
+      <button class="pill-btn pill-btn-secondary suite-download-pill" id="suiteDownloadBtn" onclick="openModal('downloadSuiteModal')" title="Kalpten Kaleme İndir (Windows & Android)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span class="btn-text">İndir</span>
+      </button>
+
       <button class="icon-btn mobile-only-btn" id="mobileMoreBtn" title="Seçenekler Menüsü">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
           <circle cx="12" cy="12" r="1.5"></circle>
@@ -933,6 +943,90 @@
   </div>
 
   <!-- Toast Notification -->
+  <!-- ====================================================================
+       DOWNLOAD MODAL (Windows Masaüstü & Android APK İndirme)
+       ==================================================================== -->
+  <div class="modal-backdrop" id="downloadSuiteModal">
+    <div class="studio-modal download-suite-modal" style="max-width: 540px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="download-modal-brand-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; color: var(--accent-primary);">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <h3 style="font-size: 16px; margin: 0;">Kalpten Kaleme İndir</h3>
+              <span class="suite-version-tag">v1.0.0</span>
+            </div>
+            <span style="font-size: 11px; color: var(--text-tertiary);">Windows Masaüstü ve Android Sürümleri</span>
+          </div>
+        </div>
+        <button class="icon-btn" onclick="closeModal('downloadSuiteModal')">?</button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 20px;">
+        <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+          Kalpten Kaleme'yi bilgisayarınıza veya telefonunuza ücretsiz olarak indirebilirsiniz. Tamamen kurulumsuzdur, internet bağlantısı olmadan çevrimdışı çalışır.
+        </p>
+
+        <div class="download-cards-container">
+          <!-- Windows Desktop Card -->
+          <a href="https://github.com/Meihper/Kalpten-Kaleme/releases/download/v1.0.0/KalptenKaleme-Windows.zip" class="suite-download-card win-platform-card" id="winDownloadLink" download="KalptenKaleme-Windows.zip">
+            <div class="suite-card-icon win-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.949-1.801"/>
+              </svg>
+            </div>
+            <div class="suite-card-details">
+              <div class="suite-card-platform">Windows Masaüstü</div>
+              <div class="suite-card-sub">Windows 7, 8, 10, 11 (Taşınabilir ZIP)</div>
+              <div class="suite-card-meta">Kurulumsuz · Tek tıkla çalışır · 3.2 MB</div>
+            </div>
+            <div class="suite-card-action">
+              <span class="suite-dl-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 13px; height: 13px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                İndir
+              </span>
+            </div>
+          </a>
+
+          <!-- Android APK Card -->
+          <a href="https://github.com/Meihper/Kalpten-Kaleme/releases/download/v1.0.0/KalptenKaleme.apk" class="suite-download-card android-platform-card" id="androidDownloadLink" download="KalptenKaleme.apk">
+            <div class="suite-card-icon android-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.411 13.8533 8.084 12 8.084c-1.8533 0-3.5902.327-5.1368.8657L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+              </svg>
+            </div>
+            <div class="suite-card-details">
+              <div class="suite-card-platform">Android Uygulaması (APK)</div>
+              <div class="suite-card-sub">Telefon & Tablet (Android 7.0+)</div>
+              <div class="suite-card-meta">Resmi İmzalı APK Paketi · 3.1 MB</div>
+            </div>
+            <div class="suite-card-action">
+              <span class="suite-dl-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 13px; height: 13px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                İndir
+              </span>
+            </div>
+          </a>
+        </div>
+
+        <div style="margin-top: 14px; padding: 10px 12px; background: var(--bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--border-light); display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-secondary);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 15px; height: 15px; color: var(--accent-mint); flex-shrink: 0;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          <span>Açık kaynaklı, sıfır reklam ve sıfır abonelik modeliyle özgürce kullanabilirsiniz.</span>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="justify-content: flex-end;">
+        <button class="pill-btn pill-btn-primary" onclick="closeModal('downloadSuiteModal')">Kapat</button>
+      </div>
+    </div>
+  </div>
+
   <div class="studio-toast" id="oneuiToast">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--accent-mint)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
     <span id="toastMessage">İşlem tamamlandı.</span>
@@ -1068,6 +1162,12 @@
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
             </div>
             <span>Odak Modu</span>
+          </button>
+                    <button class="mobile-sheet-item" id="mobileDownloadAppBtn" onclick="closeModal('mobileActionSheetModal'); openModal('downloadSuiteModal');">
+            <div class="sheet-icon-circle" style="background: rgba(0, 114, 222, 0.12); color: var(--accent-primary);">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </div>
+            <span>İndir (Win/APK)</span>
           </button>
           <button class="mobile-sheet-item" id="mobilePrintBtn">
             <div class="sheet-icon-circle">

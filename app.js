@@ -1623,6 +1623,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('globalPrintBtn')?.click();
   });
 
+  // Download Modal local vs remote links
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    const winDl = document.getElementById('winDownloadLink');
+    const apkDl = document.getElementById('androidDownloadLink');
+    if (winDl) winDl.href = 'KalptenKaleme-Windows.zip';
+    if (apkDl) apkDl.href = 'KalptenKaleme.apk';
+  }
+
   // Initial Drive status fetch
   fetchDriveStatus();
 });

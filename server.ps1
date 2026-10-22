@@ -23,6 +23,8 @@ $mimeTypes = @{
     ".jpeg" = "image/jpeg"
     ".svg"  = "image/svg+xml"
     ".pdf"  = "application/pdf"
+    ".zip"  = "application/zip"
+    ".apk"  = "application/vnd.android.package-archive"
     ".pptx" = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     ".ppt"  = "application/vnd.ms-powerpoint"
 }
