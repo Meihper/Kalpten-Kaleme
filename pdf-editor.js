@@ -254,18 +254,22 @@ document.addEventListener('DOMContentLoaded', () => {
         lineEl._viewportRef = viewport;
 
         // Check if this line was previously edited
-        const existingEdit = pdfState.editedTexts.find(e => e.page === displayPageNum && e.lineKey === line.key);
+        const existingEdit = pdfState.editedTexts.find(e => e.page === displayPageNum && (e.lineKey === line.key || (e.originalText && e.originalText === line.text)));
         if (existingEdit) {
           lineEl.classList.add('text-modified');
-          lineEl.innerText = existingEdit.text;
+          if (existingEdit.text === '') {
+            lineEl.classList.add('text-erased');
+            lineEl.innerText = '';
+            lineEl.style.backgroundColor = existingEdit.bgColor || '#FFFFFF';
+          } else {
+            lineEl.innerText = existingEdit.text;
+            lineEl.style.backgroundColor = existingEdit.bgColor || '#FFFFFF';
+            lineEl.style.color = existingEdit.color || '#111827';
+          }
           lineEl.style.fontSize = `${existingEdit.fontSize * pdfState.scale}px`;
-          if (existingEdit.color) lineEl.style.color = existingEdit.color;
           if (existingEdit.isBold) lineEl.style.fontWeight = 'bold';
           if (existingEdit.isItalic) lineEl.style.fontStyle = 'italic';
           if (existingEdit.fontFamily) lineEl.style.fontFamily = existingEdit.fontFamily;
-          if (existingEdit.shouldMask) {
-            lineEl.style.backgroundColor = existingEdit.bgColor || '#FFFFFF';
-          }
         } else {
           lineEl.innerText = line.text;
         }
@@ -277,6 +281,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         textLayer.appendChild(lineEl);
+      });
+
+      // Re-render custom inserted texts on this page
+      const pageCustomTexts = (pdfState.editedTexts || []).filter(e => e.page === displayPageNum && (e.isCustom || (e.lineKey && e.lineKey.startsWith('custom_'))));
+      pageCustomTexts.forEach(cText => {
+        const cEl = document.createElement('div');
+        cEl.className = 'pdf-text-line text-modified is-custom-text';
+        cEl.dataset.lineKey = cText.lineKey;
+        cEl.dataset.pageNum = displayPageNum;
+        const leftPx = Math.round(cText.pctX * viewport.width);
+        const topPx = Math.round(cText.pctY * viewport.height);
+        cEl.style.left = `${leftPx}px`;
+        cEl.style.top = `${topPx}px`;
+        cEl.style.fontSize = `${cText.fontSize * pdfState.scale}px`;
+        cEl.style.color = cText.color || '#111827';
+        if (cText.isBold) cEl.style.fontWeight = 'bold';
+        if (cText.isItalic) cEl.style.fontStyle = 'italic';
+        if (cText.fontFamily) cEl.style.fontFamily = cText.fontFamily;
+        if (cText.shouldMask) cEl.style.backgroundColor = cText.bgColor || '#FFFFFF';
+        cEl.innerText = cText.text;
+
+        cEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const lineItem = {
+            x: leftPx,
+            y: topPx,
+            width: cEl.offsetWidth || 120,
+            height: cEl.offsetHeight || 22,
+            fontSize: cText.fontSize * pdfState.scale,
+            text: cText.text,
+            key: cText.lineKey,
+            isCustom: true
+          };
+          openInlineTextEditor(cEl, lineItem, displayPageNum, viewport);
+        });
+
+        textLayer.appendChild(cEl);
       });
 
       // 3. Annotation Layer (for highlights, new text boxes)
@@ -374,7 +415,6 @@ document.addEventListener('DOMContentLoaded', () => {
         curLine.height = Math.max(curLine.height, it.heightPx);
       } else {
         curLine.text = curLine.text.trim();
-        curLine.key = `${pageNum}_${Math.round(curLine.x)}_${Math.round(curLine.y)}`;
         lines.push(curLine);
         curLine = {
           x: it.vx,
@@ -391,9 +431,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (curLine) {
       curLine.text = curLine.text.trim();
-      curLine.key = `${pageNum}_${Math.round(curLine.x)}_${Math.round(curLine.y)}`;
       lines.push(curLine);
     }
+
+    lines.forEach((l, idx) => {
+      l.key = `p${pageNum}_line_${idx}`;
+    });
 
     return lines;
   }
@@ -577,6 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div class="inline-tool-sep"></div>
       <div class="inline-tool-group">
+        <button type="button" class="inline-action-pill delete-pill" id="inlineDeleteBtn" title="Metni Sil / Beyazlat">🗑 Sil</button>
         <button type="button" class="inline-action-pill save-pill" id="inlineSaveBtn" title="Uygula (Enter)">✓</button>
         <button type="button" class="inline-action-pill cancel-pill" id="inlineCancelBtn" title="Vazgeç (Esc)">✕</button>
       </div>
@@ -654,16 +698,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyChanges() {
       const newText = input.value.trim();
+      const isCustom = Boolean(lineItem.isCustom || (lineItem.key && lineItem.key.startsWith('custom_')));
+
       if (newText) {
         lineEl.innerText = newText;
+        lineEl.classList.remove('text-erased');
         lineEl.classList.add('text-modified');
-        lineEl.style.backgroundColor = detectedBgColor;
+        if (isCustom) lineEl.classList.add('is-custom-text');
+        lineEl.style.backgroundColor = isCustom ? 'transparent' : (detectedBgColor || '#FFFFFF');
         lineEl.style.color = activeColor;
         lineEl.style.fontSize = `${activeFontSize}px`;
         lineEl.style.fontWeight = isBold ? 'bold' : 'normal';
         lineEl.style.fontStyle = isItalic ? 'italic' : 'normal';
         lineEl.style.fontFamily = activeFontFamily === 'serif' ? 'Times New Roman, serif' : (activeFontFamily === 'monospace' ? 'Courier New, monospace' : 'Arial, sans-serif');
-        lineEl.style.width = `${Math.max(lineItem.width, input.scrollWidth + 4)}px`;
+        lineEl.style.width = 'auto';
         lineEl.style.opacity = '1';
         delete lineEl.dataset.editing;
 
@@ -680,27 +728,62 @@ document.addEventListener('DOMContentLoaded', () => {
           isBold: isBold,
           isItalic: isItalic,
           color: activeColor,
-          bgColor: detectedBgColor,
+          bgColor: isCustom ? 'transparent' : (detectedBgColor || '#FFFFFF'),
           text: newText,
-          originalText: lineItem.text,
-          shouldMask: true
+          originalText: lineItem.text || '',
+          shouldMask: !isCustom,
+          isCustom: isCustom
         };
 
         pdfState.editedTexts = pdfState.editedTexts.filter(e => !(e.page === pageNum && e.lineKey === lineItem.key));
         pdfState.editedTexts.push(editRecord);
 
-        showToast('Metin güncellendi! "Kaydet" butonuyla yeni PDF olarak indirebilirsiniz.');
+        showToast(isCustom ? 'Yeni metin eklendi.' : 'Metin güncellendi.');
       } else {
-        if (lineItem.key && lineItem.key.startsWith('custom_')) {
+        if (isCustom) {
+          pdfState.editedTexts = pdfState.editedTexts.filter(e => !(e.page === pageNum && e.lineKey === lineItem.key));
           lineEl.remove();
         } else {
+          // Erase / Whiteout original text
+          lineEl.innerText = '';
+          lineEl.classList.add('text-modified', 'text-erased');
+          lineEl.style.backgroundColor = detectedBgColor || '#FFFFFF';
           lineEl.style.opacity = '1';
           delete lineEl.dataset.editing;
+
+          const eraseRecord = {
+            id: existingEdit ? existingEdit.id : ('edit_' + Date.now()),
+            page: pageNum,
+            lineKey: lineItem.key,
+            pctX: lineItem.x / viewport.width,
+            pctY: lineItem.y / viewport.height,
+            pctW: Math.max(0.015, lineItem.width / viewport.width),
+            pctH: Math.max(0.012, (lineEl.offsetHeight || lineItem.height) / viewport.height),
+            fontSize: activeFontSize / pdfState.scale,
+            fontFamily: activeFontFamily,
+            isBold: false,
+            isItalic: false,
+            color: 'transparent',
+            bgColor: detectedBgColor || '#FFFFFF',
+            text: '',
+            originalText: lineItem.text || '',
+            shouldMask: true,
+            isCustom: false
+          };
+          pdfState.editedTexts = pdfState.editedTexts.filter(e => !(e.page === pageNum && e.lineKey === lineItem.key));
+          pdfState.editedTexts.push(eraseRecord);
+          showToast('Metin silindi (beyazlatıldı).');
         }
       }
       input.remove();
       toolbar.remove();
     }
+
+    toolbar.querySelector('#inlineDeleteBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      input.value = '';
+      applyChanges();
+    });
 
     toolbar.querySelector('#inlineSaveBtn').onclick = (e) => {
       e.stopPropagation();
@@ -757,19 +840,18 @@ document.addEventListener('DOMContentLoaded', () => {
           height: 20,
           fontSize: 14 * pdfState.scale,
           text: '',
-          key: `custom_${Date.now()}`
+          key: `custom_${Date.now()}`,
+          isCustom: true
         };
 
         const dummyEl = document.createElement('div');
-        dummyEl.className = 'pdf-text-line text-modified';
+        dummyEl.className = 'pdf-text-line text-modified is-custom-text';
         dummyEl.style.left = `${clickX}px`;
         dummyEl.style.top = `${clickY}px`;
         dummyEl.style.fontSize = `${dummyLine.fontSize}px`;
         pageWrapper.querySelector('.pdf-text-layer').appendChild(dummyEl);
 
         openInlineTextEditor(dummyEl, dummyLine, pageNum, viewport);
-        pdfState.activeTool = 'editText';
-        updateToolButtons();
       } else if (pdfState.activeTool === 'highlight') {
         const rect = pageWrapper.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
@@ -781,12 +863,12 @@ document.addEventListener('DOMContentLoaded', () => {
           type: 'highlight',
           pctX: clickX / viewport.width,
           pctY: clickY / viewport.height,
+          pctW: 140 / viewport.width,
+          pctH: 24 / viewport.height,
           width: 140,
           height: 24
         });
         showToast('Vurgulayıcı eklendi.');
-        pdfState.activeTool = 'editText';
-        updateToolButtons();
       }
     });
   }
@@ -812,8 +894,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     box.style.left = `${annot.pctX * layerWidth}px`;
     box.style.top = `${annot.pctY * layerHeight}px`;
-    box.style.width = `${annot.width}px`;
-    box.style.height = `${annot.height}px`;
+    box.style.width = `${annot.pctW ? annot.pctW * layerWidth : annot.width}px`;
+    box.style.height = `${annot.pctH ? annot.pctH * layerHeight : annot.height}px`;
 
     const removeBtn = document.createElement('button');
     removeBtn.className = 'remove-btn';
@@ -831,22 +913,12 @@ document.addEventListener('DOMContentLoaded', () => {
       box.style.border = '1px solid rgba(255, 215, 0, 0.7)';
     }
 
-    // Dragging
+    // Dragging with clean event binding
     let isDragging = false;
     let startX = 0, startY = 0;
     let initialLeft = 0, initialTop = 0;
 
-    box.addEventListener('mousedown', (e) => {
-      if (e.target.tagName === 'BUTTON') return;
-      isDragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      initialLeft = parseFloat(box.style.left) || 0;
-      initialTop = parseFloat(box.style.top) || 0;
-      box.style.zIndex = '50';
-    });
-
-    window.addEventListener('mousemove', (e) => {
+    const onMouseMove = (e) => {
       if (!isDragging) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
@@ -859,13 +931,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
       annot.pctX = newLeft / layer.clientWidth;
       annot.pctY = newTop / layer.clientHeight;
-    });
+    };
 
-    window.addEventListener('mouseup', () => {
+    const onMouseUp = () => {
       if (isDragging) {
         isDragging = false;
         box.style.zIndex = '';
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
       }
+    };
+
+    box.addEventListener('mousedown', (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      initialLeft = parseFloat(box.style.left) || 0;
+      initialTop = parseFloat(box.style.top) || 0;
+      box.style.zIndex = '50';
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
     });
 
     layer.appendChild(box);
@@ -976,39 +1062,16 @@ document.addEventListener('DOMContentLoaded', () => {
     box.appendChild(resizeHandle);
     pageWrapper.appendChild(box);
 
-    // Dragging
+    // Dragging & Resizing with clean event handling
     let isDragging = false;
     let dragStartX = 0, dragStartY = 0;
     let initialLeft = 0, initialTop = 0;
 
-    box.addEventListener('mousedown', (e) => {
-      if (e.target === removeBtn || e.target === resizeHandle) return;
-      isDragging = true;
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
-      initialLeft = parseFloat(box.style.left) || 0;
-      initialTop = parseFloat(box.style.top) || 0;
-      document.querySelectorAll('.pdf-image-box').forEach(b => b.classList.remove('active'));
-      box.classList.add('active');
-      e.preventDefault();
-    });
-
-    // Resizing
     let isResizing = false;
     let resizeStartX = 0, resizeStartY = 0;
     let initialWidth = 0, initialHeight = 0;
 
-    resizeHandle.addEventListener('mousedown', (e) => {
-      isResizing = true;
-      resizeStartX = e.clientX;
-      resizeStartY = e.clientY;
-      initialWidth = parseFloat(box.style.width) || box.offsetWidth;
-      initialHeight = parseFloat(box.style.height) || box.offsetHeight;
-      e.stopPropagation();
-      e.preventDefault();
-    });
-
-    window.addEventListener('mousemove', (e) => {
+    const onImageMouseMove = (e) => {
       if (isDragging) {
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
@@ -1028,11 +1091,41 @@ document.addEventListener('DOMContentLoaded', () => {
         imgRecord.pctW = newW / pageWrapper.clientWidth;
         imgRecord.pctH = newH / pageWrapper.clientHeight;
       }
+    };
+
+    const onImageMouseUp = () => {
+      if (isDragging || isResizing) {
+        isDragging = false;
+        isResizing = false;
+        window.removeEventListener('mousemove', onImageMouseMove);
+        window.removeEventListener('mouseup', onImageMouseUp);
+      }
+    };
+
+    box.addEventListener('mousedown', (e) => {
+      if (e.target === removeBtn || e.target === resizeHandle) return;
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      initialLeft = parseFloat(box.style.left) || 0;
+      initialTop = parseFloat(box.style.top) || 0;
+      document.querySelectorAll('.pdf-image-box').forEach(b => b.classList.remove('active'));
+      box.classList.add('active');
+      e.preventDefault();
+      window.addEventListener('mousemove', onImageMouseMove);
+      window.addEventListener('mouseup', onImageMouseUp);
     });
 
-    window.addEventListener('mouseup', () => {
-      isDragging = false;
-      isResizing = false;
+    resizeHandle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      resizeStartX = e.clientX;
+      resizeStartY = e.clientY;
+      initialWidth = parseFloat(box.style.width) || box.offsetWidth;
+      initialHeight = parseFloat(box.style.height) || box.offsetHeight;
+      e.stopPropagation();
+      e.preventDefault();
+      window.addEventListener('mousemove', onImageMouseMove);
+      window.addEventListener('mouseup', onImageMouseUp);
     });
   }
 
@@ -1515,8 +1608,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const regex = new RegExp(findStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
     const newText = currentText.replace(regex, repStr);
 
+    const pageWrapper = match.el.closest('.pdf-page-wrapper');
+    const sampled = sampleCanvasColor(pageWrapper, match.lineItem.x, match.lineItem.y, match.lineItem.width, match.lineItem.height);
+    const bgColor = sampled.bgColor || '#FFFFFF';
+    const textColor = sampled.textColor || '#111827';
+
     match.el.innerText = newText;
     match.el.classList.add('text-modified');
+    match.el.style.backgroundColor = bgColor;
+    match.el.style.color = textColor;
+    match.el.style.fontSize = `${match.lineItem.fontSize}px`;
+    match.el.style.width = 'auto';
 
     const editRecord = {
       id: 'edit_' + Date.now(),
@@ -1530,7 +1632,8 @@ document.addEventListener('DOMContentLoaded', () => {
       fontFamily: 'sans-serif',
       isBold: false,
       isItalic: false,
-      color: '#111827',
+      color: textColor,
+      bgColor: bgColor,
       text: newText,
       originalText: match.lineItem.text,
       shouldMask: true
@@ -1558,11 +1661,21 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const match of findMatches) {
       const currentText = match.el.innerText;
       const newText = currentText.replace(regex, repStr);
+
+      const pageWrapper = match.el.closest('.pdf-page-wrapper');
+      const sampled = sampleCanvasColor(pageWrapper, match.lineItem.x, match.lineItem.y, match.lineItem.width, match.lineItem.height);
+      const bgColor = sampled.bgColor || '#FFFFFF';
+      const textColor = sampled.textColor || '#111827';
+
       match.el.innerText = newText;
       match.el.classList.add('text-modified');
+      match.el.style.backgroundColor = bgColor;
+      match.el.style.color = textColor;
+      match.el.style.fontSize = `${match.lineItem.fontSize}px`;
+      match.el.style.width = 'auto';
 
       const editRecord = {
-        id: 'edit_' + Date.now(),
+        id: 'edit_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
         page: match.pageNum,
         lineKey: match.lineItem.key,
         pctX: match.lineItem.x / match.viewport.width,
@@ -1573,7 +1686,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fontFamily: 'sans-serif',
         isBold: false,
         isItalic: false,
-        color: '#111827',
+        color: textColor,
+        bgColor: bgColor,
         text: newText,
         originalText: match.lineItem.text,
         shouldMask: true
@@ -1667,14 +1781,21 @@ document.addEventListener('DOMContentLoaded', () => {
           if (editItem.shouldMask) {
             // Mask original text cleanly with opaque rectangle matching background
             const maskRgb = hexToRgb(editItem.bgColor || '#FFFFFF');
+            const maskH = Math.max(itemH, renderH) + 2;
+            const maskY = pHeight - (editItem.pctY * pHeight) - maskH;
             page.drawRectangle({
               x: Math.max(0, itemX - 2),
-              y: Math.max(0, itemY - 2),
+              y: Math.max(0, maskY),
               width: Math.max(itemW, renderW) + 4,
-              height: Math.max(itemH, renderH) + 4,
+              height: maskH,
               color: rgb(maskRgb.r / 255, maskRgb.g / 255, maskRgb.b / 255),
               opacity: 1.0
             });
+          }
+
+          if (!editItem.text || editItem.text.trim() === '') {
+            // Erased/Whiteout line: mask has been drawn, skip drawing text
+            continue;
           }
 
           const pngBytes = dataUrlToUint8Array(cvs.toDataURL('image/png'));
@@ -1692,8 +1813,8 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const annot of pageAnnots) {
           const targetX = annot.pctX * pWidth;
           if (annot.type === 'highlight') {
-            const scaledW = annot.width * (pWidth / (pWidth * pdfState.scale));
-            const scaledH = annot.height * (pHeight / (pHeight * pdfState.scale));
+            const scaledW = (annot.pctW ? annot.pctW * pWidth : annot.width);
+            const scaledH = (annot.pctH ? annot.pctH * pHeight : annot.height);
 
             page.drawRectangle({
               x: targetX,

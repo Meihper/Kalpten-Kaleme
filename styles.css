@@ -1154,6 +1154,17 @@ body {
   transition: none !important;
 }
 
+.pdf-text-line.text-erased {
+  color: transparent !important;
+  user-select: none !important;
+  cursor: default !important;
+}
+
+.pdf-text-line.is-custom-text {
+  cursor: text !important;
+  z-index: 18 !important;
+}
+
 /* ==========================================================================
    In-Place Live PDF Text Editor & Micro-Toolbar
    ========================================================================== */
@@ -1327,6 +1338,16 @@ body {
 .inline-action-pill.cancel-pill:hover {
   background: var(--border-light);
   color: var(--text-primary);
+}
+
+.inline-action-pill.delete-pill {
+  background: rgba(239, 68, 68, 0.12);
+  color: #DC2626;
+}
+
+.inline-action-pill.delete-pill:hover {
+  background: #DC2626;
+  color: #FFFFFF;
 }
 
 /* ==========================================================================
