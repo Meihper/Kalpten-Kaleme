@@ -22,9 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 1. Statistics Calculation (Optimized with debounce for smooth performance on Windows 7)
   let statsRafId = null;
-  function updateStats() {
-    if (statsRafId) cancelAnimationFrame(statsRafId);
-    statsRafId = requestAnimationFrame(() => {
+  function updateStats(immediate = false) {
+    const doCalc = () => {
       const text = editor.innerText || '';
       const cleanText = text.trim();
       const words = cleanText ? cleanText.split(/\s+/).length : 0;
@@ -48,7 +47,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const sheetReadTime = document.getElementById('sheetReadTime');
       if (sheetReadTime) sheetReadTime.textContent = `${readingTime} dk`;
-    });
+    };
+
+    if (statsRafId) cancelAnimationFrame(statsRafId);
+    if (immediate) {
+      doCalc();
+    } else {
+      statsRafId = requestAnimationFrame(doCalc);
+    }
+  }
+
+  // Robust Selection Preservation
+  let savedWordSelection = null;
+  function saveCurrentSelection() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+      savedWordSelection = sel.getRangeAt(0).cloneRange();
+    }
+  }
+  function restoreCurrentSelection() {
+    if (savedWordSelection) {
+      editor.focus();
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedWordSelection);
+    } else {
+      editor.focus();
+    }
   }
 
   const headerSaveStatus = document.getElementById('wordSaveStatus');
@@ -281,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  window.updateWordStats = updateStats;
+  window.updateWordStats = (immediate = true) => updateStats(immediate);
 
   // 4. Save to .DOCX (Microsoft Word format & Google Drive Sync)
   window.saveWordDocument = async function() {
@@ -619,21 +644,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Word Editor Fast Color Presets & Popovers (No need to open OS spectrum for primary colors)
-  let savedWordSelection = null;
-  function saveCurrentSelection() {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      savedWordSelection = sel.getRangeAt(0);
-    }
-  }
-  function restoreCurrentSelection() {
-    if (savedWordSelection) {
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(savedWordSelection);
-    }
-  }
-
   function setupColorPopover(btnId, popoverId, barId, inputId, commandName) {
     const btn = document.getElementById(btnId);
     const popover = document.getElementById(popoverId);
@@ -760,10 +770,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Insert Table
   document.getElementById('wordInsertTableBtn')?.addEventListener('click', () => {
+    saveCurrentSelection();
     openModal('tableModal');
   });
 
   document.getElementById('confirmInsertTableBtn')?.addEventListener('click', () => {
+    restoreCurrentSelection();
     const rows = parseInt(document.getElementById('tableRows').value) || 3;
     const cols = parseInt(document.getElementById('tableCols').value) || 3;
 
@@ -785,14 +797,16 @@ document.addEventListener('DOMContentLoaded', () => {
     editor.focus();
     document.execCommand('insertHTML', false, tableHtml);
     closeModal('tableModal');
-    updateStats();
+    updateStats(true);
     showToast(`${rows}x${cols} Tablo eklendi.`);
   });
 
   // Insert Link
   document.getElementById('wordInsertLinkBtn')?.addEventListener('click', () => {
+    saveCurrentSelection();
     const url = prompt('Bağlantı URL adresini girin:', 'https://');
     if (url && url !== 'https://') {
+      restoreCurrentSelection();
       executeCmd('createLink', url);
       showToast('Bağlantı eklendi.');
     }

@@ -1130,6 +1130,134 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
+  // 6c. PDF Signature Studio (Drawing, Touch/Mouse, Colors, Clear)
+  // ========================================================================
+  const pdfSignBtn = document.getElementById('pdfSignBtn');
+  const signatureCanvas = document.getElementById('signatureCanvas');
+  const clearSignatureBtn = document.getElementById('clearSignatureBtn');
+  const applySignatureBtn = document.getElementById('applySignatureBtn');
+  let signCtx = null;
+  let isSigning = false;
+  let signInkColor = '#0F172A';
+  let hasSigned = false;
+
+  function initSignatureCanvas() {
+    if (!signatureCanvas) return;
+    signCtx = signatureCanvas.getContext('2d');
+    signCtx.lineWidth = 2.5;
+    signCtx.lineCap = 'round';
+    signCtx.lineJoin = 'round';
+    signCtx.strokeStyle = signInkColor;
+    clearSignatureCanvas();
+  }
+
+  function clearSignatureCanvas() {
+    if (!signatureCanvas || !signCtx) return;
+    signCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+    hasSigned = false;
+  }
+
+  function getSignPos(e) {
+    const rect = signatureCanvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const scaleX = signatureCanvas.width / rect.width;
+    const scaleY = signatureCanvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  }
+
+  function startSign(e) {
+    if (!signCtx) initSignatureCanvas();
+    isSigning = true;
+    hasSigned = true;
+    const pos = getSignPos(e);
+    signCtx.beginPath();
+    signCtx.moveTo(pos.x, pos.y);
+    if (e.cancelable) e.preventDefault();
+  }
+
+  function moveSign(e) {
+    if (!isSigning) return;
+    const pos = getSignPos(e);
+    signCtx.lineTo(pos.x, pos.y);
+    signCtx.stroke();
+    if (e.cancelable) e.preventDefault();
+  }
+
+  function endSign() {
+    if (isSigning) {
+      signCtx.closePath();
+      isSigning = false;
+    }
+  }
+
+  if (signatureCanvas) {
+    signatureCanvas.addEventListener('mousedown', startSign);
+    signatureCanvas.addEventListener('mousemove', moveSign);
+    window.addEventListener('mouseup', endSign);
+
+    signatureCanvas.addEventListener('touchstart', startSign, { passive: false });
+    signatureCanvas.addEventListener('touchmove', moveSign, { passive: false });
+    signatureCanvas.addEventListener('touchend', endSign);
+    signatureCanvas.addEventListener('touchcancel', endSign);
+  }
+
+  pdfSignBtn?.addEventListener('click', () => {
+    if (!pdfState.pdfDoc) {
+      showToast('Lütfen önce bir PDF belgesi açın.', 'error');
+      return;
+    }
+    openModal('signatureModal');
+    setTimeout(() => {
+      initSignatureCanvas();
+    }, 50);
+  });
+
+  clearSignatureBtn?.addEventListener('click', () => {
+    clearSignatureCanvas();
+  });
+
+  document.querySelectorAll('.sign-color-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      document.querySelectorAll('.sign-color-dot').forEach(d => {
+        d.classList.remove('active');
+        d.style.boxShadow = '0 0 0 1px #CBD5E1';
+      });
+      dot.classList.add('active');
+      dot.style.boxShadow = '0 0 0 2px var(--accent-primary)';
+      signInkColor = dot.dataset.color || '#0F172A';
+      if (signCtx) signCtx.strokeStyle = signInkColor;
+    });
+  });
+
+  function isCanvasBlank(canvas) {
+    try {
+      const context = canvas.getContext('2d');
+      const pixelBuffer = new Uint32Array(
+        context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+      );
+      return !pixelBuffer.some(color => color !== 0);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  applySignatureBtn?.addEventListener('click', () => {
+    if (!hasSigned && isCanvasBlank(signatureCanvas)) {
+      showToast('Lütfen önce kutu içerisine imzanızı çizin.', 'error');
+      return;
+    }
+    const dataUrl = signatureCanvas.toDataURL('image/png');
+    insertImageToPdf(dataUrl);
+    closeModal('signatureModal');
+    clearSignatureCanvas();
+    showToast('İmzanız PDF sayfasına eklendi! Dilediğiniz konuma taşıyabilirsiniz.');
+  });
+
+  // ========================================================================
   // 7. Thumbnails and Navigation
   // ========================================================================
   async function renderThumbnails() {
@@ -1704,6 +1832,155 @@ document.addEventListener('DOMContentLoaded', () => {
   // ========================================================================
   // 10. Save PDF (Permanently applies In-Place Text Edits, Images & Annotations)
   // ========================================================================
+  async function generateExportPdfBytes() {
+    if (!pdfState.rawBytes || !window.PDFLib) return null;
+    const { PDFDocument, rgb, degrees } = window.PDFLib;
+    const srcDoc = await PDFDocument.load(pdfState.rawBytes);
+    const outDoc = await PDFDocument.create();
+
+    const zeroBasedIndices = pdfState.pageOrder.map(n => n - 1);
+    const copiedPages = await outDoc.copyPages(srcDoc, zeroBasedIndices);
+
+    for (let i = 0; i < copiedPages.length; i++) {
+      const page = copiedPages[i];
+      const origNum = pdfState.pageOrder[i];
+      const displayPageNum = i + 1;
+
+      const addRotation = pdfState.pageRotations[origNum] || 0;
+      if (addRotation) {
+        const curRot = page.getRotation().angle;
+        page.setRotation(degrees(curRot + addRotation));
+      }
+
+      const { width: pWidth, height: pHeight } = page.getSize();
+
+      // 1. Process In-Place Edited Texts
+      const pageEditedTexts = (pdfState.editedTexts || []).filter(e => e.page === displayPageNum);
+      for (const editItem of pageEditedTexts) {
+        const itemX = editItem.pctX * pWidth;
+        const itemW = Math.max(16, editItem.pctW * pWidth);
+        const itemH = Math.max(12, editItem.pctH * pHeight);
+
+        const cvs = document.createElement('canvas');
+        const factor = 3;
+        const cCtx = cvs.getContext('2d');
+
+        const fontStyle = editItem.isItalic ? 'italic ' : '';
+        const fontWeight = editItem.isBold ? 'bold ' : '';
+        let fontFam = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        if (editItem.fontFamily === 'serif') {
+          fontFam = 'Georgia, "Times New Roman", serif';
+        } else if (editItem.fontFamily === 'monospace') {
+          fontFam = '"Courier New", Courier, monospace';
+        }
+
+        const fontPx = Math.round(editItem.fontSize * factor);
+        cCtx.font = `${fontStyle}${fontWeight}${fontPx}px ${fontFam}`;
+        const textMetrics = cCtx.measureText(editItem.text);
+        const actualTextW = Math.ceil(textMetrics.width);
+        const actualTextH = Math.ceil(fontPx * 1.25);
+
+        cvs.width = actualTextW + 8;
+        cvs.height = actualTextH + 6;
+
+        cCtx.font = `${fontStyle}${fontWeight}${fontPx}px ${fontFam}`;
+        if (editItem.shouldMask) {
+          cCtx.fillStyle = editItem.bgColor || '#FFFFFF';
+          cCtx.fillRect(0, 0, cvs.width, cvs.height);
+        }
+
+        cCtx.fillStyle = editItem.color || '#111827';
+        cCtx.textBaseline = 'top';
+        cCtx.fillText(editItem.text, 2, 2);
+
+        const renderW = cvs.width / factor;
+        const renderH = cvs.height / factor;
+        const itemY = pHeight - (editItem.pctY * pHeight) - renderH;
+
+        if (editItem.shouldMask) {
+          const maskRgb = hexToRgb(editItem.bgColor || '#FFFFFF');
+          const maskH = Math.max(itemH, renderH) + 2;
+          const maskY = pHeight - (editItem.pctY * pHeight) - maskH;
+          page.drawRectangle({
+            x: Math.max(0, itemX - 2),
+            y: Math.max(0, maskY),
+            width: Math.max(itemW, renderW) + 4,
+            height: maskH,
+            color: rgb(maskRgb.r / 255, maskRgb.g / 255, maskRgb.b / 255),
+            opacity: 1.0
+          });
+        }
+
+        if (!editItem.text || editItem.text.trim() === '') {
+          continue;
+        }
+
+        const pngBytes = dataUrlToUint8Array(cvs.toDataURL('image/png'));
+        const textPng = await outDoc.embedPng(pngBytes);
+        page.drawImage(textPng, {
+          x: itemX,
+          y: itemY,
+          width: renderW,
+          height: renderH
+        });
+      }
+
+      // 2. Process Annotations
+      const pageAnnots = (pdfState.annotations || []).filter(a => a.page === origNum);
+      for (const annot of pageAnnots) {
+        const targetX = annot.pctX * pWidth;
+        if (annot.type === 'highlight') {
+          const scaledW = (annot.pctW ? annot.pctW * pWidth : annot.width);
+          const scaledH = (annot.pctH ? annot.pctH * pHeight : annot.height);
+
+          page.drawRectangle({
+            x: targetX,
+            y: pHeight - (annot.pctY * pHeight) - scaledH,
+            width: scaledW,
+            height: scaledH,
+            color: rgb(1, 0.9, 0.2),
+            opacity: 0.45
+          });
+        }
+      }
+
+      // 3. Process Inserted Images & Signatures
+      const pageImages = (pdfState.images || []).filter(img => img.page === displayPageNum);
+      for (const imgItem of pageImages) {
+        try {
+          let embeddedImg;
+          if (imgItem.dataUrl.startsWith('data:image/jpeg') || imgItem.dataUrl.startsWith('data:image/jpg')) {
+            embeddedImg = await outDoc.embedJpg(dataUrlToUint8Array(imgItem.dataUrl));
+          } else {
+            embeddedImg = await outDoc.embedPng(dataUrlToUint8Array(imgItem.dataUrl));
+          }
+
+          const targetW = imgItem.pctW * pWidth;
+          const targetH = imgItem.pctH * pHeight;
+          const targetX = imgItem.pctX * pWidth;
+          const targetY = pHeight - (imgItem.pctY * pHeight) - targetH;
+
+          page.drawImage(embeddedImg, {
+            x: targetX,
+            y: targetY,
+            width: targetW,
+            height: targetH
+          });
+        } catch (imgErr) {
+          console.warn('Image embedding fallback:', imgErr);
+        }
+      }
+    }
+
+    return await outDoc.save();
+  }
+
+  window.exportPdfBlob = async function() {
+    const bytes = await generateExportPdfBytes();
+    if (!bytes) return null;
+    return new Blob([bytes], { type: 'application/pdf' });
+  };
+
   window.savePdfDocument = async function() {
     if (!pdfState.rawBytes || !window.PDFLib) {
       showToast('PDF motoru hazır değil veya açık bir PDF yok.', 'error');
@@ -1712,150 +1989,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       showToast('Değişiklikler işleniyor ve PDF oluşturuluyor...');
-      const { PDFDocument, rgb, degrees } = window.PDFLib;
-      const srcDoc = await PDFDocument.load(pdfState.rawBytes);
-      const outDoc = await PDFDocument.create();
-
-      const zeroBasedIndices = pdfState.pageOrder.map(n => n - 1);
-      const copiedPages = await outDoc.copyPages(srcDoc, zeroBasedIndices);
-
-      for (let i = 0; i < copiedPages.length; i++) {
-        const page = copiedPages[i];
-        const origNum = pdfState.pageOrder[i];
-        const displayPageNum = i + 1;
-
-        const addRotation = pdfState.pageRotations[origNum] || 0;
-        if (addRotation) {
-          const curRot = page.getRotation().angle;
-          page.setRotation(degrees(curRot + addRotation));
-        }
-
-        const { width: pWidth, height: pHeight } = page.getSize();
-
-        // 1. Process In-Place Edited Texts
-        const pageEditedTexts = (pdfState.editedTexts || []).filter(e => e.page === displayPageNum);
-        for (const editItem of pageEditedTexts) {
-          const itemX = editItem.pctX * pWidth;
-          const itemW = Math.max(16, editItem.pctW * pWidth);
-          const itemH = Math.max(12, editItem.pctH * pHeight);
-
-          // Render updated text with canvas for 100% Turkish Unicode support
-          const cvs = document.createElement('canvas');
-          const factor = 3;
-          const cCtx = cvs.getContext('2d');
-
-          const fontStyle = editItem.isItalic ? 'italic ' : '';
-          const fontWeight = editItem.isBold ? 'bold ' : '';
-          let fontFam = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-          if (editItem.fontFamily === 'serif') {
-            fontFam = 'Georgia, "Times New Roman", serif';
-          } else if (editItem.fontFamily === 'monospace') {
-            fontFam = '"Courier New", Courier, monospace';
-          }
-
-          const fontPx = Math.round(editItem.fontSize * factor);
-          cCtx.font = `${fontStyle}${fontWeight}${fontPx}px ${fontFam}`;
-          const textMetrics = cCtx.measureText(editItem.text);
-          const actualTextW = Math.ceil(textMetrics.width);
-          const actualTextH = Math.ceil(fontPx * 1.25);
-
-          // Resize canvas precisely to fit text
-          cvs.width = actualTextW + 8;
-          cvs.height = actualTextH + 6;
-
-          // Re-apply context font after canvas dimension resize
-          cCtx.font = `${fontStyle}${fontWeight}${fontPx}px ${fontFam}`;
-          if (editItem.shouldMask) {
-            cCtx.fillStyle = editItem.bgColor || '#FFFFFF';
-            cCtx.fillRect(0, 0, cvs.width, cvs.height);
-          }
-
-          cCtx.fillStyle = editItem.color || '#111827';
-          cCtx.textBaseline = 'top';
-          cCtx.fillText(editItem.text, 2, 2);
-
-          const renderW = cvs.width / factor;
-          const renderH = cvs.height / factor;
-          const itemY = pHeight - (editItem.pctY * pHeight) - renderH;
-
-          if (editItem.shouldMask) {
-            // Mask original text cleanly with opaque rectangle matching background
-            const maskRgb = hexToRgb(editItem.bgColor || '#FFFFFF');
-            const maskH = Math.max(itemH, renderH) + 2;
-            const maskY = pHeight - (editItem.pctY * pHeight) - maskH;
-            page.drawRectangle({
-              x: Math.max(0, itemX - 2),
-              y: Math.max(0, maskY),
-              width: Math.max(itemW, renderW) + 4,
-              height: maskH,
-              color: rgb(maskRgb.r / 255, maskRgb.g / 255, maskRgb.b / 255),
-              opacity: 1.0
-            });
-          }
-
-          if (!editItem.text || editItem.text.trim() === '') {
-            // Erased/Whiteout line: mask has been drawn, skip drawing text
-            continue;
-          }
-
-          const pngBytes = dataUrlToUint8Array(cvs.toDataURL('image/png'));
-          const textPng = await outDoc.embedPng(pngBytes);
-          page.drawImage(textPng, {
-            x: itemX,
-            y: itemY,
-            width: renderW,
-            height: renderH
-          });
-        }
-
-        // 2. Process Annotations (Highlights)
-        const pageAnnots = pdfState.annotations.filter(a => a.page === displayPageNum);
-        for (const annot of pageAnnots) {
-          const targetX = annot.pctX * pWidth;
-          if (annot.type === 'highlight') {
-            const scaledW = (annot.pctW ? annot.pctW * pWidth : annot.width);
-            const scaledH = (annot.pctH ? annot.pctH * pHeight : annot.height);
-
-            page.drawRectangle({
-              x: targetX,
-              y: pHeight - (annot.pctY * pHeight) - scaledH,
-              width: scaledW,
-              height: scaledH,
-              color: rgb(1, 0.9, 0.2),
-              opacity: 0.45
-            });
-          }
-        }
-
-        // 3. Process Inserted Images
-        const pageImages = (pdfState.images || []).filter(img => img.page === displayPageNum);
-        for (const imgItem of pageImages) {
-          try {
-            let embeddedImg;
-            if (imgItem.dataUrl.startsWith('data:image/jpeg') || imgItem.dataUrl.startsWith('data:image/jpg')) {
-              embeddedImg = await outDoc.embedJpg(dataUrlToUint8Array(imgItem.dataUrl));
-            } else {
-              embeddedImg = await outDoc.embedPng(dataUrlToUint8Array(imgItem.dataUrl));
-            }
-
-            const targetW = imgItem.pctW * pWidth;
-            const targetH = imgItem.pctH * pHeight;
-            const targetX = imgItem.pctX * pWidth;
-            const targetY = pHeight - (imgItem.pctY * pHeight) - targetH;
-
-            page.drawImage(embeddedImg, {
-              x: targetX,
-              y: targetY,
-              width: targetW,
-              height: targetH
-            });
-          } catch (imgErr) {
-            console.warn('Image embedding fallback:', imgErr);
-          }
-        }
-      }
-
-      const pdfBytes = await outDoc.save();
+      const pdfBytes = await generateExportPdfBytes();
+      if (!pdfBytes) throw new Error('PDF verisi oluşturulamadı.');
       const rawName = (pdfState.fileName || 'Belge.pdf').trim();
       const pdfFileName = rawName.toLowerCase().endsWith('.pdf') ? rawName : rawName + '.pdf';
 

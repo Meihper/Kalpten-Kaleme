@@ -1144,6 +1144,7 @@ const pptEditor = {
     if (!overlay) return;
 
     overlay.style.display = 'flex';
+    overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
 
     // Request browser native fullscreen if supported
@@ -1171,6 +1172,7 @@ const pptEditor = {
     const overlay = document.getElementById('pptPresentationOverlay');
     if (overlay) {
       overlay.style.display = 'none';
+      overlay.classList.remove('active');
       document.body.style.overflow = '';
     }
     if (document.fullscreenElement && document.exitFullscreen) {

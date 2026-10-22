@@ -446,6 +446,10 @@
           </button>
           <input type="file" id="pdfImageFileInput" accept="image/png,image/jpeg,image/webp" style="display: none;">
 
+          <button class="tool-item" id="pdfSignBtn" title="Islak İmza & Kaşe Ekle (Çiz veya İmzala)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
+          </button>
+
           <button class="tool-item" id="pdfFindToggleBtn" title="Bul ve Değiştir (Ctrl+F)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           </button>
@@ -806,6 +810,42 @@
       <div class="modal-footer">
         <button class="pill-btn pill-btn-secondary" onclick="closeModal('tableModal')">İptal</button>
         <button class="pill-btn pill-btn-primary" id="confirmInsertTableBtn">Ekle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Signature Studio Modal -->
+  <div class="modal-backdrop" id="signatureModal">
+    <div class="studio-modal" style="max-width: 520px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">✍️</span>
+          <h3>Islak İmza & Kaşe Ekle</h3>
+        </div>
+        <button class="icon-btn" onclick="closeModal('signatureModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 12px;">
+          Fareniz veya parmağınızla kutu içerisine imzanızı atın. PDF sayfasına yerleştirilecektir.
+        </p>
+        <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
+          <span style="font-size: 12px; font-weight: 600;">Mürekkep:</span>
+          <button type="button" class="sign-color-dot active" data-color="#0F172A" style="width: 22px; height: 22px; border-radius: 50%; background: #0F172A; border: 2px solid #FFF; box-shadow: 0 0 0 2px var(--accent-primary); cursor: pointer;"></button>
+          <button type="button" class="sign-color-dot" data-color="#1E40AF" style="width: 22px; height: 22px; border-radius: 50%; background: #1E40AF; border: 2px solid #FFF; box-shadow: 0 0 0 1px #CBD5E1; cursor: pointer;"></button>
+          <button type="button" class="sign-color-dot" data-color="#B91C1C" style="width: 22px; height: 22px; border-radius: 50%; background: #B91C1C; border: 2px solid #FFF; box-shadow: 0 0 0 1px #CBD5E1; cursor: pointer;"></button>
+          <div style="flex: 1;"></div>
+          <button type="button" class="pill-btn pill-btn-secondary" id="clearSignatureBtn" style="padding: 4px 10px; font-size: 11.5px;">Temizle</button>
+        </div>
+        <div class="signature-canvas-container" style="border: 2px dashed var(--border-light); border-radius: var(--radius-md); background: #FFFFFF; position: relative; overflow: hidden;">
+          <canvas id="signatureCanvas" width="480" height="180" style="display: block; width: 100%; height: 180px; touch-action: none; cursor: crosshair;"></canvas>
+          <div style="position: absolute; bottom: 6px; right: 10px; font-size: 11px; color: #94A3B8; pointer-events: none; user-select: none;">
+            Kalpten Kaleme İmza Alanı
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="pill-btn pill-btn-secondary" onclick="closeModal('signatureModal')">Vazgeç</button>
+        <button class="pill-btn pill-btn-primary" id="applySignatureBtn">İmzayı Belgeye Ekle</button>
       </div>
     </div>
   </div>
