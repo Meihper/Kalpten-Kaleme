@@ -106,8 +106,47 @@ function setTheme(theme) {
 }
 
 function isMobileWordStudio() {
-  return window.innerWidth <= 768 || Boolean(window.AndroidBridge);
+  if (Boolean(window.AndroidBridge)) return true;
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) return true;
+  const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const isSmallOrLandscape = window.innerWidth <= 768 || (window.innerHeight <= 560 && window.innerWidth <= 1050);
+  return Boolean(isTouch && isSmallOrLandscape) || (window.innerWidth <= 768) || (window.innerHeight <= 560 && window.innerWidth <= 1050);
 }
+
+function syncMobileAppMode() {
+  const isMobile = isMobileWordStudio();
+  const isLandscape = isMobile && window.innerWidth > window.innerHeight;
+  document.documentElement.classList.toggle('is-mobile-app', isMobile);
+  document.body.classList.toggle('is-mobile-app', isMobile);
+  document.documentElement.classList.toggle('is-mobile-landscape', isLandscape);
+  document.body.classList.toggle('is-mobile-landscape', isLandscape);
+
+  if (isMobile) {
+    if (appState.currentTab !== 'wordTab') {
+      appState.currentTab = 'wordTab';
+    }
+    const pdfTab = document.getElementById('pdfTab');
+    const pptTab = document.getElementById('pptTab');
+    const toolsTab = document.getElementById('toolsTab');
+    if (pdfTab) pdfTab.classList.remove('active');
+    if (pptTab) pptTab.classList.remove('active');
+    if (toolsTab) toolsTab.classList.remove('active');
+    const wordTab = document.getElementById('wordTab');
+    if (wordTab) wordTab.classList.add('active');
+  }
+
+  if (window.docManager) {
+    window.docManager.renderTabs();
+  }
+}
+
+// Immediately trigger mobile sync on script parse
+syncMobileAppMode();
+window.addEventListener('resize', syncMobileAppMode);
+window.addEventListener('orientationchange', () => {
+  setTimeout(syncMobileAppMode, 100);
+  setTimeout(syncMobileAppMode, 300);
+});
 
 function switchTab(tabId) {
   if (isMobileWordStudio()) {
@@ -606,6 +645,7 @@ const docManager = {
 window.docManager = docManager;
 
 document.addEventListener('DOMContentLoaded', () => {
+  syncMobileAppMode();
   setTheme(appState.theme);
   docManager.init();
 

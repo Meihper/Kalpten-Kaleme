@@ -2202,149 +2202,150 @@ html:not([data-theme="dark"])[data-paper="book"] .word-workspace {
 
 /* ==============================================================================
    Responsive Desktop & Tablet Viewports (Seamless Resizing & Split-Screen Snap)
+   Only active for desktop viewports (height > 550px) to prevent overriding landscape phones.
    ============================================================================== */
 
-@media screen and (max-width: 1220px) {
-  .doc-name-pill {
+@media screen and (max-width: 1220px) and (min-height: 551px) {
+  html:not(.is-mobile-app) .doc-name-pill {
     max-width: 250px;
     min-width: 160px;
   }
-  #wordSaveStatus {
+  html:not(.is-mobile-app) #wordSaveStatus {
     font-size: 11px;
     padding: 2px 6px;
   }
-  #paperToneBtn .btn-text,
-  #wordNewBtn .btn-text,
-  #globalOpenBtn .btn-text {
+  html:not(.is-mobile-app) #paperToneBtn .btn-text,
+  html:not(.is-mobile-app) #wordNewBtn .btn-text,
+  html:not(.is-mobile-app) #globalOpenBtn .btn-text {
     display: none !important;
   }
-  #paperToneBtn {
+  html:not(.is-mobile-app) #paperToneBtn {
     padding: 0 9px !important;
     height: 32px;
   }
-  #wordNewBtn,
-  #globalOpenBtn {
+  html:not(.is-mobile-app) #wordNewBtn,
+  html:not(.is-mobile-app) #globalOpenBtn {
     padding: 0 9px !important;
     height: 32px;
   }
-  #pdfEditTextBtn span,
-  #pdfInsertImageBtn span {
+  html:not(.is-mobile-app) #pdfEditTextBtn span,
+  html:not(.is-mobile-app) #pdfInsertImageBtn span {
     display: none !important;
   }
-  #wordFontFamily {
+  html:not(.is-mobile-app) #wordFontFamily {
     max-width: 120px;
   }
-  #wordFormatBlock {
+  html:not(.is-mobile-app) #wordFormatBlock {
     max-width: 115px;
   }
 }
 
-@media screen and (max-width: 1050px) {
-  .unified-header {
+@media screen and (max-width: 1050px) and (min-height: 551px) {
+  html:not(.is-mobile-app) .unified-header {
     padding: 0 12px !important;
     gap: 8px !important;
   }
-  .header-left {
+  html:not(.is-mobile-app) .header-left {
     gap: 6px !important;
   }
-  .doc-name-pill {
+  html:not(.is-mobile-app) .doc-name-pill {
     max-width: 190px !important;
     min-width: 120px !important;
     font-size: 13px !important;
   }
-  #wordSaveStatus {
+  html:not(.is-mobile-app) #wordSaveStatus {
     display: none !important;
   }
-  #driveStatusText {
+  html:not(.is-mobile-app) #driveStatusText {
     display: none !important;
   }
-  .drive-sync-pill {
+  html:not(.is-mobile-app) .drive-sync-pill {
     padding: 5px 8px !important;
   }
-  .nav-pill-btn {
+  html:not(.is-mobile-app) .nav-pill-btn {
     padding: 5px 10px !important;
     font-size: 12px !important;
     gap: 4px !important;
   }
-  .nav-pill-btn svg {
+  html:not(.is-mobile-app) .nav-pill-btn svg {
     width: 13px !important;
     height: 13px !important;
   }
-  .word-workspace {
+  html:not(.is-mobile-app) .word-workspace {
     padding: 16px 10px !important;
   }
-  .word-canvas-sheet {
+  html:not(.is-mobile-app) .word-canvas-sheet {
     padding: 42px 36px !important;
   }
-  .document-tabs-bar {
+  html:not(.is-mobile-app) .document-tabs-bar {
     padding: 0 10px !important;
   }
-  .doc-tab {
+  html:not(.is-mobile-app) .doc-tab {
     max-width: 160px !important;
     font-size: 11.5px !important;
     padding: 3px 8px !important;
   }
-  .pdf-sidebar {
+  html:not(.is-mobile-app) .pdf-sidebar {
     width: 160px !important;
     padding: 8px !important;
   }
-  .pdf-viewport-container {
+  html:not(.is-mobile-app) .pdf-viewport-container {
     padding: 16px 8px !important;
   }
-  #pdfEditInWordBtn {
+  html:not(.is-mobile-app) #pdfEditInWordBtn {
     font-size: 10.5px !important;
     padding: 3px 7px !important;
   }
 }
 
-@media screen and (max-width: 880px) and (min-width: 769px) {
-  .unified-header {
+@media screen and (max-width: 880px) and (min-width: 769px) and (min-height: 551px) {
+  html:not(.is-mobile-app) .unified-header {
     padding: 0 8px !important;
     gap: 4px !important;
   }
-  .doc-name-pill {
+  html:not(.is-mobile-app) .doc-name-pill {
     max-width: 100px !important;
     min-width: 60px !important;
     font-size: 12px !important;
   }
-  .nav-segmented {
+  html:not(.is-mobile-app) .nav-segmented {
     padding: 2px !important;
     gap: 2px !important;
   }
-  .nav-pill-btn {
+  html:not(.is-mobile-app) .nav-pill-btn {
     padding: 4px 7px !important;
     font-size: 11px !important;
     gap: 2px !important;
   }
-  .nav-pill-btn svg {
+  html:not(.is-mobile-app) .nav-pill-btn svg {
     display: none !important;
   }
-  #globalSaveBtn .btn-text {
+  html:not(.is-mobile-app) #globalSaveBtn .btn-text {
     display: none !important;
   }
-  #globalSaveBtn {
+  html:not(.is-mobile-app) #globalSaveBtn {
     padding: 0 9px !important;
     height: 32px !important;
   }
-  #wordFindBtn,
-  #globalPrintBtn {
+  html:not(.is-mobile-app) #wordFindBtn,
+  html:not(.is-mobile-app) #globalPrintBtn {
     display: none !important;
   }
-  .header-right {
+  html:not(.is-mobile-app) .header-right {
     gap: 4px !important;
   }
-  .word-canvas-sheet {
+  html:not(.is-mobile-app) .word-canvas-sheet {
     padding: 30px 20px !important;
     min-height: 800px !important;
   }
-  .pdf-sidebar {
+  html:not(.is-mobile-app) .pdf-sidebar {
     width: 120px !important;
     padding: 6px !important;
   }
-  .tools-container {
+  html:not(.is-mobile-app) .tools-container {
     padding: 20px 12px !important;
   }
-  .tools-grid {
+  html:not(.is-mobile-app) .tools-grid {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
     gap: 10px !important;
   }
@@ -2361,7 +2362,10 @@ html:not([data-theme="dark"])[data-paper="book"] .word-workspace {
   display: none;
 }
 
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 768px),
+       screen and (orientation: landscape) and (max-height: 560px),
+       screen and (hover: none) and (pointer: coarse) and (max-width: 1050px),
+       screen and (max-height: 520px) {
   /* Hide all custom scrollbars on mobile to prevent grey bars along the paper edge */
   *, *::before, *::after {
     scrollbar-width: none !important;
@@ -3136,6 +3140,164 @@ html:not([data-theme="dark"])[data-paper="book"] .word-workspace {
     height: 34px !important;
     font-size: 12px !important;
   }
+}
+
+/* ==============================================================================
+   Compact Optimizations for Landscape Phone (Yatay Ekran Görünümü)
+   ============================================================================== */
+@media screen and (orientation: landscape) and (max-height: 560px),
+       screen and (max-height: 480px) {
+  .unified-header {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 10px !important;
+    gap: 8px !important;
+  }
+
+  .mobile-brand-mark {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    border-radius: 8px !important;
+  }
+
+  .doc-capsule {
+    padding: 3px 8px !important;
+    height: 30px !important;
+  }
+
+  .doc-name-pill {
+    font-size: 13px !important;
+  }
+
+  #globalSaveBtn {
+    height: 30px !important;
+    padding: 0 10px !important;
+    font-size: 11.5px !important;
+  }
+
+  #mobileMoreBtn {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    border-radius: 10px !important;
+  }
+
+  .slim-toolbar {
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 8px !important;
+    gap: 4px !important;
+  }
+
+  .slim-toolbar .tool-item {
+    width: 30px !important;
+    height: 28px !important;
+    min-width: 30px !important;
+    border-radius: 8px !important;
+  }
+
+  #wordFormatBlock {
+    height: 28px !important;
+    font-size: 11px !important;
+    padding: 0 8px !important;
+  }
+
+  .word-canvas-sheet,
+  .word-canvas-sheet.margin-normal,
+  .word-canvas-sheet.margin-narrow,
+  .word-canvas-sheet.margin-wide {
+    padding: 12px 24px 32px 24px !important;
+    min-height: calc(100dvh - 84px) !important;
+  }
+
+  .mobile-action-sheet {
+    max-height: 94dvh !important;
+    padding: 8px 16px 16px 16px !important;
+  }
+
+  .mobile-sheet-stat-card {
+    padding: 6px 10px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .mobile-sheet-section {
+    margin-bottom: 8px !important;
+  }
+
+  .mobile-sheet-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px 6px !important;
+  }
+
+  .mobile-sheet-item {
+    padding: 6px 4px 5px 4px !important;
+  }
+
+  .sheet-icon-circle {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 10px !important;
+  }
+}
+
+/* Explicit class-based mobile activation for any WebView/PWA condition */
+html.is-mobile-app .mobile-only-btn { display: flex !important; }
+html.is-mobile-app #pdfTab,
+html.is-mobile-app #pptTab,
+html.is-mobile-app #toolsTab,
+html.is-mobile-app #pdfDocTitle,
+html.is-mobile-app #pptDocTitle { display: none !important; }
+html.is-mobile-app #wordTab { display: flex !important; flex-direction: column !important; flex: 1 1 auto !important; height: 100% !important; width: 100% !important; max-width: 100vw !important; overflow: hidden !important; }
+html.is-mobile-app .header-center,
+html.is-mobile-app .word-status-bar { display: none !important; }
+html.is-mobile-app #zenModeBtn,
+html.is-mobile-app #paperToneBtn,
+html.is-mobile-app #wordNewBtn,
+html.is-mobile-app #globalOpenBtn,
+html.is-mobile-app #recentDocsBtn,
+html.is-mobile-app #wordFindBtn,
+html.is-mobile-app #globalPrintBtn,
+html.is-mobile-app #themeToggleBtn,
+html.is-mobile-app .header-right .tool-sep { display: none !important; }
+html.is-mobile-app .document-tabs-bar:not(.has-multiple-docs) { display: none !important; }
+html.is-mobile-app #wordFontFamily,
+html.is-mobile-app #wordFontSize,
+html.is-mobile-app #wordLineHeight,
+html.is-mobile-app #pageLayoutDetails { display: none !important; }
+html.is-mobile-app .auto-save-pill,
+html.is-mobile-app .drive-sync-pill,
+html.is-mobile-app .doc-capsule-type-icon { display: none !important; }
+
+html.is-mobile-landscape .unified-header {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 10px !important;
+  gap: 8px !important;
+}
+html.is-mobile-landscape .mobile-brand-mark {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+}
+html.is-mobile-landscape #globalSaveBtn {
+  height: 30px !important;
+  padding: 0 10px !important;
+  font-size: 11.5px !important;
+}
+html.is-mobile-landscape #mobileMoreBtn {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+}
+html.is-mobile-landscape .slim-toolbar {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 8px !important;
+}
+html.is-mobile-landscape .word-canvas-sheet {
+  padding: 12px 24px 32px 24px !important;
+  min-height: calc(100dvh - 84px) !important;
 }
 
 
