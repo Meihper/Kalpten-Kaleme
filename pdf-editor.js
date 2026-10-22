@@ -1809,13 +1809,88 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Print PDF
-  window.printPdfDocument = function() {
-    if (window.executeCleanPrint) {
-      window.executeCleanPrint();
-    } else {
-      window.print();
+  // High-Resolution 300 DPI Vector-Quality Print Generator
+  window.preparePdfPrintPages = async function(printRoot) {
+    if (!pdfState.pdfDoc || !printRoot) return false;
+    printRoot.innerHTML = '';
+    const numPages = pdfState.pageOrder.length;
+    // 300 DPI render scale (~2400px width for standard A4 page)
+    const printScale = 2.8;
+
+    for (let idx = 0; idx < numPages; idx++) {
+      const origNum = pdfState.pageOrder[idx];
+      const displayNum = idx + 1;
+      const page = await pdfState.pdfDoc.getPage(origNum);
+      const rotation = (pdfState.pageRotations[origNum] || 0);
+      const viewport = page.getViewport({ scale: printScale, rotation: rotation });
+
+      const pageDiv = document.createElement('div');
+      pageDiv.className = 'kalpten-print-pdf-page';
+      pageDiv.style.position = 'relative';
+      pageDiv.style.width = '100%';
+      pageDiv.style.maxWidth = '210mm';
+      pageDiv.style.margin = '0 auto';
+      pageDiv.style.backgroundColor = '#FFFFFF';
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'pdf-page-canvas';
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      canvas.style.display = 'block';
+
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+      pageDiv.appendChild(canvas);
+
+      // Render edited texts on print page
+      const pageEditedTexts = (pdfState.editedTexts || []).filter(e => e.page === displayNum);
+      pageEditedTexts.forEach(editItem => {
+        const textEl = document.createElement('div');
+        textEl.className = 'pdf-text-line text-modified';
+        textEl.innerText = editItem.text;
+        textEl.style.position = 'absolute';
+        textEl.style.left = (editItem.pctX * 100) + '%';
+        textEl.style.top = (editItem.pctY * 100) + '%';
+        textEl.style.fontSize = (editItem.fontSize * printScale) + 'px';
+        textEl.style.lineHeight = '1.15';
+        textEl.style.whiteSpace = 'pre';
+        if (editItem.color) textEl.style.color = editItem.color;
+        if (editItem.isBold) textEl.style.fontWeight = 'bold';
+        if (editItem.isItalic) textEl.style.fontStyle = 'italic';
+        if (editItem.fontFamily) textEl.style.fontFamily = editItem.fontFamily;
+        if (editItem.shouldMask) {
+          textEl.style.backgroundColor = editItem.bgColor || '#FFFFFF';
+        }
+        pageDiv.appendChild(textEl);
+      });
+
+      // Render inserted images on print page
+      const pageImages = (pdfState.images || []).filter(img => img.page === displayNum);
+      pageImages.forEach(imgItem => {
+        const imgEl = document.createElement('img');
+        imgEl.src = imgItem.dataUrl;
+        imgEl.style.position = 'absolute';
+        imgEl.style.left = (imgItem.pctX * 100) + '%';
+        imgEl.style.top = (imgItem.pctY * 100) + '%';
+        imgEl.style.width = (imgItem.pctW * 100) + '%';
+        imgEl.style.height = (imgItem.pctH * 100) + '%';
+        imgEl.style.objectFit = 'fill';
+        pageDiv.appendChild(imgEl);
+      });
+
+      printRoot.appendChild(pageDiv);
     }
+    return true;
+  };
+
+  // Print PDF
+  window.printPdfDocument = async function() {
+    if (window.prepareCleanPrintRoot) {
+      await window.prepareCleanPrintRoot();
+    }
+    window.print();
   };
 
   // Expose state and rendering helpers for docManager multi-document tabs

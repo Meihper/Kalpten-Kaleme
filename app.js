@@ -759,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return { printRoot, pageStyle };
   }
 
-  window.prepareCleanPrintRoot = function() {
+  window.prepareCleanPrintRoot = async function() {
     const { printRoot, pageStyle } = ensurePrintElements();
 
     // Remove any legacy print iframes if present
@@ -771,6 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const isPortrait = window.pptEditor.state.aspectRatio === 'a4-portrait';
       pageStyle.textContent = `@media print { @page { size: A4 ${isPortrait ? 'portrait' : 'landscape'}; margin: 0mm !important; } }`;
       const theme = window.pptEditor.state.theme || 'theme-clean-light';
+      const ratioClass = isPortrait ? 'ratio-a4-portrait' : 'ratio-16-9';
 
       const slidesHtml = (window.pptEditor.state.slides || []).map((s) => {
         let inner = '';
@@ -785,7 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;">${s.title || ''}</h2><div style="font-size:16px;line-height:1.75;flex:1;">${s.content || ''}</div>`;
         }
-        return `<div class="kalpten-print-slide ${theme}">${inner}</div>`;
+        return `<div class="kalpten-print-slide ${theme} ${ratioClass}">${inner}</div>`;
       }).join('');
 
       printRoot.innerHTML = slidesHtml;
@@ -794,6 +795,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (appState.currentTab === 'pdfTab') {
       pageStyle.textContent = `@media print { @page { size: auto; margin: 0mm !important; } }`;
+      if (window.preparePdfPrintPages) {
+        const ok = await window.preparePdfPrintPages(printRoot);
+        if (ok) return;
+      }
       printRoot.innerHTML = '';
       const wrappers = document.querySelectorAll('#pdfPagesContainer .pdf-page-wrapper');
       wrappers.forEach((wrapper) => {
@@ -824,14 +829,15 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (editor.classList.contains('margin-wide')) pad = '20mm 25mm';
     }
     pageStyle.textContent = `@media print { @page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: 0mm !important; } }`;
-    const fontFam = (editor && editor.style.fontFamily) ? editor.style.fontFamily : 'inherit';
-    const fontSz = (editor && editor.style.fontSize) ? editor.style.fontSize : '15px';
-    const lineHt = (editor && editor.style.lineHeight) ? editor.style.lineHeight : '1.65';
+    const computed = editor ? window.getComputedStyle(editor) : null;
+    const fontFam = (editor && editor.style.fontFamily) ? editor.style.fontFamily : (computed ? computed.fontFamily : "'Georgia', serif");
+    const fontSz = (editor && editor.style.fontSize) ? editor.style.fontSize : (computed ? computed.fontSize : '16px');
+    const lineHt = (editor && editor.style.lineHeight) ? editor.style.lineHeight : (computed ? computed.lineHeight : '1.7');
     printRoot.innerHTML = `<div class="kalpten-print-word-sheet" style="padding: ${pad}; font-family: ${fontFam}; font-size: ${fontSz}; line-height: ${lineHt};">${editor ? editor.innerHTML : ''}</div>`;
   };
 
-  window.executeCleanPrint = function() {
-    window.prepareCleanPrintRoot();
+  window.executeCleanPrint = async function() {
+    await window.prepareCleanPrintRoot();
     window.print();
   };
 
