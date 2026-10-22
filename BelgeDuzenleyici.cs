@@ -533,14 +533,9 @@ namespace BelgeDuzenleyici
                 @"G:\Kalpten Kaleme",
                 Path.Combine(userProfile, "Google Drive", "Kalpten Kaleme"),
                 Path.Combine(userProfile, "Google Drive'ım", "Kalpten Kaleme"),
-                Path.Combine(userProfile, "GoogleDrive", "Kalpten Kaleme")
+                Path.Combine(userProfile, "GoogleDrive", "Kalpten Kaleme"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Kalpten Kaleme")
             };
-            string envOneDrive = Environment.GetEnvironmentVariable("OneDrive");
-            if (!string.IsNullOrEmpty(envOneDrive)) candidateList.Add(Path.Combine(envOneDrive, "Kalpten Kaleme"));
-            string envOneDriveConsumer = Environment.GetEnvironmentVariable("OneDriveConsumer");
-            if (!string.IsNullOrEmpty(envOneDriveConsumer)) candidateList.Add(Path.Combine(envOneDriveConsumer, "Kalpten Kaleme"));
-            candidateList.Add(Path.Combine(userProfile, "OneDrive", "Kalpten Kaleme"));
-            candidateList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Kalpten Kaleme"));
 
             foreach (string path in candidateList)
             {
