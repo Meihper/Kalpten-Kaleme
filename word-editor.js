@@ -358,6 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fileInput?.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length > 0) {
       window.loadWordFile(e.target.files[0]);
+      e.target.value = '';
     }
   });
 
@@ -825,6 +826,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Görsel eklendi.');
       };
       reader.readAsDataURL(file);
+      e.target.value = '';
     }
   });
 
@@ -867,7 +869,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const url = prompt('Bağlantı URL adresini girin:', 'https://');
     if (url && url !== 'https://') {
       restoreCurrentSelection();
-      executeCmd('createLink', url);
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        editor.focus();
+        document.execCommand('insertHTML', false, `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+      } else {
+        executeCmd('createLink', url);
+      }
       showToast('Bağlantı eklendi.');
     }
   });

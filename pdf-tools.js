@@ -5,6 +5,37 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
+  function savePdfFile(pdfBytes, defaultFileName) {
+    if (window.AndroidBridge && typeof window.AndroidBridge.saveBase64File === 'function') {
+      try {
+        let binary = '';
+        const len = pdfBytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(pdfBytes[i]);
+        }
+        const b64 = btoa(binary);
+        window.AndroidBridge.saveBase64File(defaultFileName, b64, 'application/pdf');
+        if (window.addRecentDocument) window.addRecentDocument(defaultFileName, 'pdf');
+        showToast(`"${defaultFileName}" telefonunuzdaki Belgeler klasörüne kaydedildi!`);
+        return;
+      } catch (e) {
+        console.warn('AndroidBridge save error:', e);
+      }
+    }
+
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = defaultFileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (window.addRecentDocument) window.addRecentDocument(defaultFileName, 'pdf');
+    showToast(`"${defaultFileName}" başarıyla kaydedildi!`);
+  }
+
   // 1. PDF Birleştirici (Merge PDFs)
   const mergeBtn = document.getElementById('toolMergeBtn');
   const mergeInput = document.getElementById('toolMergeInput');
@@ -15,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const files = e.target.files;
     if (!files || files.length < 2) {
       showToast('Birleştirmek için lütfen en az 2 PDF dosyası seçin.', 'error');
+      e.target.value = '';
       return;
     }
 
@@ -32,21 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const mergedPdfBytes = await mergedDoc.save();
-      const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Birlestirilmis_Belgeler.pdf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      showToast('PDF belgeleri başarıyla birleştirildi!');
+      savePdfFile(mergedPdfBytes, 'Birlestirilmis_Belgeler.pdf');
     } catch (err) {
       console.error(err);
       showToast('Birleştirme hatası: ' + err.message, 'error');
+    } finally {
+      e.target.value = '';
     }
   });
 
@@ -107,23 +130,41 @@ document.addEventListener('DOMContentLoaded', () => {
       copiedPages.forEach(p => newDoc.addPage(p));
 
       const newBytes = await newDoc.save();
-      const blob = new Blob([newBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name.replace(/\.pdf$/i, '') + '_ayiklanan.pdf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
+      const outName = file.name.replace(/\.pdf$/i, '') + '_ayiklanan.pdf';
+      savePdfFile(newBytes, outName);
       showToast(`${sortedIndices.length} sayfa ayıklandı ve kaydedildi!`);
     } catch (err) {
       console.error(err);
       showToast('Sayfa ayıklama hatası: ' + err.message, 'error');
+    } finally {
+      e.target.value = '';
     }
   });
+
+  async function convertImageToPngBytes(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(async (blob) => {
+          if (!blob) return reject(new Error('Görsel dönüştürülemedi.'));
+          const buffer = await blob.arrayBuffer();
+          resolve(buffer);
+        }, 'image/png');
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Görsel okunamadı: ' + file.name));
+      };
+      img.src = url;
+    });
+  }
 
   // 3. Görselleri PDF'e Dönüştür (Images to PDF)
   const imgToPdfBtn = document.getElementById('toolImgToPdfBtn');
@@ -142,13 +183,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const bytes = await file.arrayBuffer();
         let image;
 
         if (file.type === 'image/jpeg' || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
+          const bytes = await file.arrayBuffer();
           image = await pdfDoc.embedJpg(bytes);
-        } else {
+        } else if (file.type === 'image/png' || file.name.toLowerCase().endsWith('.png')) {
+          const bytes = await file.arrayBuffer();
           image = await pdfDoc.embedPng(bytes);
+        } else {
+          // Convert WebP, BMP, GIF etc. via Canvas
+          const pngBytes = await convertImageToPngBytes(file);
+          image = await pdfDoc.embedPng(pngBytes);
         }
 
         const dims = image.scale(1);
@@ -175,21 +221,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Gorsellerden_Olusturulan_Belge.pdf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      showToast('Görseller PDF dosyasına dönüştürüldü!');
+      savePdfFile(pdfBytes, 'Gorsellerden_Olusturulan_Belge.pdf');
     } catch (err) {
       console.error(err);
       showToast('Dönüştürme hatası: ' + err.message, 'error');
+    } finally {
+      e.target.value = '';
     }
   });
 
@@ -235,6 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error(err);
       showToast('Dönüştürme hatası: ' + err.message, 'error');
+    } finally {
+      e.target.value = '';
     }
   });
 

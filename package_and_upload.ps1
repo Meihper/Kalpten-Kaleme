@@ -55,10 +55,10 @@ Write-Host "`n=========================================="
 Write-Host "2. COMMITTING AND PUSHING TO GITHUB"
 Write-Host "=========================================="
 
-git add index.html word-editor.js ppt-editor.js pdf-editor.js styles.css app.js BelgeDuzenleyici.cs BelgeDuzenleyici.exe server.ps1 build_android_apk.ps1 package_and_upload.ps1 android/AndroidManifest.xml android/src/com/kalpten/kaleme/MainActivity.java android/assets/www/ android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig KalptenKaleme.apk
+git add index.html word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js styles.css app.js BelgeDuzenleyici.cs BelgeDuzenleyici.exe server.ps1 build_android_apk.ps1 package_and_upload.ps1 android/AndroidManifest.xml android/src/com/kalpten/kaleme/MainActivity.java android/assets/www/ android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig KalptenKaleme.apk
 $status = git status --porcelain
 if ($status) {
-    git commit -m 'fix(mobile): optimize library toolbar responsiveness, add Android openDocumentsFolder bridge, and fix mobile file picker modal close'
+    git commit -m 'fix: comprehensive audit - mobile suite module switcher, touch annotations, presentation swipe, safe file re-selection, and android pdf tools bridge'
     git push origin main
     Write-Host "Git push completed."
 } else {

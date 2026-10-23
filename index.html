@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="app.png?v=3">
   <link rel="manifest" href="manifest.json?v=3">
   <meta name="theme-color" content="#1C2438">
-  <link rel="stylesheet" href="styles.css?v=1.0.2">
+  <link rel="stylesheet" href="styles.css?v=1.0.3">
   
   <!-- Offline Core Libraries (Deferred for instantaneous initial paint) -->
   <script src="vendor/jszip.min.js" defer></script>
@@ -1060,6 +1060,29 @@
         </button>
       </div>
 
+      <!-- Mobile Suite Module Switcher (Kelime / PDF / Sunum / Araçlar) -->
+      <div class="mobile-sheet-section" style="padding-top: 4px; padding-bottom: 2px;">
+        <div class="mobile-sheet-section-label">OFİS MODÜLÜ SEÇİN</div>
+        <div class="mobile-suite-switcher" id="mobileSuiteSwitcher">
+          <button class="mobile-suite-btn active" data-tab="wordTab">
+            <img src="docx_file.png" alt="Word" style="width: 20px; height: 20px;">
+            <span>Kelime</span>
+          </button>
+          <button class="mobile-suite-btn" data-tab="pdfTab">
+            <img src="pdf_file.png" alt="PDF" style="width: 20px; height: 20px;">
+            <span>PDF</span>
+          </button>
+          <button class="mobile-suite-btn" data-tab="pptTab">
+            <img src="pptx_file.png" alt="Sunum" style="width: 20px; height: 20px;">
+            <span>Sunum</span>
+          </button>
+          <button class="mobile-suite-btn" data-tab="toolsTab">
+            <img src="tools_file.png" alt="Araçlar" style="width: 20px; height: 20px;">
+            <span>Araçlar</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Live Document Stats Bar -->
       <div class="mobile-sheet-stat-card">
         <div class="sheet-stat-box">
@@ -1218,10 +1241,10 @@
   </div>
 
   <!-- App Scripts (Cache-busted for instant live deployment) -->
-  <script src="app.js?v=1.0.2" defer></script>
-  <script src="word-editor.js?v=1.0.2" defer></script>
-  <script src="pdf-editor.js?v=1.0.2" defer></script>
-  <script src="pdf-tools.js?v=1.0.2" defer></script>
-  <script src="ppt-editor.js?v=1.0.2" defer></script>
+  <script src="app.js?v=1.0.3" defer></script>
+  <script src="word-editor.js?v=1.0.3" defer></script>
+  <script src="pdf-editor.js?v=1.0.3" defer></script>
+  <script src="pdf-tools.js?v=1.0.3" defer></script>
+  <script src="ppt-editor.js?v=1.0.3" defer></script>
 </body>
 </html>

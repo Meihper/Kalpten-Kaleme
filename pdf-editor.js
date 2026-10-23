@@ -173,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fileInput?.addEventListener('change', (e) => {
     if (e.target.files && e.target.files[0]) {
       window.loadPdfFile(e.target.files[0]);
+      e.target.value = '';
     }
   });
 
@@ -593,7 +594,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (toolbarTop < 6) {
       toolbarTop = lineItem.y + lineItem.height + 8;
     }
-    const toolbarLeft = Math.max(6, Math.min((pageWrapper.clientWidth || 800) - 380, lineItem.x - 4));
+    const maxLeft = Math.max(6, (pageWrapper.clientWidth || 800) - 340);
+    const toolbarLeft = Math.max(6, Math.min(maxLeft, lineItem.x - 4));
     toolbar.style.top = `${toolbarTop}px`;
     toolbar.style.left = `${toolbarLeft}px`;
 
@@ -913,15 +915,21 @@ document.addEventListener('DOMContentLoaded', () => {
       box.style.border = '1px solid rgba(255, 215, 0, 0.7)';
     }
 
-    // Dragging with clean event binding
+    // Dragging with clean event binding (Mouse & Touch supported)
     let isDragging = false;
     let startX = 0, startY = 0;
     let initialLeft = 0, initialTop = 0;
 
+    const getPos = (e) => {
+      if (e.touches && e.touches.length > 0) return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+      return { clientX: e.clientX, clientY: e.clientY };
+    };
+
     const onMouseMove = (e) => {
       if (!isDragging) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
+      const pos = getPos(e);
+      const dx = pos.clientX - startX;
+      const dy = pos.clientY - startY;
 
       const newLeft = Math.max(0, Math.min(layer.clientWidth - box.offsetWidth, initialLeft + dx));
       const newTop = Math.max(0, Math.min(layer.clientHeight - box.offsetHeight, initialTop + dy));
@@ -931,6 +939,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       annot.pctX = newLeft / layer.clientWidth;
       annot.pctY = newTop / layer.clientHeight;
+      if (e.cancelable) e.preventDefault();
     };
 
     const onMouseUp = () => {
@@ -939,20 +948,28 @@ document.addEventListener('DOMContentLoaded', () => {
         box.style.zIndex = '';
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
+        window.removeEventListener('touchmove', onMouseMove);
+        window.removeEventListener('touchend', onMouseUp);
       }
     };
 
-    box.addEventListener('mousedown', (e) => {
+    const onStartDrag = (e) => {
       if (e.target.tagName === 'BUTTON') return;
       isDragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
+      const pos = getPos(e);
+      startX = pos.clientX;
+      startY = pos.clientY;
       initialLeft = parseFloat(box.style.left) || 0;
       initialTop = parseFloat(box.style.top) || 0;
       box.style.zIndex = '50';
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup', onMouseUp);
-    });
+      window.addEventListener('touchmove', onMouseMove, { passive: false });
+      window.addEventListener('touchend', onMouseUp);
+    };
+
+    box.addEventListener('mousedown', onStartDrag);
+    box.addEventListener('touchstart', onStartDrag, { passive: true });
 
     layer.appendChild(box);
   }
@@ -1007,10 +1024,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const initX = (pw - initW) / 2;
       const initY = (ph - initH) / 2;
 
+      // Ensure clean PNG dataURL if not jpeg or png so PDFLib embeds without issue
+      let finalDataUrl = dataUrl;
+      if (!dataUrl.startsWith('data:image/jpeg') && !dataUrl.startsWith('data:image/jpg') && !dataUrl.startsWith('data:image/png')) {
+        try {
+          const cv = document.createElement('canvas');
+          cv.width = img.naturalWidth || 300;
+          cv.height = img.naturalHeight || 300;
+          const ctx = cv.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          finalDataUrl = cv.toDataURL('image/png');
+        } catch (_) {}
+      }
+
       const imgRecord = {
         id: 'img_' + Date.now(),
         page: pageNum,
-        dataUrl: dataUrl,
+        dataUrl: finalDataUrl,
         pctX: initX / pw,
         pctY: initY / ph,
         pctW: initW / pw,
@@ -1071,25 +1101,33 @@ document.addEventListener('DOMContentLoaded', () => {
     let resizeStartX = 0, resizeStartY = 0;
     let initialWidth = 0, initialHeight = 0;
 
+    const getImagePos = (e) => {
+      if (e.touches && e.touches.length > 0) return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+      return { clientX: e.clientX, clientY: e.clientY };
+    };
+
     const onImageMouseMove = (e) => {
+      const pos = getImagePos(e);
       if (isDragging) {
-        const dx = e.clientX - dragStartX;
-        const dy = e.clientY - dragStartY;
+        const dx = pos.clientX - dragStartX;
+        const dy = pos.clientY - dragStartY;
         const newLeft = Math.max(0, Math.min(pageWrapper.clientWidth - box.offsetWidth, initialLeft + dx));
         const newTop = Math.max(0, Math.min(pageWrapper.clientHeight - box.offsetHeight, initialTop + dy));
         box.style.left = `${newLeft}px`;
         box.style.top = `${newTop}px`;
         imgRecord.pctX = newLeft / pageWrapper.clientWidth;
         imgRecord.pctY = newTop / pageWrapper.clientHeight;
+        if (e.cancelable) e.preventDefault();
       } else if (isResizing) {
-        const dx = e.clientX - resizeStartX;
-        const dy = e.clientY - resizeStartY;
+        const dx = pos.clientX - resizeStartX;
+        const dy = pos.clientY - resizeStartY;
         const newW = Math.max(40, Math.min(pageWrapper.clientWidth - box.offsetLeft, initialWidth + dx));
         const newH = Math.max(30, Math.min(pageWrapper.clientHeight - box.offsetTop, initialHeight + dy));
         box.style.width = `${newW}px`;
         box.style.height = `${newH}px`;
         imgRecord.pctW = newW / pageWrapper.clientWidth;
         imgRecord.pctH = newH / pageWrapper.clientHeight;
+        if (e.cancelable) e.preventDefault();
       }
     };
 
@@ -1099,34 +1137,48 @@ document.addEventListener('DOMContentLoaded', () => {
         isResizing = false;
         window.removeEventListener('mousemove', onImageMouseMove);
         window.removeEventListener('mouseup', onImageMouseUp);
+        window.removeEventListener('touchmove', onImageMouseMove);
+        window.removeEventListener('touchend', onImageMouseUp);
       }
     };
 
-    box.addEventListener('mousedown', (e) => {
+    const onStartImageDrag = (e) => {
       if (e.target === removeBtn || e.target === resizeHandle) return;
       isDragging = true;
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
+      const pos = getImagePos(e);
+      dragStartX = pos.clientX;
+      dragStartY = pos.clientY;
       initialLeft = parseFloat(box.style.left) || 0;
       initialTop = parseFloat(box.style.top) || 0;
       document.querySelectorAll('.pdf-image-box').forEach(b => b.classList.remove('active'));
       box.classList.add('active');
-      e.preventDefault();
+      if (e.cancelable && e.type !== 'touchstart') e.preventDefault();
       window.addEventListener('mousemove', onImageMouseMove);
       window.addEventListener('mouseup', onImageMouseUp);
-    });
+      window.addEventListener('touchmove', onImageMouseMove, { passive: false });
+      window.addEventListener('touchend', onImageMouseUp);
+    };
 
-    resizeHandle.addEventListener('mousedown', (e) => {
+    box.addEventListener('mousedown', onStartImageDrag);
+    box.addEventListener('touchstart', onStartImageDrag, { passive: true });
+
+    const onStartResize = (e) => {
       isResizing = true;
-      resizeStartX = e.clientX;
-      resizeStartY = e.clientY;
+      const pos = getImagePos(e);
+      resizeStartX = pos.clientX;
+      resizeStartY = pos.clientY;
       initialWidth = parseFloat(box.style.width) || box.offsetWidth;
       initialHeight = parseFloat(box.style.height) || box.offsetHeight;
       e.stopPropagation();
-      e.preventDefault();
+      if (e.cancelable && e.type !== 'touchstart') e.preventDefault();
       window.addEventListener('mousemove', onImageMouseMove);
       window.addEventListener('mouseup', onImageMouseUp);
-    });
+      window.addEventListener('touchmove', onImageMouseMove, { passive: false });
+      window.addEventListener('touchend', onImageMouseUp);
+    };
+
+    resizeHandle.addEventListener('mousedown', onStartResize);
+    resizeHandle.addEventListener('touchstart', onStartResize, { passive: true });
   }
 
   // ========================================================================
@@ -1520,14 +1572,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // ========================================================================
   // 9. Page Organizer Modal
   // ========================================================================
-  organizePagesBtn?.addEventListener('click', async () => {
-    openModal('organizePagesModal');
+  let pendingPageOrder = null;
+
+  async function renderOrganizerCards() {
     const grid = document.getElementById('pageOrganizerGrid');
-    if (!grid || !pdfState.pdfDoc) return;
+    if (!grid || !pdfState.pdfDoc || !pendingPageOrder) return;
     grid.innerHTML = '';
 
-    for (let i = 0; i < pdfState.pageOrder.length; i++) {
-      const origNum = pdfState.pageOrder[i];
+    for (let i = 0; i < pendingPageOrder.length; i++) {
+      const origNum = pendingPageOrder[i];
       const page = await pdfState.pdfDoc.getPage(origNum);
       const viewport = page.getViewport({ scale: 0.22, rotation: pdfState.pageRotations[origNum] || 0 });
 
@@ -1556,25 +1609,25 @@ document.addEventListener('DOMContentLoaded', () => {
         leftBtn.innerHTML = '←';
         leftBtn.title = 'Öne Al';
         leftBtn.onclick = () => {
-          const temp = pdfState.pageOrder[i];
-          pdfState.pageOrder[i] = pdfState.pageOrder[i - 1];
-          pdfState.pageOrder[i - 1] = temp;
-          organizePagesBtn.click();
+          const temp = pendingPageOrder[i];
+          pendingPageOrder[i] = pendingPageOrder[i - 1];
+          pendingPageOrder[i - 1] = temp;
+          renderOrganizerCards();
         };
         actions.appendChild(leftBtn);
       }
 
-      if (i < pdfState.pageOrder.length - 1) {
+      if (i < pendingPageOrder.length - 1) {
         const rightBtn = document.createElement('button');
         rightBtn.className = 'icon-btn';
         rightBtn.style.width = '26px'; rightBtn.style.height = '26px';
         rightBtn.innerHTML = '→';
         rightBtn.title = 'Sona Al';
         rightBtn.onclick = () => {
-          const temp = pdfState.pageOrder[i];
-          pdfState.pageOrder[i] = pdfState.pageOrder[i + 1];
-          pdfState.pageOrder[i + 1] = temp;
-          organizePagesBtn.click();
+          const temp = pendingPageOrder[i];
+          pendingPageOrder[i] = pendingPageOrder[i + 1];
+          pendingPageOrder[i + 1] = temp;
+          renderOrganizerCards();
         };
         actions.appendChild(rightBtn);
       }
@@ -1584,14 +1637,24 @@ document.addEventListener('DOMContentLoaded', () => {
       card.appendChild(actions);
       grid.appendChild(card);
     }
+  }
+
+  organizePagesBtn?.addEventListener('click', async () => {
+    pendingPageOrder = [...pdfState.pageOrder];
+    openModal('organizePagesModal');
+    await renderOrganizerCards();
   });
 
   document.getElementById('savePageOrganizerBtn')?.addEventListener('click', async () => {
     closeModal('organizePagesModal');
+    if (pendingPageOrder) {
+      pdfState.pageOrder = [...pendingPageOrder];
+      pendingPageOrder = null;
+    }
     updatePageIndicator();
     await renderAllPages();
     await renderThumbnails();
-    showToast('Sayfa düzeni uygulandı!');
+    showToast('Sayfa sıralaması güncellendi.');
   });
 
   // ========================================================================

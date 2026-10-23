@@ -1166,6 +1166,35 @@ const pptEditor = {
         if (hud) hud.style.opacity = '0';
       }, 2500);
     };
+
+    // Mobile touch swipe gestures for presentation mode
+    let touchStartX = 0;
+    let touchStartY = 0;
+    overlay.ontouchstart = (e) => {
+      if (e.touches && e.touches.length > 0) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+      const hud = document.getElementById('pptHudControls');
+      if (hud) hud.style.opacity = '1';
+      clearTimeout(hudTimer);
+      hudTimer = setTimeout(() => {
+        if (hud) hud.style.opacity = '0';
+      }, 3500);
+    };
+
+    overlay.ontouchend = (e) => {
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0) {
+          this.nextSlide();
+        } else {
+          this.prevSlide();
+        }
+      }
+    };
   },
 
   exitPresentation() {

@@ -122,18 +122,8 @@ function syncMobileAppMode() {
   document.documentElement.classList.toggle('is-mobile-landscape', isLandscape);
   document.body.classList.toggle('is-mobile-landscape', isLandscape);
 
-  if (isMobile) {
-    if (appState.currentTab !== 'wordTab') {
-      appState.currentTab = 'wordTab';
-    }
-    const pdfTab = document.getElementById('pdfTab');
-    const pptTab = document.getElementById('pptTab');
-    const toolsTab = document.getElementById('toolsTab');
-    if (pdfTab) pdfTab.classList.remove('active');
-    if (pptTab) pptTab.classList.remove('active');
-    if (toolsTab) toolsTab.classList.remove('active');
-    const wordTab = document.getElementById('wordTab');
-    if (wordTab) wordTab.classList.add('active');
+  if (isMobile && !appState.currentTab) {
+    appState.currentTab = 'wordTab';
   }
 
   if (window.docManager) {
@@ -150,12 +140,14 @@ window.addEventListener('orientationchange', () => {
 });
 
 function switchTab(tabId) {
-  if (isMobileWordStudio()) {
-    tabId = 'wordTab';
-  }
+  if (!tabId) tabId = 'wordTab';
   appState.currentTab = tabId;
 
   document.querySelectorAll('.nav-pill-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+
+  document.querySelectorAll('.mobile-suite-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabId);
   });
 
@@ -545,6 +537,27 @@ const docManager = {
 
   closeDoc(docId, event) {
     if (event) event.stopPropagation();
+    const docToClose = this.docs.find(d => d.id === docId) || this.docs[0];
+    if (!docToClose) return;
+
+    const editor = document.getElementById('wordEditor');
+    const isCurrentActive = (this.activeDocId === docId);
+    let hasContent = false;
+    if (docToClose.type === 'word') {
+      const text = isCurrentActive && editor ? editor.innerText.trim() : (docToClose.content || '').replace(/<[^>]*>/g, '').trim();
+      hasContent = text.length > 0;
+    } else if (docToClose.type === 'ppt') {
+      hasContent = (docToClose.pptStateSnapshot?.slides?.length > 1) || (docToClose.title && !docToClose.isDefault);
+    } else if (docToClose.type === 'pdf') {
+      hasContent = Boolean(docToClose.pdfStateSnapshot || docToClose.rawBytes);
+    }
+
+    if (hasContent) {
+      if (!confirm(`"${docToClose.title}" belgesini kapatmak istediğinize emin misiniz? Kaydedilmemiş değişiklikler silinecektir.`)) {
+        return;
+      }
+    }
+
     if (this.docs.length <= 1) {
       const doc = this.docs[0];
       doc.title = 'Yeni Yazı.docx';
@@ -552,9 +565,10 @@ const docManager = {
       doc.content = '';
       doc.isDefault = true;
       doc.pdfStateSnapshot = null;
+      doc.pptStateSnapshot = null;
+      doc.rawBytes = null;
       this.activeDocId = doc.id;
       switchTab('wordTab');
-      const editor = document.getElementById('wordEditor');
       const titleInput = document.getElementById('wordDocTitle');
       if (editor) editor.innerHTML = '';
       if (titleInput) titleInput.value = doc.title;
@@ -818,6 +832,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       if (window.saveWordDocument) window.saveWordDocument();
     }
+  });
+
+  document.getElementById('wordSaveStatus')?.addEventListener('click', () => {
+    document.getElementById('globalSaveBtn')?.click();
   });
 
   // ========================================================================
@@ -1604,6 +1622,29 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Mobile Suite Module Switcher Buttons
+  document.querySelectorAll('.mobile-suite-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      closeModal('mobileActionSheetModal');
+      if (window.docManager && tabId !== 'toolsTab') {
+        const activeDoc = window.docManager.getActiveDoc();
+        const expectedType = tabId === 'pptTab' ? 'ppt' : tabId === 'pdfTab' ? 'pdf' : 'word';
+        if (activeDoc?.type !== expectedType) {
+          const matchingDoc = window.docManager.docs.find(d => d.type === expectedType);
+          if (matchingDoc) {
+            window.docManager.switchTo(matchingDoc.id);
+            return;
+          } else if (tabId === 'pptTab') {
+            window.docManager.registerCurrentPptDoc();
+            return;
+          }
+        }
+      }
+      switchTab(tabId);
+    });
+  });
+
   // 8 Crisp Vector SVG Action Tiles
   document.getElementById('mobileNewDocBtn')?.addEventListener('click', () => {
     closeModal('mobileActionSheetModal');
@@ -1940,6 +1981,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (deleted) {
+          try {
+            const recents = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
+            const filtered = recents.filter(r => (r.name || '').toLowerCase() !== fileName.toLowerCase());
+            localStorage.setItem('belge_recent_documents', JSON.stringify(filtered));
+          } catch (_) {}
           showToast(`"${fileName}" silindi.`);
           await loadLibraryFiles();
         } else {
