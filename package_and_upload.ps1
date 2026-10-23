@@ -69,9 +69,12 @@ Write-Host "`n=========================================="
 Write-Host "3. SYNCING GITHUB RELEASE v1.0.0"
 Write-Host "=========================================="
 
-$credInput = "protocol=https`nhost=github.com`n`n"
-$credOut = $credInput | git credential fill
-$tokenLine = ($credOut -split "`n") | Where-Object { $_ -match "^password=" } | Select-Object -First 1
+$credFile = Join-Path $env:TEMP "git_cred_input.txt"
+[System.IO.File]::WriteAllBytes($credFile, [System.Text.Encoding]::ASCII.GetBytes("protocol=https`r`nhost=github.com`r`n`r`n"))
+$credOut = cmd.exe /c "git credential fill < `"$credFile`"" 2>&1
+Remove-Item $credFile -Force -ErrorAction SilentlyContinue
+
+$tokenLine = ($credOut -split "`r?`n") | Where-Object { $_ -match "^password=" } | Select-Object -First 1
 $token = ($tokenLine -replace "^password=", "").Trim()
 
 $headers = @{
