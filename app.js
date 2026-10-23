@@ -122,7 +122,7 @@ function syncMobileAppMode() {
   document.documentElement.classList.toggle('is-mobile-landscape', isLandscape);
   document.body.classList.toggle('is-mobile-landscape', isLandscape);
 
-  if (isMobile && !appState.currentTab) {
+  if (isMobile) {
     appState.currentTab = 'wordTab';
   }
 
@@ -140,14 +140,14 @@ window.addEventListener('orientationchange', () => {
 });
 
 function switchTab(tabId) {
-  if (!tabId) tabId = 'wordTab';
+  if (isMobileWordStudio()) {
+    tabId = 'wordTab';
+  } else if (!tabId) {
+    tabId = 'wordTab';
+  }
   appState.currentTab = tabId;
 
   document.querySelectorAll('.nav-pill-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tabId);
-  });
-
-  document.querySelectorAll('.mobile-suite-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabId);
   });
 
@@ -1619,29 +1619,6 @@ document.addEventListener('DOMContentLoaded', () => {
         desktopLh.dispatchEvent(new Event('change'));
       }
       showToast('Satır aralığı: ' + lh);
-    });
-  });
-
-  // Mobile Suite Module Switcher Buttons
-  document.querySelectorAll('.mobile-suite-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tabId = btn.dataset.tab;
-      closeModal('mobileActionSheetModal');
-      if (window.docManager && tabId !== 'toolsTab') {
-        const activeDoc = window.docManager.getActiveDoc();
-        const expectedType = tabId === 'pptTab' ? 'ppt' : tabId === 'pdfTab' ? 'pdf' : 'word';
-        if (activeDoc?.type !== expectedType) {
-          const matchingDoc = window.docManager.docs.find(d => d.type === expectedType);
-          if (matchingDoc) {
-            window.docManager.switchTo(matchingDoc.id);
-            return;
-          } else if (tabId === 'pptTab') {
-            window.docManager.registerCurrentPptDoc();
-            return;
-          }
-        }
-      }
-      switchTab(tabId);
     });
   });
 

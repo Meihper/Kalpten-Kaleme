@@ -58,7 +58,7 @@ Write-Host "=========================================="
 git add index.html word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js styles.css app.js BelgeDuzenleyici.cs BelgeDuzenleyici.exe server.ps1 build_android_apk.ps1 package_and_upload.ps1 android/AndroidManifest.xml android/src/com/kalpten/kaleme/MainActivity.java android/assets/www/ android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig KalptenKaleme.apk
 $status = git status --porcelain
 if ($status) {
-    git commit -m 'fix: comprehensive audit - mobile suite module switcher, touch annotations, presentation swipe, safe file re-selection, and android pdf tools bridge'
+    git commit -m 'fix(mobile): restore pure minimalist word literary studio on mobile (pdf, ppt and tools preserved exclusively on desktop suite)'
     git push origin main
     Write-Host "Git push completed."
 } else {
