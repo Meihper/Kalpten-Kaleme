@@ -266,6 +266,10 @@ body {
   z-index: 90;
 }
 
+.document-tabs-bar:not(.has-multiple-docs) {
+  display: none !important;
+}
+
 .doc-tabs-track {
   display: flex;
   align-items: center;
@@ -434,11 +438,15 @@ body {
   50% { opacity: 0.4; transform: scale(0.85); }
 }
 
-/* Nav Tabs in Center */
+/* Nav Tabs in Center - Exclusively for Windows Desktop Suite */
 .header-center {
-  display: flex;
+  display: none !important;
   align-items: center;
   justify-content: center;
+}
+
+html.is-windows-suite .header-center {
+  display: flex !important;
 }
 
 .nav-segmented {
@@ -926,6 +934,30 @@ body {
 }
 
 .tab-pane.active { display: flex; }
+
+/* By default (GitHub Pages, Web & Mobile), Kalpten Kaleme is 100% Literary Word Studio */
+#pdfTab,
+#pptTab,
+#toolsTab {
+  display: none !important;
+}
+
+html.is-windows-suite #pdfTab.active,
+html.is-windows-suite #pptTab.active,
+html.is-windows-suite #toolsTab.active {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+html.is-windows-suite #pdfTab:not(.active),
+html.is-windows-suite #pptTab:not(.active),
+html.is-windows-suite #toolsTab:not(.active) {
+  display: none !important;
+}
 
 /* Word Workspace & A4 Canvas */
 .word-workspace {
@@ -4451,9 +4483,28 @@ html.is-mobile-landscape .word-canvas-sheet {
 .library-top-btn {
   font-weight: 600 !important;
   font-size: 12px !important;
-  padding: 4px 12px !important;
-  gap: 5px !important;
-  box-shadow: 0 2px 8px rgba(0, 114, 222, 0.25) !important;
+  height: 32px !important;
+  padding: 0 12px !important;
+  gap: 7px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-light) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  border-radius: var(--radius-pill) !important;
+  transition: all 0.2s ease !important;
+}
+
+.library-top-btn:hover {
+  background: var(--bg-hover) !important;
+  border-color: var(--accent-primary) !important;
+  color: var(--accent-primary) !important;
+}
+
+.library-top-btn .drive-status-dot {
+  margin: 0 !important;
 }
 
 .library-modal {

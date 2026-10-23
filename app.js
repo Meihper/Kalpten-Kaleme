@@ -105,6 +105,9 @@ function setTheme(theme) {
   }
 }
 
+const isOnlineServer = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+                       (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+
 function isMobileWordStudio() {
   if (Boolean(window.AndroidBridge)) return true;
   const ua = navigator.userAgent || '';
@@ -117,12 +120,16 @@ function isMobileWordStudio() {
 function syncMobileAppMode() {
   const isMobile = isMobileWordStudio();
   const isLandscape = isMobile && window.innerWidth > window.innerHeight;
+  const isSuite = isOnlineServer && !isMobile;
+
   document.documentElement.classList.toggle('is-mobile-app', isMobile);
   document.body.classList.toggle('is-mobile-app', isMobile);
   document.documentElement.classList.toggle('is-mobile-landscape', isLandscape);
   document.body.classList.toggle('is-mobile-landscape', isLandscape);
+  document.documentElement.classList.toggle('is-windows-suite', isSuite);
+  document.body.classList.toggle('is-windows-suite', isSuite);
 
-  if (isMobile) {
+  if (!isSuite) {
     appState.currentTab = 'wordTab';
   }
 
@@ -140,7 +147,8 @@ window.addEventListener('orientationchange', () => {
 });
 
 function switchTab(tabId) {
-  if (isMobileWordStudio()) {
+  const isSuite = isOnlineServer && !isMobileWordStudio();
+  if (!isSuite) {
     tabId = 'wordTab';
   } else if (!tabId) {
     tabId = 'wordTab';
@@ -623,7 +631,8 @@ const docManager = {
     const tabsBar = document.getElementById('documentTabsBar');
     if (!track) return;
 
-    const visibleDocs = isMobileWordStudio()
+    const isSuite = isOnlineServer && !isMobileWordStudio();
+    const visibleDocs = (!isSuite)
       ? this.docs.filter(d => d.type === 'word')
       : this.docs;
 
@@ -1233,9 +1242,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let isGoogleDriveActive = false;
 
   async function fetchDriveStatus() {
-    const pill = document.getElementById('driveSyncPill');
+    const openLibraryBtn = document.getElementById('openLibraryBtn');
     const dot = document.getElementById('driveStatusDot');
-    const text = document.getElementById('driveStatusText');
     const modalBadge = document.getElementById('driveModalBadge');
     const modalDot = document.getElementById('driveModalDot');
     const modalBadgeText = document.getElementById('driveModalBadgeText');
@@ -1246,12 +1254,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isOnlineServer) {
       const isAndroid = !!window.AndroidBridge;
       const isMobile = window.innerWidth <= 768 || isAndroid;
-      if (pill && dot && text) {
-        dot.classList.remove('local');
-        text.textContent = isAndroid ? '📱 Telefon' : (isMobile ? '📱 Cihaz' : '☁️ Bulut / Web');
-        pill.title = isAndroid
-          ? 'Belgeleriniz telefonun Belgeler/Kalpten Kaleme klasörüne kaydedilir.\n(Belgeleri görüntülemek için tıklayın)'
-          : 'Belgeleri görüntülemek veya Drive/OneDrive üzerinden dosya açmak için tıklayın.';
+      if (dot) dot.classList.remove('local');
+      if (openLibraryBtn) {
+        openLibraryBtn.title = isAndroid
+          ? 'Belgeleriniz telefonun Belgeler/Kalpten Kaleme klasöründe saklanır.\n(Kütüphaneyi açmak için tıklayın)'
+          : 'Kütüphanem & Yazı Arşivi (Belgeleri görüntülemek için tıklayın)';
       }
       if (modalPath) {
         modalPath.textContent = isAndroid
@@ -1279,20 +1286,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const provider = data.cloudProvider || (data.isGoogleDrive ? 'gdrive' : 'local');
       isGoogleDriveActive = !!data.isGoogleDrive;
 
-      // Update Header Pill
-      if (pill && dot && text) {
-        if (provider === 'gdrive') {
-          dot.classList.remove('local');
-          text.textContent = '☁️ Drive';
-          pill.title = `Google Drive Senkronize: ${currentSyncFolder}\n(Yazıları görüntülemek için tıklayın)`;
-        } else if (provider === 'onedrive') {
-          dot.classList.remove('local');
-          text.textContent = '☁️ OneDrive';
-          pill.title = `OneDrive Senkronize: ${currentSyncFolder}\n(Yazıları görüntülemek için tıklayın)`;
-        } else {
+      // Update Kütüphanem button status dot & title
+      if (dot) {
+        if (provider === 'local') {
           dot.classList.add('local');
-          text.textContent = '📁 Yerel';
-          pill.title = `Kayıt Klasörü: ${currentSyncFolder}\n(Yazıları görüntülemek için tıklayın)`;
+        } else {
+          dot.classList.remove('local');
+        }
+      }
+      if (openLibraryBtn) {
+        if (provider === 'gdrive') {
+          openLibraryBtn.title = `Google Drive Senkronize: ${currentSyncFolder}\n(Kütüphaneyi açmak için tıklayın)`;
+        } else if (provider === 'onedrive') {
+          openLibraryBtn.title = `OneDrive Senkronize: ${currentSyncFolder}\n(Kütüphaneyi açmak için tıklayın)`;
+        } else {
+          openLibraryBtn.title = `Kayıt Klasörü: ${currentSyncFolder}\n(Kütüphaneyi açmak için tıklayın)`;
         }
       }
 
@@ -1499,10 +1507,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Drive Buttons & Modal Events
-  document.getElementById('driveSyncPill')?.addEventListener('click', () => {
-    openLibrary();
-  });
-
   document.getElementById('refreshDriveFilesBtn')?.addEventListener('click', () => {
     fetchDriveStatus();
     loadDriveFiles();
