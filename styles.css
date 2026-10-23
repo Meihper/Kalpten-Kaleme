@@ -4620,9 +4620,38 @@ html.is-mobile-landscape .word-canvas-sheet {
   border-color: #EF4444;
 }
 
+.library-toolbar-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.library-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 @media (max-width: 768px) {
   .library-top-btn {
     display: none !important;
+  }
+  .library-toolbar-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .library-search-wrap {
+    width: 100% !important;
+  }
+  .library-toolbar-actions {
+    display: flex !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .library-toolbar-actions > button {
+    flex: 1 1 50% !important;
+    justify-content: center !important;
   }
   .library-card {
     padding: 8px 10px;

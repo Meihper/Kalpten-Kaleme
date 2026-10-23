@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="app.png?v=3">
   <link rel="manifest" href="manifest.json?v=3">
   <meta name="theme-color" content="#1C2438">
-  <link rel="stylesheet" href="styles.css?v=1.0.1">
+  <link rel="stylesheet" href="styles.css?v=1.0.2">
   
   <!-- Offline Core Libraries (Deferred for instantaneous initial paint) -->
   <script src="vendor/jszip.min.js" defer></script>
@@ -891,17 +891,19 @@
 
       <!-- Search & Filters Toolbar -->
       <div style="padding: 12px 20px; background: var(--bg-surface-2); border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 10px;">
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <div style="position: relative; flex: 1;">
+        <div class="library-toolbar-row">
+          <div class="library-search-wrap" style="position: relative; flex: 1;">
             <input type="text" id="librarySearchInput" class="studio-input" placeholder="Yazılarda veya dosya adında ara..." style="width: 100%; padding-left: 32px; font-size: 13px; height: 36px; border-radius: 8px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 10px; top: 10px; width: 16px; height: 16px; color: var(--text-tertiary);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           </div>
-          <button class="pill-btn pill-btn-secondary" id="refreshLibraryBtn" title="Listeyi Yenile" style="height: 36px; padding: 0 12px; font-size: 12px; gap: 4px;">
-            🔄 Yenile
-          </button>
-          <button class="pill-btn pill-btn-secondary" id="openLibraryFolderBtn" title="Klasörü Dosya Gezgininde Aç" style="height: 36px; padding: 0 12px; font-size: 12px; gap: 4px;">
-            📁 Klasörü Aç
-          </button>
+          <div class="library-toolbar-actions">
+            <button class="pill-btn pill-btn-secondary" id="refreshLibraryBtn" title="Listeyi Yenile" style="height: 36px; padding: 0 12px; font-size: 12px; gap: 4px;">
+              🔄 Yenile
+            </button>
+            <button class="pill-btn pill-btn-primary" id="openLibraryFolderBtn" title="Klasörü veya Cihazdaki Belgeleri Aç" style="height: 36px; padding: 0 12px; font-size: 12px; gap: 4px;">
+              📁 Klasörü Aç
+            </button>
+          </div>
         </div>
 
         <!-- Filter Category Tabs -->
@@ -1216,10 +1218,10 @@
   </div>
 
   <!-- App Scripts (Cache-busted for instant live deployment) -->
-  <script src="app.js?v=1.0.1" defer></script>
-  <script src="word-editor.js?v=1.0.1" defer></script>
-  <script src="pdf-editor.js?v=1.0.1" defer></script>
-  <script src="pdf-tools.js?v=1.0.1" defer></script>
-  <script src="ppt-editor.js?v=1.0.1" defer></script>
+  <script src="app.js?v=1.0.2" defer></script>
+  <script src="word-editor.js?v=1.0.2" defer></script>
+  <script src="pdf-editor.js?v=1.0.2" defer></script>
+  <script src="pdf-tools.js?v=1.0.2" defer></script>
+  <script src="ppt-editor.js?v=1.0.2" defer></script>
 </body>
 </html>

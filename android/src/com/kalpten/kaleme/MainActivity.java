@@ -510,6 +510,53 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void openDocumentsFolder() {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        File pubDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "Kalpten Kaleme");
+                        if (!pubDir.exists()) pubDir.mkdirs();
+
+                        // Try opening Documents / Kalpten Kaleme folder via SAF Document Provider
+                        Uri uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADocuments%2FKalpten%20Kaleme");
+                        Intent folderIntent = new Intent(Intent.ACTION_VIEW);
+                        folderIntent.setDataAndType(uri, "vnd.android.document/directory");
+                        folderIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                        if (folderIntent.resolveActivity(context.getPackageManager()) != null) {
+                            context.startActivity(folderIntent);
+                            return;
+                        }
+
+                        // Fallback: Open document picker for Kalpten Kaleme files
+                        Intent chooser = new Intent(Intent.ACTION_GET_CONTENT);
+                        chooser.setType("*/*");
+                        String[] mimes = {
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            "application/msword",
+                            "application/pdf",
+                            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                            "text/plain"
+                        };
+                        chooser.putExtra(Intent.EXTRA_MIME_TYPES, mimes);
+                        chooser.addCategory(Intent.CATEGORY_OPENABLE);
+                        context.startActivity(Intent.createChooser(chooser, "Kalpten Kaleme Belgeleri"));
+                    } catch (Exception e) {
+                        try {
+                            Intent chooser = new Intent(Intent.ACTION_GET_CONTENT);
+                            chooser.setType("*/*");
+                            chooser.addCategory(Intent.CATEGORY_OPENABLE);
+                            context.startActivity(Intent.createChooser(chooser, "Belge Seç"));
+                        } catch (Exception ex) {
+                            Toast.makeText(context, "Klasör konumu: Belgeler / Kalpten Kaleme", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                }
+            });
+        }
+
+        @JavascriptInterface
         public String getPlatform() {
             return "android";
         }

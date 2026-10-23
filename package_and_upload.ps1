@@ -58,7 +58,7 @@ Write-Host "=========================================="
 git add index.html word-editor.js ppt-editor.js pdf-editor.js styles.css app.js BelgeDuzenleyici.cs BelgeDuzenleyici.exe server.ps1 build_android_apk.ps1 package_and_upload.ps1 android/AndroidManifest.xml android/src/com/kalpten/kaleme/MainActivity.java android/assets/www/ android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig KalptenKaleme.apk
 $status = git status --porcelain
 if ($status) {
-    git commit -m 'feat: Unify library modals, fix app.js parser bug, add Android print bridge, physical auto-save, and keyboard padding'
+    git commit -m 'fix(mobile): optimize library toolbar responsiveness, add Android openDocumentsFolder bridge, and fix mobile file picker modal close'
     git push origin main
     Write-Host "Git push completed."
 } else {

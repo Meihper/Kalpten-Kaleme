@@ -742,12 +742,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openAnySelectedFile(file) {
     if (!file) return;
+    closeModal('libraryModal');
     const name = (file.name || '').toLowerCase();
-    if (isMobileWordStudio()) {
-      switchTab('wordTab');
-      if (window.loadWordFile) window.loadWordFile(file);
-      return;
-    }
     if (name.endsWith('.pdf')) {
       switchTab('pdfTab');
       if (window.loadPdfFile) window.loadPdfFile(file);
@@ -763,6 +759,16 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Desteklenmeyen dosya türü. Lütfen Word (.docx), PDF veya PowerPoint (.pptx) dosyası seçin.', 'error');
     }
   }
+
+  function triggerUnifiedFilePicker() {
+    closeModal('libraryModal');
+    const input = document.getElementById('wordFileInput');
+    if (input) {
+      input.setAttribute('accept', '.docx,.doc,.txt,.html,.md,.pdf,.pptx,.ppt,.json');
+      input.click();
+    }
+  }
+  window.triggerUnifiedFilePicker = triggerUnifiedFilePicker;
 
   wordFileInput?.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -1513,8 +1519,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ========================================================================
   // Mobile Word Studio Drawer (100% Word-Focused Mobile Experience)
   // ========================================================================
-  if (isMobileWordStudio() && wordFileInput) {
-    wordFileInput.setAttribute('accept', '.docx,.doc,.txt,.html,.md');
+  if (wordFileInput) {
+    wordFileInput.setAttribute('accept', '.docx,.doc,.txt,.html,.md,.pdf,.pptx,.ppt,.json');
   }
 
   function syncMobileAtmosphereUI() {
@@ -1661,6 +1667,21 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.library-filter-pill').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.filter === filter);
     });
+
+    const folderBtn = document.getElementById('openLibraryFolderBtn');
+    if (folderBtn) {
+      if (window.AndroidBridge && typeof window.AndroidBridge.openDocumentsFolder === 'function') {
+        folderBtn.innerHTML = '📁 Klasörü Aç';
+        folderBtn.title = 'Telefondaki Belgeler/Kalpten Kaleme klasörünü aç';
+      } else if (isOnlineServer) {
+        folderBtn.innerHTML = '📁 Klasörü Aç';
+        folderBtn.title = 'Bilgisayardaki Belgelerim klasörünü Dosya Gezgini\'nde aç';
+      } else {
+        folderBtn.innerHTML = '📂 Cihazdan Belge Aç';
+        folderBtn.title = 'Telefonunuzdaki bir Word, PDF ya da Sunum belgesini seçip açın';
+      }
+    }
+
     openModal('libraryModal');
     await loadLibraryFiles();
   }
@@ -1930,11 +1951,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('refreshLibraryBtn')?.addEventListener('click', loadLibraryFiles);
   document.getElementById('openLibraryFolderBtn')?.addEventListener('click', () => {
+    if (window.AndroidBridge && typeof window.AndroidBridge.openDocumentsFolder === 'function') {
+      window.AndroidBridge.openDocumentsFolder();
+      return;
+    }
     if (isOnlineServer) {
       fetch('/api/open-sync-folder').catch(() => {});
-    } else {
-      document.getElementById('wordFileInput')?.click();
+      showToast('Kayıt klasörü Dosya Gezgini\'nde açılıyor...');
+      return;
     }
+    // Mobile Web / Standalone Browser:
+    triggerUnifiedFilePicker();
   });
 
   document.getElementById('libraryChangeFolderBtn')?.addEventListener('click', async () => {
@@ -1946,8 +1973,10 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast('Kayıt klasörü güncellendi.');
         }
       } catch (_) {}
+    } else if (window.AndroidBridge) {
+      showToast('Kayıt klasörü telefonunuzdaki "Belgeler/Kalpten Kaleme" klasörüdür.');
     } else {
-      showToast('Kayıt klasörü mobil cihazda "Belgeler/Kalpten Kaleme" olarak belirlenmiştir.');
+      showToast('Web sürümünde yazılar tarayıcı hafızasına ve telefonunuza otomatik kaydedilir.');
     }
   });
 
