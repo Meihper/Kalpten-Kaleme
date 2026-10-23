@@ -387,7 +387,10 @@ const docManager = {
     const wordTitle = document.getElementById('wordDocTitle');
 
     const activeDoc = this.getActiveDoc();
-    if (activeDoc && activeDoc.isDefault && activeDoc.type === 'word') {
+    const currentText = editor ? editor.innerText.trim() : '';
+    const isDocEmpty = !currentText || currentText.length === 0;
+
+    if (activeDoc && activeDoc.isDefault && activeDoc.type === 'word' && isDocEmpty) {
       activeDoc.title = fileName;
       activeDoc.content = content;
       activeDoc.rawBytes = arrayBuffer;
@@ -433,7 +436,11 @@ const docManager = {
 
   onPdfLoaded(fileName, arrayBuffer) {
     const activeDoc = this.getActiveDoc();
-    if (activeDoc && activeDoc.isDefault) {
+    const editor = document.getElementById('wordEditor');
+    const currentText = (activeDoc?.type === 'word' && editor) ? editor.innerText.trim() : '';
+    const isDocEmpty = !currentText || currentText.length === 0;
+
+    if (activeDoc && activeDoc.isDefault && isDocEmpty) {
       activeDoc.title = fileName;
       activeDoc.type = 'pdf';
       activeDoc.rawBytes = arrayBuffer;
@@ -475,7 +482,11 @@ const docManager = {
   onPptLoaded(fileName, pptState) {
     if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
     const activeDoc = this.getActiveDoc();
-    if (activeDoc && activeDoc.isDefault && activeDoc.type === 'word') {
+    const editor = document.getElementById('wordEditor');
+    const currentText = (activeDoc?.type === 'word' && editor) ? editor.innerText.trim() : '';
+    const isDocEmpty = !currentText || currentText.length === 0;
+
+    if (activeDoc && activeDoc.isDefault && activeDoc.type === 'word' && isDocEmpty) {
       activeDoc.title = fileName;
       activeDoc.type = 'ppt';
       activeDoc.pptStateSnapshot = JSON.parse(JSON.stringify(pptState));
@@ -904,7 +915,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.executeCleanPrint = async function() {
     await window.prepareCleanPrintRoot();
-    window.print();
+    if (window.AndroidBridge && typeof window.AndroidBridge.printDocument === 'function') {
+      window.AndroidBridge.printDocument();
+    } else {
+      window.print();
+    }
   };
 
   window.addEventListener('beforeprint', () => {
@@ -1049,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
       item.addEventListener('click', async () => {
         const type = item.dataset.type;
         const fileName = item.dataset.name;
-        closeModal('recentDocsModal');
+        closeModal('libraryModal');
 
         if (isOnlineServer && fileName) {
           try {
@@ -1081,14 +1096,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('recentDocsBtn')?.addEventListener('click', () => {
-    renderRecentDocs();
-    openModal('recentDocsModal');
+    openLibrary('recents');
   });
 
   document.getElementById('clearRecentDocsBtn')?.addEventListener('click', () => {
     if (confirm('Son açılan belgeler geçmişi temizlensin mi?')) {
       localStorage.removeItem('belge_recent_documents');
-      renderRecentDocs();
+      if (typeof renderRecentDocs === 'function') renderRecentDocs();
+      if (typeof loadLibraryFiles === 'function') loadLibraryFiles();
       showToast('Geçmiş temizlendi.');
     }
   });
@@ -1341,7 +1356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         item.addEventListener('click', () => {
           const fileName = item.dataset.name;
           const ext = item.dataset.ext;
-          closeModal('driveModal');
+          closeModal('libraryModal');
           if (window.AndroidBridge && typeof window.AndroidBridge.readBase64File === 'function' && item.dataset.recent !== '1') {
             try {
               const b64 = window.AndroidBridge.readBase64File(fileName);
@@ -1434,7 +1449,13 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
   }
-  window.loadDriveFiles = loadDriveFiles;
+  window.loadDriveFiles = function() {
+    loadDriveFiles();
+    if (typeof loadLibraryFiles === 'function') {
+      loadLibraryFiles();
+    }
+  };
+  window.loadLibraryFiles = loadLibraryFiles;
 
   async function openDriveFile(filePath, fileName, ext) {
     try {
@@ -1444,7 +1465,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       if (res.ok) {
         lastLoadedFile = ''; // Reset cache check so it reloads immediately
-        closeModal('driveModal');
+        closeModal('libraryModal');
         await checkForOpenedFile();
         showToast(`"${fileName}" açıldı.`);
       }
@@ -1466,7 +1487,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('openDriveFolderBtn')?.addEventListener('click', () => {
     if (!isOnlineServer) {
-      closeModal('driveModal');
+      closeModal('libraryModal');
       document.getElementById('wordFileInput')?.click();
       return;
     }
@@ -1600,10 +1621,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('mobileLibraryBtn')?.addEventListener('click', () => {
     closeModal('mobileActionSheetModal');
-    openLibrary();
+    openLibrary('all');
   });
 
-  document.getElementById('openLibraryBtn')?.addEventListener('click', openLibrary);
+  document.getElementById('mobileRecentDocsBtn')?.addEventListener('click', () => {
+    closeModal('mobileActionSheetModal');
+    openLibrary('recents');
+  });
+
+  document.getElementById('recentDocsBtn')?.addEventListener('click', () => {
+    openLibrary('recents');
+  });
+
+  document.getElementById('mobileRenameDocBtn')?.addEventListener('click', () => {
+    closeModal('mobileActionSheetModal');
+    const currentTitle = (document.getElementById('wordDocTitle')?.value || 'Yeni Yazı.docx').replace(/\.docx$/i, '');
+    const newName = prompt('Yazınız için yeni bir başlık girin:', currentTitle);
+    if (newName && newName.trim().length > 0) {
+      let finalName = newName.trim();
+      if (!finalName.toLowerCase().endsWith('.docx')) finalName += '.docx';
+      const titleInput = document.getElementById('wordDocTitle');
+      if (titleInput) titleInput.value = finalName;
+      if (window.docManager) window.docManager.updateActiveDocTitle(finalName);
+      showToast(`Başlık "${finalName}" olarak güncellendi.`);
+    }
+  });
+
+  document.getElementById('openLibraryBtn')?.addEventListener('click', () => openLibrary('all'));
 
   // ========================================================================
   // 📚 KÜTÜPHANEM (Library & Writing Archive) Controller
@@ -1611,10 +1655,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentLibraryFilter = 'all';
   let libraryFilesCache = [];
 
-  async function openLibrary() {
+  async function openLibrary(filter) {
+    if (typeof filter !== 'string') filter = 'all';
+    currentLibraryFilter = filter;
+    document.querySelectorAll('.library-filter-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
     openModal('libraryModal');
     await loadLibraryFiles();
   }
+  window.openLibrary = openLibrary;
 
   async function loadLibraryFiles() {
     const container = document.getElementById('libraryItemsContainer');
@@ -1623,6 +1673,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const storageLocation = document.getElementById('libraryStorageLocation');
     const storageSubtitle = document.getElementById('libraryStorageSubtitle');
     const syncDot = document.getElementById('librarySyncDot');
+    const gDriveWebBtn = document.getElementById('libraryGDriveWebBtn');
 
     if (!container) return;
 
@@ -1655,6 +1706,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (storageLocation) storageLocation.textContent = st.syncFolder || 'Belgelerim';
           if (storageSubtitle) storageSubtitle.textContent = st.isGoogleDrive ? 'Google Drive ile anında eşitlenir' : 'Yerel bilgisayar arşiviniz';
           if (syncDot) syncDot.className = 'drive-status-dot' + (st.isCloudSync ? ' active' : ' local');
+          if (gDriveWebBtn) gDriveWebBtn.style.display = st.isGoogleDrive ? 'inline-flex' : 'none';
         }
       } catch (e) {}
     }
@@ -1685,23 +1737,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('libraryItemsContainer');
     const emptyState = document.getElementById('libraryEmptyState');
     const countBadge = document.getElementById('libraryItemsCount');
+    const clearRecentsBtn = document.getElementById('libraryClearRecentsBtn');
     const searchVal = (document.getElementById('librarySearchInput')?.value || '').toLowerCase().trim();
+
+    // Read stored recents
+    let recentsList = [];
+    try {
+      recentsList = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
+    } catch (_) {}
 
     // Update filter counts
     const countAll = libraryFilesCache.length;
+    const countRecents = recentsList.length;
     const countDocx = libraryFilesCache.filter(f => (f.ext || '').match(/^(docx|doc|txt|md|html)$/i)).length;
     const countPdf = libraryFilesCache.filter(f => (f.ext || '').match(/^pdf$/i)).length;
     const countOther = countAll - countDocx - countPdf;
 
     if (document.getElementById('countFilterAll')) document.getElementById('countFilterAll').textContent = countAll;
+    if (document.getElementById('countFilterRecents')) document.getElementById('countFilterRecents').textContent = countRecents;
     if (document.getElementById('countFilterDocx')) document.getElementById('countFilterDocx').textContent = countDocx;
     if (document.getElementById('countFilterPdf')) document.getElementById('countFilterPdf').textContent = countPdf;
     if (document.getElementById('countFilterOther')) document.getElementById('countFilterOther').textContent = countOther;
     if (countBadge) countBadge.textContent = `${countAll} Yazı`;
 
+    // Toggle clear recents button
+    if (clearRecentsBtn) {
+      clearRecentsBtn.style.display = (currentLibraryFilter === 'recents' && countRecents > 0) ? 'inline-block' : 'none';
+    }
+
     let filtered = libraryFilesCache.filter(f => {
       const ext = (f.ext || '').toLowerCase();
-      if (currentLibraryFilter === 'docx') {
+      if (currentLibraryFilter === 'recents') {
+        return recentsList.some(r => r.name.toLowerCase() === (f.name || '').toLowerCase());
+      } else if (currentLibraryFilter === 'docx') {
         if (!ext.match(/^(docx|doc|txt|md|html)$/i)) return false;
       } else if (currentLibraryFilter === 'pdf') {
         if (ext !== 'pdf') return false;
@@ -1717,7 +1785,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (filtered.length === 0) {
       container.innerHTML = '';
-      if (emptyState) emptyState.style.display = 'block';
+      if (emptyState) {
+        emptyState.style.display = 'block';
+        const emptyMsg = emptyState.querySelector('h4');
+        if (emptyMsg) {
+          emptyMsg.textContent = currentLibraryFilter === 'recents' ? 'Henüz Son Açılan Belge Yok' : 'Henüz Kayıtlı Yazı Bulunmuyor';
+        }
+      }
       return;
     }
 
@@ -1892,10 +1966,13 @@ document.addEventListener('DOMContentLoaded', () => {
     renderLibraryGrid();
   });
 
-  document.getElementById('mobileRecentDocsBtn')?.addEventListener('click', () => {
-    closeModal('mobileActionSheetModal');
-    renderRecentDocs();
-    openModal('recentDocsModal');
+  // Clear recents history button
+  document.getElementById('libraryClearRecentsBtn')?.addEventListener('click', () => {
+    if (confirm('Açılan belgeler geçmişi temizlensin mi? (Orijinal dosyalarınız silinmez)')) {
+      localStorage.removeItem('belge_recent_documents');
+      showToast('Geçmiş temizlendi.');
+      loadLibraryFiles();
+    }
   });
 
   document.getElementById('mobileFindBtn')?.addEventListener('click', () => {
@@ -1944,7 +2021,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (location.hash === '#open-library') {
-    setTimeout(openLibrary, 200);
+    setTimeout(() => openLibrary('all'), 250);
   }
 });
 

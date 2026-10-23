@@ -2750,7 +2750,7 @@ html:not([data-theme="dark"])[data-paper="book"] .word-workspace {
     width: 100% !important;
     max-width: 100% !important;
     min-height: calc(100dvh - 140px) !important;
-    padding: 24px 20px 48px 20px !important;
+    padding: 24px 20px 320px 20px !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;

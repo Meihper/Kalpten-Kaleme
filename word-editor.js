@@ -108,7 +108,96 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {}
     }, 800);
+
+    schedulePhysicalAutoSave();
   });
+
+  // Physical Disk / Device Auto-Save (2.5s debounce)
+  let physicalAutoSaveTimeout;
+  function schedulePhysicalAutoSave() {
+    clearTimeout(physicalAutoSaveTimeout);
+    physicalAutoSaveTimeout = setTimeout(async () => {
+      try {
+        const text = editor ? editor.innerText.trim() : '';
+        if (!text || text.length < 5) return;
+        let title = (docTitleInput?.value || 'Yeni Yazı').trim();
+        if (!title.toLowerCase().endsWith('.docx')) title += '.docx';
+
+        const blob = buildWordBlob(title, editor.innerHTML);
+
+        // 1. Desktop Server Mode
+        if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+          const resp = await fetch('/api/save-document?filename=' + encodeURIComponent(title), {
+            method: 'POST',
+            body: blob
+          });
+          if (resp.ok) {
+            const resData = await resp.json();
+            const timeStr = resData.time || new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            if (headerSaveStatus) {
+              if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
+                headerSaveStatus.textContent = `☁️ Drive'a korundu (${timeStr})`;
+              } else if (resData.cloudProvider === 'onedrive') {
+                headerSaveStatus.textContent = `☁️ OneDrive'a korundu (${timeStr})`;
+              } else {
+                headerSaveStatus.textContent = `💾 Diske korundu (${timeStr})`;
+              }
+              headerSaveStatus.classList.remove('saving');
+            }
+          }
+        }
+        // 2. Android Native Bridge Mode
+        else if (window.AndroidBridge && window.AndroidBridge.saveBase64File) {
+          const reader = new FileReader();
+          reader.onloadend = function() {
+            try {
+              const base64data = reader.result.split(',')[1];
+              window.AndroidBridge.saveBase64File(title, base64data, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+              const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+              if (headerSaveStatus) {
+                headerSaveStatus.textContent = `📱 Cihaza korundu (${timeStr})`;
+                headerSaveStatus.classList.remove('saving');
+              }
+            } catch (_) {}
+          };
+          reader.readAsDataURL(blob);
+        }
+      } catch (_) {}
+    }, 2500);
+  }
+
+  function buildWordBlob(title, innerHtml) {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${title}</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #111; }
+          h1 { font-size: 22pt; margin-bottom: 12pt; color: #0072DE; }
+          h2 { font-size: 16pt; margin-top: 14pt; margin-bottom: 8pt; }
+          h3 { font-size: 13pt; margin-top: 12pt; margin-bottom: 6pt; }
+          p { margin-bottom: 8pt; }
+          table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
+          th, td { border: 1px solid #777; padding: 6pt 10pt; text-align: left; }
+          th { background-color: #EEE; font-weight: bold; }
+          blockquote { border-left: 4px solid #0072DE; padding-left: 10pt; color: #555; }
+        </style>
+      </head>
+      <body>
+        ${innerHtml}
+      </body>
+      </html>
+    `;
+    if (window.htmlDocx && typeof window.htmlDocx.asBlob === 'function') {
+      return window.htmlDocx.asBlob(htmlContent, {
+        orientation: editor.classList.contains('orientation-landscape') ? 'landscape' : 'portrait',
+        margins: { top: 720, right: 720, bottom: 720, left: 720 }
+      });
+    }
+    return new Blob([htmlContent], { type: 'application/msword;charset=utf-8' });
+  }
 
   // Restore draft if exists
   const savedDraft = localStorage.getItem('kalpten_kaleme_word_draft') || localStorage.getItem('studio_office_word_draft');
@@ -315,30 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
       title += '.docx';
     }
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>${title}</title>
-        <style>
-          body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #111; }
-          h1 { font-size: 22pt; margin-bottom: 12pt; color: #0072DE; }
-          h2 { font-size: 16pt; margin-top: 14pt; margin-bottom: 8pt; }
-          h3 { font-size: 13pt; margin-top: 12pt; margin-bottom: 6pt; }
-          p { margin-bottom: 8pt; }
-          table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
-          th, td { border: 1px solid #777; padding: 6pt 10pt; text-align: left; }
-          th { background-color: #EEE; font-weight: bold; }
-          blockquote { border-left: 4px solid #0072DE; padding-left: 10pt; color: #555; }
-        </style>
-      </head>
-      <body>
-        ${editor.innerHTML}
-      </body>
-      </html>
-    `;
-
     const saveStatusEl = document.getElementById('wordSaveStatus');
     if (saveStatusEl) {
       saveStatusEl.textContent = '⏳ Kaydediliyor...';
@@ -346,15 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      let blob;
-      if (window.htmlDocx && typeof window.htmlDocx.asBlob === 'function') {
-        blob = window.htmlDocx.asBlob(htmlContent, {
-          orientation: editor.classList.contains('orientation-landscape') ? 'landscape' : 'portrait',
-          margins: { top: 720, right: 720, bottom: 720, left: 720 }
-        });
-      } else {
-        blob = new Blob([htmlContent], { type: 'application/msword;charset=utf-8' });
-      }
+      const blob = buildWordBlob(title, editor.innerHTML);
 
       let savedDirectly = false;
       try {

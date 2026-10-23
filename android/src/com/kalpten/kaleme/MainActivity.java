@@ -513,5 +513,26 @@ public class MainActivity extends Activity {
         public String getPlatform() {
             return "android";
         }
+
+        @JavascriptInterface
+        public void printDocument() {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                            android.print.PrintManager printManager = (android.print.PrintManager) context.getSystemService(Context.PRINT_SERVICE);
+                            if (printManager != null && webView != null) {
+                                String jobName = "Kalpten Kaleme Belge";
+                                android.print.PrintDocumentAdapter printAdapter = webView.createPrintDocumentAdapter(jobName);
+                                printManager.print(jobName, printAdapter, new android.print.PrintAttributes.Builder().build());
+                            }
+                        }
+                    } catch (Exception e) {
+                        Toast.makeText(context, "Yazdırma başlatılamadı: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+        }
     }
 }
