@@ -919,7 +919,7 @@ const pptEditor = {
     a.download = `${title}.html`;
     a.click();
     URL.revokeObjectURL(url);
-    if (window.showToast) window.showToast(`"${title}.html" bağımsız sunum olarak indirildi.`);
+    if (window.showToast) window.showToast(`"${title}.html" bağımsız sunum olarak kaydedildi.`);
   },
 
   exportJson() {
@@ -938,7 +938,7 @@ const pptEditor = {
     a.download = `${title}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    if (window.showToast) window.showToast(`"${title}.json" sunum dosyası indirildi.`);
+    if (window.showToast) window.showToast(`"${title}.json" sunum dosyası kaydedildi.`);
   },
 
   exportPrint() {

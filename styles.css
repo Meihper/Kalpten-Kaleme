@@ -522,6 +522,15 @@ html.is-windows-suite .header-center {
   box-shadow: 0 3px 10px rgba(0, 114, 222, 0.3);
 }
 
+.pill-btn-primary.is-saved-feedback {
+  background: #059669 !important;
+  border-color: #10B981 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.45) !important;
+  transform: scale(1.02);
+  transition: all 0.2s ease !important;
+}
+
 .pill-btn-secondary {
   background: var(--bg-secondary);
   color: var(--text-primary);

@@ -828,7 +828,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  function triggerSaveFeedback() {
+    const saveBtn = document.getElementById('globalSaveBtn');
+    if (!saveBtn) return;
+    const textSpan = saveBtn.querySelector('.btn-text');
+    if (textSpan && !saveBtn.classList.contains('is-saved-feedback')) {
+      saveBtn.classList.add('is-saved-feedback');
+      const originalText = textSpan.textContent;
+      textSpan.textContent = 'Kaydedildi';
+      setTimeout(() => {
+        textSpan.textContent = originalText;
+        saveBtn.classList.remove('is-saved-feedback');
+      }, 2000);
+    }
+  }
+  window.triggerSaveFeedback = triggerSaveFeedback;
+
   document.getElementById('globalSaveBtn')?.addEventListener('click', () => {
+    triggerSaveFeedback();
     if (appState.currentTab === 'pdfTab') {
       if (window.savePdfDocument) window.savePdfDocument();
     } else if (appState.currentTab === 'pptTab') {
@@ -841,10 +858,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       if (window.saveWordDocument) window.saveWordDocument();
     }
-  });
-
-  document.getElementById('wordSaveStatus')?.addEventListener('click', () => {
-    document.getElementById('globalSaveBtn')?.click();
   });
 
   // ========================================================================

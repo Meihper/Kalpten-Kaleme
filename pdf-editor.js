@@ -1888,7 +1888,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pdfState.editedTexts.push(editRecord);
     }
 
-    showToast(`${count} adet eşleşme tüm sayfalarda başarıyla değiştirildi! "Kaydet" butonuyla yeni PDF olarak indirebilirsiniz.`);
+    showToast(`${count} adet eşleşme tüm sayfalarda başarıyla değiştirildi! "Kaydet" butonuyla yeni PDF olarak kaydedebilirsiniz.`);
     clearFindHighlights();
   });
 
@@ -2120,7 +2120,7 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast(`"${pdfFileName}" PDF olarak indirildi.`);
+        showToast(`"${pdfFileName}" başarıyla kaydedildi.`);
       }
     } catch (err) {
       console.error(err);

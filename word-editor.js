@@ -487,10 +487,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         if (saveStatusEl) {
-          saveStatusEl.textContent = '● İndirildi';
+          saveStatusEl.textContent = '● Kaydedildi';
           saveStatusEl.classList.remove('saving');
         }
-        showToast(`"${title}" Word dosyası olarak indirildi.`);
+        showToast(`"${title}" başarıyla kaydedildi.`);
+      }
+      const bottomSaveState = document.getElementById('wordSaveState');
+      if (bottomSaveState) {
+        const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        bottomSaveState.textContent = `Tüm değişiklikler kaydedildi (${timeStr})`;
+      }
+      if (typeof window.triggerSaveFeedback === 'function') {
+        window.triggerSaveFeedback();
       }
       if (typeof window.addRecentDocument === 'function') {
         window.addRecentDocument(title);
