@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="app.png?v=3">
   <link rel="manifest" href="manifest.json?v=3">
   <meta name="theme-color" content="#1C2438">
-  <link rel="stylesheet" href="styles.css?v=1.0.6">
+  <link rel="stylesheet" href="styles.css?v=1.0.7">
   
   <!-- Offline Core Libraries (Deferred for instantaneous initial paint) -->
   <script src="vendor/jszip.min.js" defer></script>
@@ -162,18 +162,23 @@
         <button class="icon-btn" id="closeFindBarBtn" style="width: 26px; height: 26px;">✕</button>
       </div>
 
-      <!-- Slim Formatting Bar (Row 2 - Decluttered & Spacious) -->
+      <!-- Slim Formatting Bar (Row 2 - Google Docs Inspired Consistent Grid) -->
       <div class="slim-toolbar">
+        <!-- 1. Geçmiş & Biçim Boyacısı -->
         <button class="tool-item" data-command="undo" title="Geri Al (Ctrl+Z)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
         </button>
         <button class="tool-item" data-command="redo" title="İleri Al (Ctrl+Y)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
         </button>
+        <button class="tool-item" id="formatPainterBtn" title="Biçim Boyacısı (Stili Kopyala & Uygula)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 4H6a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"></path><path d="M18 7v4a2 2 0 0 1-2 2H9a2 2 0 0 0-2 2v2"></path><circle cx="7" cy="19" r="2"></circle></svg>
+        </button>
 
         <div class="tool-sep"></div>
 
-        <select class="slim-select" id="wordFormatBlock">
+        <!-- 2. Stil / Başlık Seviyesi -->
+        <select class="slim-select" id="wordFormatBlock" title="Metin Stili (Başlık Seviyesi)">
           <option value="p">Normal Metin</option>
           <option value="h1">Büyük Başlık (H1)</option>
           <option value="h2">Orta Başlık (H2)</option>
@@ -181,7 +186,10 @@
           <option value="blockquote">Alıntı Paragrafı</option>
         </select>
 
-        <select class="slim-select" id="wordFontFamily">
+        <div class="tool-sep"></div>
+
+        <!-- 3. Tipografi: Yazı Tipi & Punto Stepper'ı -->
+        <select class="slim-select" id="wordFontFamily" title="Yazı Tipi">
           <option value="'Georgia', serif" selected>Georgia (Roman & Edebi)</option>
           <option value="'Garamond', serif">Garamond (Kitap)</option>
           <option value="'Palatino Linotype', 'Book Antiqua', serif">Palatino (Deneme)</option>
@@ -191,17 +199,15 @@
           <option value="'Courier New', monospace">Daktilo (Courier)</option>
         </select>
 
-        <select class="slim-select" id="wordFontSize">
-          <option value="1">10 pt</option>
-          <option value="2">12 pt</option>
-          <option value="3">14 pt</option>
-          <option value="4" selected>16 pt (İdeal Okuma)</option>
-          <option value="5">18 pt</option>
-          <option value="6">24 pt</option>
-        </select>
+        <div class="font-size-stepper" id="fontSizeStepper" title="Yazı Boyutu (Punto)">
+          <button type="button" class="stepper-btn" id="fontSizeDecBtn" title="Yazı Boyutunu Küçült">−</button>
+          <input type="text" class="stepper-input" id="fontSizeInput" value="16" title="Punto (Enter ile uygula)" maxlength="3" spellcheck="false">
+          <button type="button" class="stepper-btn" id="fontSizeIncBtn" title="Yazı Boyutunu Büyüt">+</button>
+        </div>
 
         <div class="tool-sep"></div>
 
+        <!-- 4. Karakter Biçimlendirme & Renkler -->
         <button class="tool-item" data-command="bold" title="Kalın (Ctrl+B)"><b>B</b></button>
         <button class="tool-item" data-command="italic" title="İtalik (Ctrl+I)"><i>I</i></button>
         <button class="tool-item" data-command="underline" title="Altı Çizili (Ctrl+U)"><u>U</u></button>
@@ -239,10 +245,13 @@
           </div>
         </div>
 
-        <!-- Text Highlight Color with Instant Presets & Clear -->
+        <!-- Text Highlight Color (Refined SVG Highlighter Marker) -->
         <div class="color-dropdown-container">
-          <button type="button" class="tool-item color-tool-btn" id="wordHighlightColorBtn" title="Vurgu / Fosforlu İşaretleyici">
-            <span class="color-btn-letter highlight-symbol">H</span>
+          <button type="button" class="tool-item color-tool-btn" id="wordHighlightColorBtn" title="Vurgu Rengi (Fosforlu Kalem)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="color-btn-icon" width="13" height="13">
+              <path d="m9 11-6 6v3h3l6-6"></path>
+              <path d="m22 7-4.5-4.5a2.121 2.121 0 0 0-3 0L11 6l7.5 7.5 3.5-3.5a2.121 2.121 0 0 0 0-3Z"></path>
+            </svg>
             <span class="color-btn-bar" id="wordHighlightColorBar" style="background-color: #FEF08A;"></span>
           </button>
           <div class="color-preset-popover" id="wordHighlightColorPopover">
@@ -1214,10 +1223,10 @@
   </div>
 
   <!-- App Scripts (Cache-busted for instant live deployment) -->
-  <script src="app.js?v=1.0.6" defer></script>
-  <script src="word-editor.js?v=1.0.6" defer></script>
-  <script src="pdf-editor.js?v=1.0.6" defer></script>
-  <script src="pdf-tools.js?v=1.0.6" defer></script>
-  <script src="ppt-editor.js?v=1.0.6" defer></script>
+  <script src="app.js?v=1.0.7" defer></script>
+  <script src="word-editor.js?v=1.0.7" defer></script>
+  <script src="pdf-editor.js?v=1.0.7" defer></script>
+  <script src="pdf-tools.js?v=1.0.7" defer></script>
+  <script src="ppt-editor.js?v=1.0.7" defer></script>
 </body>
 </html>

@@ -671,6 +671,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (e) {}
+
+    // Punto Stepper Sync (Cursor Position)
+    try {
+      const sel = window.getSelection();
+      if (sel && sel.anchorNode) {
+        let el = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+        if (el && editor.contains(el)) {
+          const comp = window.getComputedStyle(el);
+          const px = parseFloat(comp.fontSize);
+          if (px > 0) {
+            const pt = Math.round(px * 0.75);
+            const input = document.getElementById('fontSizeInput');
+            if (input && document.activeElement !== input) {
+              input.value = pt;
+            }
+          }
+        }
+      }
+    } catch (e) {}
   }
 
   document.addEventListener('selectionchange', () => {
@@ -697,19 +716,176 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(`Yazı tipi değiştirildi.`);
   });
 
-  document.getElementById('wordFontSize')?.addEventListener('change', (e) => {
-    const val = e.target.value;
+  // Punto Stepper Engine (Google Docs Style [-] 16 [+])
+  const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 32, 36, 42, 48, 72];
+
+  function applyFontSizePt(pt) {
+    pt = parseInt(pt, 10);
+    if (isNaN(pt) || pt < 6 || pt > 96) return;
+    const input = document.getElementById('fontSizeInput');
+    if (input) input.value = pt;
+
     editor.focus();
-    document.execCommand('fontSize', false, val);
-    const sizeMap = { '1': '10pt', '2': '12pt', '3': '14pt', '4': '16pt', '5': '18pt', '6': '24pt', '7': '32pt' };
-    editor.querySelectorAll('font[size]').forEach(f => {
-      const span = document.createElement('span');
-      span.style.fontSize = sizeMap[f.getAttribute('size')] || '16pt';
-      span.innerHTML = f.innerHTML;
-      f.parentNode.replaceChild(span, f);
-    });
-    updateStats();
-    updateToolbarState();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    if (!sel.isCollapsed) {
+      document.execCommand('styleWithCSS', false, true);
+      document.execCommand('fontSize', false, '7');
+      editor.querySelectorAll('font[size="7"], span').forEach(el => {
+        if (el.getAttribute('size') === '7' || el.style.fontSize === '-webkit-xxx-large') {
+          el.removeAttribute('size');
+          el.style.fontSize = pt + 'pt';
+        }
+      });
+      updateStats();
+      updateToolbarState();
+    }
+  }
+
+  const fontSizeInput = document.getElementById('fontSizeInput');
+  const fontSizeDecBtn = document.getElementById('fontSizeDecBtn');
+  const fontSizeIncBtn = document.getElementById('fontSizeIncBtn');
+
+  function stepFontSize(delta) {
+    let current = parseInt(fontSizeInput?.value, 10) || 16;
+    if (delta > 0) {
+      const next = FONT_SIZES.find(s => s > current);
+      applyFontSizePt(next !== undefined ? next : Math.min(96, current + 2));
+    } else {
+      const reversed = [...FONT_SIZES].reverse();
+      const prev = reversed.find(s => s < current);
+      applyFontSizePt(prev !== undefined ? prev : Math.max(6, current - 2));
+    }
+  }
+
+  fontSizeDecBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    stepFontSize(-1);
+  });
+
+  fontSizeIncBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    stepFontSize(1);
+  });
+
+  fontSizeInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyFontSizePt(fontSizeInput.value);
+      editor.focus();
+    }
+  });
+
+  fontSizeInput?.addEventListener('blur', () => {
+    applyFontSizePt(fontSizeInput.value);
+  });
+
+  // Legacy fallback if any code references wordFontSize
+  document.getElementById('wordFontSize')?.addEventListener('change', (e) => {
+    applyFontSizePt(e.target.value);
+  });
+
+  // ========================================================================
+  // Format Painter (Biçim Boyacısı / Stil Kopyalama Rulosu)
+  // ========================================================================
+  let copiedFormat = null;
+  let isPersistentPainter = false;
+  const formatPainterBtn = document.getElementById('formatPainterBtn');
+
+  function deactivateFormatPainter() {
+    copiedFormat = null;
+    isPersistentPainter = false;
+    formatPainterBtn?.classList.remove('painting');
+    document.body.classList.remove('format-painter-active');
+  }
+
+  function activateFormatPainter(persistent = false) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    let node = sel.anchorNode;
+    if (!node) return;
+    let el = node.nodeType === 3 ? node.parentElement : node;
+    if (!el || !editor.contains(el)) el = editor;
+
+    const comp = window.getComputedStyle(el);
+    copiedFormat = {
+      fontFamily: comp.fontFamily,
+      fontSize: comp.fontSize,
+      fontWeight: comp.fontWeight,
+      fontStyle: comp.fontStyle,
+      textDecorationLine: comp.textDecorationLine || comp.textDecoration,
+      color: comp.color,
+      backgroundColor: comp.backgroundColor,
+      lineHeight: comp.lineHeight
+    };
+
+    isPersistentPainter = persistent;
+    formatPainterBtn?.classList.add('painting');
+    document.body.classList.add('format-painter-active');
+    showToast(persistent ? 'Biçim kopyalandı (Kalıcı mod - Çıkmak için Esc).' : 'Biçim kopyalandı. Metin seçerek uygulayın.');
+  }
+
+  formatPainterBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (copiedFormat) {
+      deactivateFormatPainter();
+    } else {
+      activateFormatPainter(false);
+    }
+  });
+
+  formatPainterBtn?.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    activateFormatPainter(true);
+  });
+
+  editor.addEventListener('mouseup', () => {
+    if (!copiedFormat) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+
+    try {
+      document.execCommand('styleWithCSS', false, true);
+      if (copiedFormat.fontFamily) executeCmd('fontName', copiedFormat.fontFamily);
+      if (copiedFormat.fontSize) {
+        const pt = Math.round(parseFloat(copiedFormat.fontSize) * 0.75);
+        applyFontSizePt(pt);
+      }
+      if (copiedFormat.color && copiedFormat.color !== 'rgba(0, 0, 0, 0)') {
+        document.execCommand('foreColor', false, copiedFormat.color);
+      }
+      if (copiedFormat.backgroundColor && copiedFormat.backgroundColor !== 'rgba(0, 0, 0, 0)' && copiedFormat.backgroundColor !== 'transparent') {
+        document.execCommand('hiliteColor', false, copiedFormat.backgroundColor) || document.execCommand('backColor', false, copiedFormat.backgroundColor);
+      }
+      const isBold = parseInt(copiedFormat.fontWeight, 10) >= 700 || copiedFormat.fontWeight === 'bold';
+      if (isBold !== document.queryCommandState('bold')) {
+        document.execCommand('bold', false, null);
+      }
+      const isItalic = copiedFormat.fontStyle === 'italic';
+      if (isItalic !== document.queryCommandState('italic')) {
+        document.execCommand('italic', false, null);
+      }
+      const isUnderline = (copiedFormat.textDecorationLine || '').includes('underline');
+      if (isUnderline !== document.queryCommandState('underline')) {
+        document.execCommand('underline', false, null);
+      }
+      showToast('Biçim uygulandı.');
+    } catch (err) {
+      console.warn('Format Painter apply error:', err);
+    }
+
+    if (!isPersistentPainter) {
+      deactivateFormatPainter();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && copiedFormat) {
+      deactivateFormatPainter();
+    }
   });
 
   // Word Editor Fast Color Presets & Popovers (No need to open OS spectrum for primary colors)

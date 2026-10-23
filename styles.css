@@ -622,11 +622,24 @@ html.is-windows-suite .header-center {
 .tool-item:hover { background: var(--bg-secondary); color: var(--text-primary); }
 .tool-item.active { background: var(--accent-soft); color: var(--accent-primary); }
 
+/* Format Painter Active Pulse & Cursor */
+.tool-item#formatPainterBtn.painting {
+  background: var(--accent-soft) !important;
+  color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 1.5px var(--accent-primary) !important;
+}
+
+body.format-painter-active,
+body.format-painter-active #wordEditor {
+  cursor: copy !important;
+}
+
 .slim-select {
+  height: 28px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  padding: 3px 6px;
+  padding: 0 6px;
   font-size: 11.5px;
   font-family: inherit;
   font-weight: 600;
@@ -634,6 +647,64 @@ html.is-windows-suite .header-center {
   outline: none;
   cursor: pointer;
   flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* Punto Stepper (Google Docs Style [-] 16 [+]) */
+.font-size-stepper {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.font-size-stepper .stepper-btn {
+  width: 20px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  user-select: none;
+  padding: 0;
+}
+
+.font-size-stepper .stepper-btn:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.font-size-stepper .stepper-input {
+  width: 26px;
+  height: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  outline: none;
+  padding: 0;
+  margin: 0 1px;
+  box-sizing: border-box;
+}
+
+.font-size-stepper .stepper-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 /* ==========================================================================
@@ -660,12 +731,10 @@ html.is-windows-suite .header-center {
   line-height: 1;
 }
 
-.color-btn-letter.highlight-symbol {
-  font-size: 11px;
-  background: #FFF500;
-  color: #111827;
-  padding: 0 3px;
-  border-radius: 2px;
+.color-btn-icon {
+  width: 13px;
+  height: 13px;
+  display: block;
 }
 
 .color-btn-bar {
@@ -2709,6 +2778,7 @@ html:not([data-theme="dark"])[data-paper="book"] .word-workspace {
 
   /* Hide verbose desktop dropdowns in top bar (they live in the mobile studio drawer) */
   #wordFontFamily,
+  #fontSizeStepper,
   #wordFontSize,
   #wordLineHeight,
   #pageLayoutDetails {
@@ -3362,6 +3432,7 @@ html.is-mobile-app #suiteDownloadBtn,
 html.is-mobile-app .header-right .tool-sep { display: none !important; }
 html.is-mobile-app .document-tabs-bar:not(.has-multiple-docs) { display: none !important; }
 html.is-mobile-app #wordFontFamily,
+html.is-mobile-app #fontSizeStepper,
 html.is-mobile-app #wordFontSize,
 html.is-mobile-app #wordLineHeight,
 html.is-mobile-app #pageLayoutDetails { display: none !important; }
