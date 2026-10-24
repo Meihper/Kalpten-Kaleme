@@ -611,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Prevent losing selection in editor when clicking toolbar buttons
-  document.querySelectorAll('#wordTab .tool-item, #wordTab .icon-btn, .word-formatting-bar .tool-btn').forEach(btn => {
+  document.querySelectorAll('#wordTab .tool-item, #wordTab .icon-btn, #wordTab .stepper-btn, .word-formatting-bar .tool-btn').forEach(btn => {
     btn.addEventListener('mousedown', (e) => {
       if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'INPUT') {
         e.preventDefault();
@@ -716,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(`Yazı tipi değiştirildi.`);
   });
 
-  // Punto Stepper Engine (Google Docs Style [-] 16 [+])
+  // Punto Stepper Engine (Incremental 1-by-1 Step Progression)
   const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 32, 36, 42, 48, 72];
 
   function applyFontSizePt(pt) {
@@ -726,18 +726,54 @@ document.addEventListener('DOMContentLoaded', () => {
     if (input) input.value = pt;
 
     editor.focus();
-    const sel = window.getSelection();
+    let sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
 
-    if (!sel.isCollapsed) {
-      document.execCommand('styleWithCSS', false, true);
-      document.execCommand('fontSize', false, '7');
-      editor.querySelectorAll('font[size="7"], span').forEach(el => {
-        if (el.getAttribute('size') === '7' || el.style.fontSize === '-webkit-xxx-large') {
-          el.removeAttribute('size');
-          el.style.fontSize = pt + 'pt';
+    // If cursor is inside a word without selection, automatically select that word
+    if (sel.isCollapsed) {
+      const node = sel.anchorNode;
+      if (node && node.nodeType === Node.TEXT_NODE) {
+        const text = node.nodeValue;
+        const offset = sel.anchorOffset;
+        let start = offset;
+        while (start > 0 && /\S/.test(text[start - 1])) start--;
+        let end = offset;
+        while (end < text.length && /\S/.test(text[end])) end++;
+        if (end > start) {
+          const range = document.createRange();
+          range.setStart(node, start);
+          range.setEnd(node, end);
+          sel.removeAllRanges();
+          sel.addRange(range);
         }
-      });
+      }
+    }
+
+    if (!sel.isCollapsed) {
+      try {
+        // Toggle styleWithCSS off temporarily so fontSize generates standard <font size="7">
+        document.execCommand('styleWithCSS', false, false);
+        document.execCommand('fontSize', false, '7');
+        document.execCommand('styleWithCSS', false, true);
+
+        // Replace all generated font/span markers with exact pt size
+        editor.querySelectorAll('font, span').forEach(el => {
+          const sz = el.getAttribute('size');
+          const fs = el.style.fontSize || '';
+          if (sz === '7' || fs.includes('xxx-large') || fs === '48px') {
+            el.removeAttribute('size');
+            el.style.fontSize = pt + 'pt';
+            if (el.tagName.toLowerCase() === 'font') {
+              const span = document.createElement('span');
+              span.style.fontSize = pt + 'pt';
+              span.innerHTML = el.innerHTML;
+              el.parentNode.replaceChild(span, el);
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('applyFontSize error:', err);
+      }
       updateStats();
       updateToolbarState();
     }
@@ -759,11 +795,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  fontSizeDecBtn?.addEventListener('mousedown', (e) => e.preventDefault());
   fontSizeDecBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     stepFontSize(-1);
   });
 
+  fontSizeIncBtn?.addEventListener('mousedown', (e) => e.preventDefault());
   fontSizeIncBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     stepFontSize(1);
