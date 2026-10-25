@@ -2128,13 +2128,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // High-Resolution 300 DPI Vector-Quality Print Generator
+  // High-Resolution 450+ DPI Vector-Quality Print Generator
   window.preparePdfPrintPages = async function(printRoot) {
     if (!pdfState.pdfDoc || !printRoot) return false;
     printRoot.innerHTML = '';
     const numPages = pdfState.pageOrder.length;
-    // 300 DPI render scale (~2400px width for standard A4 page)
-    const printScale = 3.5;
+    // 450+ DPI print scale (~3200px width for A4, ~2300px for A5) for razor-sharp vector output
+    const printScale = 5.5;
 
     for (let idx = 0; idx < numPages; idx++) {
       const origNum = pdfState.pageOrder[idx];
@@ -2145,6 +2145,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const unscaledViewport = page.getViewport({ scale: 1.0, rotation: rotation });
       const widthMm = (unscaledViewport.width / 72) * 25.4;
       const heightMm = (unscaledViewport.height / 72) * 25.4;
+
+      if (idx === 0) {
+        pdfState.printDimensions = { widthMm, heightMm };
+      }
 
       const viewport = page.getViewport({ scale: printScale, rotation: rotation });
 
@@ -2169,9 +2173,18 @@ document.addEventListener('DOMContentLoaded', () => {
       canvas.style.width = '100%';
       canvas.style.height = '100%';
       canvas.style.display = 'block';
+      canvas.style.imageRendering = '-webkit-optimize-contrast';
 
-      const ctx = canvas.getContext('2d');
-      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+      }
+      await page.render({ 
+        canvasContext: ctx, 
+        viewport: viewport,
+        intent: 'print'
+      }).promise;
       pageDiv.appendChild(canvas);
 
       // Render edited texts on print page with exact physical point matching

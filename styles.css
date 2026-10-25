@@ -4286,6 +4286,7 @@ html.is-mobile-landscape .word-canvas-sheet {
     text-rendering: geometricPrecision !important;
     -webkit-font-smoothing: antialiased !important;
     image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
   }
   .kalpten-print-word-sheet h1,
   .kalpten-print-word-sheet h2,
@@ -4399,6 +4400,7 @@ html.is-mobile-landscape .word-canvas-sheet {
     height: 100% !important;
     margin: 0 auto !important;
     image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
   }
   .kalpten-print-pdf-page .pdf-text-line:not(.text-modified) {
     display: none !important;

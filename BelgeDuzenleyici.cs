@@ -75,7 +75,7 @@ namespace BelgeDuzenleyici
                     string defaultProfileDir = Path.Combine(userDataFolder, "Default");
                     if (!Directory.Exists(defaultProfileDir)) Directory.CreateDirectory(defaultProfileDir);
                     string prefFile = Path.Combine(defaultProfileDir, "Preferences");
-                    string cleanPrintJson = "{\"printing\":{\"print_preview_sticky_settings\":{\"appState\":\"{\\\"headerFooter\\\":false,\\\"isCssBackgroundEnabled\\\":true,\\\"mediaSize\\\":{\\\"name\\\":\\\"ISO_A4\\\"}}\"}}}";
+                    string cleanPrintJson = "{\"printing\":{\"print_preview_sticky_settings\":{\"appState\":\"{\\\"headerFooter\\\":false,\\\"isCssBackgroundEnabled\\\":true}\"}}}";
                     if (!File.Exists(prefFile))
                     {
                         File.WriteAllText(prefFile, cleanPrintJson, System.Text.Encoding.UTF8);

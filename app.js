@@ -917,10 +917,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (appState.currentTab === 'pdfTab') {
-      pageStyle.textContent = `@page { size: auto; margin: 0; }`;
       if (window.preparePdfPrintPages) {
         const ok = await window.preparePdfPrintPages(printRoot);
-        if (ok) return;
+        if (ok) {
+          const dims = window.pdfState?.printDimensions;
+          if (dims && dims.widthMm && dims.heightMm) {
+            pageStyle.textContent = `@page { size: ${dims.widthMm.toFixed(1)}mm ${dims.heightMm.toFixed(1)}mm; margin: 0; }`;
+          } else {
+            pageStyle.textContent = `@page { size: auto; margin: 0; }`;
+          }
+          return;
+        }
       }
       printRoot.innerHTML = '';
       const wrappers = document.querySelectorAll('#pdfPagesContainer .pdf-page-wrapper');
