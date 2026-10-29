@@ -243,8 +243,7 @@ Write-Host "Signing APK with apksigner..."
 $finalApkPath = Join-Path $androidDir "KalptenKaleme_Signed.apk"
 cmd /c "`"$apksignerBat`" sign --ks `"$keystorePath`" --ks-pass pass:kalpten123 --out `"$finalApkPath`" `"$alignedApk`""
 
-# 13. Copy Final APK to Desktop, Project Root, Documents, and Artifact dir
-Copy-Item -Path $finalApkPath -Destination $desktopApk -Force
+# 13. Copy Final APK to Project Root, Documents, and Artifact dir (Never clutter Desktop)
 Copy-Item -Path $finalApkPath -Destination $projectApk -Force
 
 $artifactDir = "C:\Users\Erdem\.gemini\antigravity\brain\fc7d5a54-3292-42a2-b99e-ca574ab289ce"
@@ -257,9 +256,9 @@ if (Test-Path $docsDir) {
     Copy-Item -Path $finalApkPath -Destination (Join-Path $docsDir "KalptenKaleme.apk") -Force
 }
 
-$apkSize = (Get-Item $desktopApk).Length / 1MB
+$apkSize = (Get-Item $projectApk).Length / 1MB
 Write-Host "=========================================="
 Write-Host "SUCCESS: Android APK Created!"
-Write-Host "Desktop Path: $desktopApk"
+Write-Host "Project Path: $projectApk"
 Write-Host "Size: $([math]::Round($apkSize, 2)) MB"
 Write-Host "=========================================="

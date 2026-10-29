@@ -5,15 +5,14 @@ Write-Host "=========================================="
 Write-Host "1. PREPARING WINDOWS ZIP"
 Write-Host "=========================================="
 
-$desktopApk = "C:\Users\Erdem\Desktop\KalptenKaleme.apk"
-$desktopZip = "C:\Users\Erdem\Desktop\KalptenKaleme-Windows.zip"
+$projectApk = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\KalptenKaleme.apk"
+$projectZip = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\KalptenKaleme-Windows.zip"
 $artifactDir = "C:\Users\Erdem\.gemini\antigravity\brain\fc7d5a54-3292-42a2-b99e-ca574ab289ce"
 
-# Sync desktop APK to repo root
-if (Test-Path $desktopApk) {
-    Copy-Item $desktopApk "KalptenKaleme.apk" -Force
-    Copy-Item $desktopApk (Join-Path $artifactDir "KalptenKaleme.apk") -Force
-    Write-Host "APK copied to repo root and brain artifact directory."
+# Sync APK to brain artifact directory
+if (Test-Path $projectApk) {
+    Copy-Item $projectApk (Join-Path $artifactDir "KalptenKaleme.apk") -Force
+    Write-Host "APK synced to brain artifact directory."
 }
 
 # Create staging dir for clean Windows zip
@@ -43,12 +42,12 @@ if (Test-Path "runtimes") {
     Copy-Item "runtimes" (Join-Path $stageDir "runtimes") -Recurse -Force
 }
 
-if (Test-Path $desktopZip) { Remove-Item $desktopZip -Force }
-Compress-Archive -Path "$stageDir\*" -DestinationPath $desktopZip -Force
-Copy-Item $desktopZip (Join-Path $artifactDir "KalptenKaleme-Windows.zip") -Force
+if (Test-Path $projectZip) { Remove-Item $projectZip -Force }
+Compress-Archive -Path "$stageDir\*" -DestinationPath $projectZip -Force
+Copy-Item $projectZip (Join-Path $artifactDir "KalptenKaleme-Windows.zip") -Force
 Remove-Item $stageDir -Recurse -Force
 
-Write-Host "Windows ZIP created at $desktopZip ($([Math]::Round((Get-Item $desktopZip).Length / 1MB, 2)) MB)"
+Write-Host "Windows ZIP created at $projectZip ($([Math]::Round((Get-Item $projectZip).Length / 1MB, 2)) MB)"
 
 Write-Host "`n=========================================="
 Write-Host "2. COMMITTING AND PUSHING TO GITHUB"
@@ -100,14 +99,14 @@ foreach ($asset in $release.assets) {
 $uploadUrlBase = ($release.upload_url -replace "\{\?name,label\}$", "")
 
 # Upload new APK
-Write-Host "Uploading new KalptenKaleme.apk ($([Math]::Round((Get-Item $desktopApk).Length / 1MB, 2)) MB)..."
-$apkBytes = [System.IO.File]::ReadAllBytes($desktopApk)
+Write-Host "Uploading new KalptenKaleme.apk ($([Math]::Round((Get-Item $projectApk).Length / 1MB, 2)) MB)..."
+$apkBytes = [System.IO.File]::ReadAllBytes($projectApk)
 $apkAsset = Invoke-RestMethod -Uri "${uploadUrlBase}?name=KalptenKaleme.apk" -Headers $headers -Method Post -Body $apkBytes -ContentType "application/vnd.android.package-archive"
 Write-Host "Uploaded APK: $($apkAsset.browser_download_url)"
 
 # Upload new ZIP
-Write-Host "Uploading new KalptenKaleme-Windows.zip ($([Math]::Round((Get-Item $desktopZip).Length / 1MB, 2)) MB)..."
-$zipBytes = [System.IO.File]::ReadAllBytes($desktopZip)
+Write-Host "Uploading new KalptenKaleme-Windows.zip ($([Math]::Round((Get-Item $projectZip).Length / 1MB, 2)) MB)..."
+$zipBytes = [System.IO.File]::ReadAllBytes($projectZip)
 $zipAsset = Invoke-RestMethod -Uri "${uploadUrlBase}?name=KalptenKaleme-Windows.zip" -Headers $headers -Method Post -Body $zipBytes -ContentType "application/zip"
 Write-Host "Uploaded Windows ZIP: $($zipAsset.browser_download_url)"
 

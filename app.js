@@ -117,10 +117,14 @@ function isMobileWordStudio() {
   return false;
 }
 
+function isWindowsSuiteMode() {
+  return (isOnlineServer || window.location.protocol === 'file:') && !isMobileWordStudio();
+}
+
 function syncMobileAppMode() {
   const isMobile = isMobileWordStudio();
   const isLandscape = isMobile && window.innerWidth > window.innerHeight;
-  const isSuite = isOnlineServer && !isMobile;
+  const isSuite = isWindowsSuiteMode();
 
   document.documentElement.classList.toggle('is-mobile-app', isMobile);
   document.body.classList.toggle('is-mobile-app', isMobile);
@@ -147,7 +151,7 @@ window.addEventListener('orientationchange', () => {
 });
 
 function switchTab(tabId) {
-  const isSuite = isOnlineServer && !isMobileWordStudio();
+  const isSuite = isWindowsSuiteMode();
   if (!isSuite) {
     tabId = 'wordTab';
   } else if (!tabId) {
@@ -647,7 +651,7 @@ const docManager = {
     const tabsBar = document.getElementById('documentTabsBar');
     if (!track) return;
 
-    const isSuite = isOnlineServer && !isMobileWordStudio();
+    const isSuite = isWindowsSuiteMode();
     const visibleDocs = (!isSuite)
       ? this.docs.filter(d => d.type === 'word')
       : this.docs;
