@@ -365,13 +365,19 @@ const docManager = {
           {
             id: 'slide_1',
             layout: 'title',
+            transition: 'fade',
             title: '',
             subtitle: '',
             content: '',
             leftCol: '',
             rightCol: '',
+            card1: '',
+            card2: '',
+            card3: '',
             quote: '',
-            author: ''
+            author: '',
+            notes: '',
+            elements: []
           }
         ],
         currentIndex: 0,
@@ -905,21 +911,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const ratioClass = isPortrait ? 'ratio-a4-portrait' : 'ratio-16-9';
 
       const slidesHtml = (window.pptEditor.state.slides || []).map((s, idx, arr) => {
-        let inner = '';
-        if (s.layout === 'title') {
-          inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><h1 style="font-size:38px;font-weight:800;margin-bottom:14px;line-height:1.2;">${s.title || ''}</h1><p style="font-size:18px;opacity:0.85;line-height:1.4;">${s.subtitle || ''}</p></div>`;
-        } else if (s.layout === 'two_col') {
-          inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;line-height:1.25;">${s.title || ''}</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1;"><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);overflow:hidden;">${s.leftCol || ''}</div><div style="padding:16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);overflow:hidden;">${s.rightCol || ''}</div></div>`;
-        } else if (s.layout === 'quote') {
-          inner = `<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;"><div style="font-size:56px;opacity:0.35;font-family:Georgia,serif;line-height:1;">“</div><div style="font-size:26px;font-style:italic;line-height:1.5;margin-bottom:14px;">${s.quote || ''}</div><div style="font-size:15px;font-weight:700;">${s.author ? '— ' + s.author : ''}</div></div>`;
-        } else if (s.layout === 'blank') {
-          inner = `<div style="font-size:16px;line-height:1.75;flex:1;height:100%;overflow:hidden;">${s.content || ''}</div>`;
-        } else {
-          inner = `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;line-height:1.25;">${s.title || ''}</h2><div style="font-size:16px;line-height:1.75;flex:1;overflow:hidden;">${s.content || ''}</div>`;
-        }
+        const inner = typeof window.pptEditor.buildStaticSlideHtml === 'function'
+          ? window.pptEditor.buildStaticSlideHtml(s, false)
+          : `<h2 style="font-size:28px;font-weight:800;margin-bottom:16px;">${s.title || ''}</h2><div>${s.content || ''}</div>`;
         const isLast = (idx === arr.length - 1);
         const breakStyle = isLast ? 'page-break-after: auto !important; break-after: auto !important;' : 'page-break-after: always !important; break-after: page !important;';
-        return `<div class="kalpten-print-slide ${theme} ${ratioClass}" style="${breakStyle}">${inner}</div>`;
+        return `<div class="kalpten-print-slide ${theme} ${ratioClass}" style="position:relative;${breakStyle}">${inner}</div>`;
       }).join('');
 
       printRoot.innerHTML = slidesHtml;
