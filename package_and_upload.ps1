@@ -23,11 +23,10 @@ New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 
 $filesToInclude = @(
     "index.html", "styles.css", "app.js", "word-editor.js", "ppt-editor.js", "pdf-editor.js", "pdf-tools.js",
-    "manifest.json", "README.md", "BelgeDuzenleyici.cs", "BelgeDuzenleyici.exe", "Baslat.bat", "Baslat.ps1", "Baslat.vbs", "launcher.vbs", "server.ps1",
+    "manifest.json", "README.md", "Baslat.bat", "Baslat.ps1", "Baslat.vbs", "launcher.vbs", "server.ps1",
     "Kurulum_Baslat.bat", "Masaustu_Kisayol_Olustur.ps1", "register_open_with.ps1", "Dosya_Simgelerini_Uygula.bat", "Dosya_Simgelerini_Varsayilana_Dondur.bat",
     "BelgeDuzenleyici.ico", "favicon.ico", "app.ico", "docx_file.ico", "pdf_file.ico", "kk_pptx.ico",
-    "app.png", "docx_file.png", "pdf_file.png", "pptx_file.png", "tools_file.png",
-    "Microsoft.Web.WebView2.Core.dll", "Microsoft.Web.WebView2.WinForms.dll", "KalptenKaleme.exe"
+    "app.png", "docx_file.png", "pdf_file.png", "pptx_file.png", "tools_file.png"
 )
 
 foreach ($f in $filesToInclude) {
@@ -58,7 +57,7 @@ Write-Host "=========================================="
 git add index.html word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js styles.css app.js BelgeDuzenleyici.cs BelgeDuzenleyici.exe Baslat.bat Baslat.vbs launcher.vbs server.ps1 Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 build_android_apk.ps1 package_and_upload.ps1 android/AndroidManifest.xml android/src/com/kalpten/kaleme/MainActivity.java android/assets/www/ android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig KalptenKaleme.apk
 $status = git status --porcelain
 if ($status) {
-    git commit -m 'fix(ui): unify cloud and library buttons, hide multi-suite tabs on github pages web, and hide redundant single-doc tab bar'
+    git commit -m 'fix(audit): complete end-to-end verification, fix punto stepper 12pt sync, add delete-file/heartbeat APIs, and remove mobile duplicate toolbar divider'
     git push origin main
     Write-Host "Git push completed."
 } else {

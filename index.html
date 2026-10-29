@@ -9,7 +9,7 @@
   <link rel="apple-touch-icon" href="app.png?v=3">
   <link rel="manifest" href="manifest.json?v=3">
   <meta name="theme-color" content="#1C2438">
-  <link rel="stylesheet" href="styles.css?v=1.0.9">
+  <link rel="stylesheet" href="styles.css?v=1.1.0">
   
   <!-- Offline Core Libraries (Deferred for instantaneous initial paint) -->
   <script src="vendor/jszip.min.js" defer></script>
@@ -201,7 +201,7 @@
 
         <div class="font-size-stepper" id="fontSizeStepper" title="Yazı Boyutu (Punto)">
           <button type="button" class="stepper-btn" id="fontSizeDecBtn" title="Yazı Boyutunu Küçült">−</button>
-          <input type="text" class="stepper-input" id="fontSizeInput" value="16" title="Punto (Enter ile uygula)" maxlength="3" spellcheck="false">
+          <input type="text" class="stepper-input" id="fontSizeInput" value="12" title="Punto (Enter ile uygula)" maxlength="3" spellcheck="false">
           <button type="button" class="stepper-btn" id="fontSizeIncBtn" title="Yazı Boyutunu Büyüt">+</button>
         </div>
 
@@ -981,7 +981,7 @@
             <span style="font-size: 11px; color: var(--text-tertiary);">Windows Masaüstü ve Android Sürümleri</span>
           </div>
         </div>
-        <button class="icon-btn" onclick="closeModal('downloadSuiteModal')">?</button>
+        <button class="icon-btn" onclick="closeModal('downloadSuiteModal')" title="Kapat">✕</button>
       </div>
 
       <div class="modal-body" style="padding: 16px 20px;">
@@ -1223,10 +1223,10 @@
   </div>
 
   <!-- App Scripts (Cache-busted for instant live deployment) -->
-  <script src="app.js?v=1.0.9" defer></script>
-  <script src="word-editor.js?v=1.0.9" defer></script>
-  <script src="pdf-editor.js?v=1.0.9" defer></script>
-  <script src="pdf-tools.js?v=1.0.9" defer></script>
-  <script src="ppt-editor.js?v=1.0.9" defer></script>
+  <script src="app.js?v=1.1.0" defer></script>
+  <script src="word-editor.js?v=1.1.0" defer></script>
+  <script src="pdf-editor.js?v=1.1.0" defer></script>
+  <script src="pdf-tools.js?v=1.1.0" defer></script>
+  <script src="ppt-editor.js?v=1.1.0" defer></script>
 </body>
 </html>

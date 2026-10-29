@@ -1087,7 +1087,7 @@ html.is-windows-suite #toolsTab:not(.active) {
   box-shadow: var(--shadow-md);
   outline: none;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 12pt;
   line-height: 1.65;
   user-select: text;
   word-break: break-word;
@@ -3455,8 +3455,10 @@ html.is-mobile-app .header-right .tool-sep { display: none !important; }
 html.is-mobile-app .document-tabs-bar:not(.has-multiple-docs) { display: none !important; }
 html.is-mobile-app #wordFontFamily,
 html.is-mobile-app #fontSizeStepper,
+html.is-mobile-app #fontSizeStepper + .tool-sep,
 html.is-mobile-app #wordFontSize,
 html.is-mobile-app #wordLineHeight,
+html.is-mobile-app #wordInsertTableBtn + .tool-sep,
 html.is-mobile-app #pageLayoutDetails { display: none !important; }
 html.is-mobile-app .auto-save-pill,
 html.is-mobile-app .drive-sync-pill,

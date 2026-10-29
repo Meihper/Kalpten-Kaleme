@@ -677,6 +677,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const sel = window.getSelection();
       if (sel && sel.anchorNode) {
         let el = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+        if (!sel.isCollapsed && sel.anchorNode.nodeType === 1 && sel.anchorNode.childNodes[sel.anchorOffset]) {
+          const child = sel.anchorNode.childNodes[sel.anchorOffset];
+          if (child.nodeType === 1) el = child;
+        }
         if (el && editor.contains(el)) {
           const comp = window.getComputedStyle(el);
           const px = parseFloat(comp.fontSize);
@@ -727,7 +731,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     editor.focus();
     let sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
+    if (!sel || sel.rangeCount === 0) {
+      editor.style.fontSize = pt + 'pt';
+      return;
+    }
 
     // If cursor is inside a word without selection, automatically select that word
     if (sel.isCollapsed) {
@@ -751,31 +758,82 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!sel.isCollapsed) {
       try {
-        // Toggle styleWithCSS off temporarily so fontSize generates standard <font size="7">
-        document.execCommand('styleWithCSS', false, false);
-        document.execCommand('fontSize', false, '7');
-        document.execCommand('styleWithCSS', false, true);
+        // Fast path: if selection is already the full text of a single span inside editor, update it directly
+        let anchorEl = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+        if (anchorEl && anchorEl.tagName === 'SPAN' && editor.contains(anchorEl) && anchorEl.innerText === sel.toString()) {
+          anchorEl.style.fontSize = pt + 'pt';
+          anchorEl.querySelectorAll('[style*="font-size"]').forEach(child => {
+            child.style.fontSize = '';
+            if (!child.getAttribute('style')?.trim()) child.removeAttribute('style');
+          });
+          const newRange = document.createRange();
+          newRange.selectNodeContents(anchorEl);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        } else {
+          // Toggle styleWithCSS off temporarily so fontSize generates standard <font size="7">
+          document.execCommand('styleWithCSS', false, false);
+          document.execCommand('fontSize', false, '7');
+          document.execCommand('styleWithCSS', false, true);
 
-        // Replace all generated font/span markers with exact pt size
-        editor.querySelectorAll('font, span').forEach(el => {
-          const sz = el.getAttribute('size');
-          const fs = el.style.fontSize || '';
-          if (sz === '7' || fs.includes('xxx-large') || fs === '48px') {
-            el.removeAttribute('size');
-            el.style.fontSize = pt + 'pt';
-            if (el.tagName.toLowerCase() === 'font') {
-              const span = document.createElement('span');
-              span.style.fontSize = pt + 'pt';
-              span.innerHTML = el.innerHTML;
-              el.parentNode.replaceChild(span, el);
+          const updatedSpans = [];
+          // Replace all generated font/span markers with exact pt size
+          editor.querySelectorAll('font, span').forEach(el => {
+            const sz = el.getAttribute('size');
+            const fs = el.style.fontSize || '';
+            if (sz === '7' || fs.includes('xxx-large') || fs === '48px') {
+              el.removeAttribute('size');
+              let targetSpan = el;
+              if (el.tagName.toLowerCase() === 'font') {
+                const span = document.createElement('span');
+                span.innerHTML = el.innerHTML;
+                el.parentNode.replaceChild(span, el);
+                targetSpan = span;
+              }
+              targetSpan.style.fontSize = pt + 'pt';
+              // Clear any nested stale font-size styles so inner spans don't override the new pt size
+              targetSpan.querySelectorAll('[style*="font-size"]').forEach(child => {
+                child.style.fontSize = '';
+                if (!child.getAttribute('style')?.trim()) child.removeAttribute('style');
+              });
+              updatedSpans.push(targetSpan);
             }
+          });
+
+          // Re-select inside the updated span(s) so repeated +/- clicks step smoothly without losing selection
+          if (updatedSpans.length === 1) {
+            const newRange = document.createRange();
+            newRange.selectNodeContents(updatedSpans[0]);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+          } else if (updatedSpans.length > 1) {
+            const newRange = document.createRange();
+            newRange.setStart(updatedSpans[0], 0);
+            const lastSpan = updatedSpans[updatedSpans.length - 1];
+            newRange.setEnd(lastSpan, lastSpan.childNodes.length);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
           }
-        });
+        }
       } catch (err) {
         console.warn('applyFontSize error:', err);
       }
       updateStats();
       updateToolbarState();
+      if (input) input.value = pt;
+    } else {
+      // Cursor is in an empty editor or at a whitespace/empty block
+      const cleanText = (editor.innerText || '').trim();
+      if (!cleanText) {
+        editor.style.fontSize = pt + 'pt';
+      }
+      let block = sel.anchorNode ? (sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode) : editor;
+      if (block && editor.contains(block)) {
+        block.style.fontSize = pt + 'pt';
+      } else {
+        editor.style.fontSize = pt + 'pt';
+      }
+      if (input) input.value = pt;
     }
   }
 
@@ -784,7 +842,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const fontSizeIncBtn = document.getElementById('fontSizeIncBtn');
 
   function stepFontSize(delta) {
-    let current = parseInt(fontSizeInput?.value, 10) || 16;
+    let current = parseInt(fontSizeInput?.value, 10) || 12;
     if (delta > 0) {
       const next = FONT_SIZES.find(s => s > current);
       applyFontSizePt(next !== undefined ? next : Math.min(96, current + 2));

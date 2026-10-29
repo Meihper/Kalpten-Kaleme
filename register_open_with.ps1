@@ -1,4 +1,7 @@
-$rootDir = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice"
+﻿$rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ([string]::IsNullOrWhiteSpace($rootDir)) {
+    $rootDir = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice"
+}
 $vbsPath = Join-Path $rootDir "launcher.vbs"
 $wscript = "$env:SystemRoot\System32\wscript.exe"
 $icoPath = Join-Path $rootDir "app.ico"

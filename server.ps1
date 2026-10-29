@@ -1,5 +1,5 @@
-# ==============================================================================
-# Studio Office Pro - Local Server & Desktop App Launcher
+﻿# ==============================================================================
+# Kalpten Kaleme - Local Server & Desktop App Launcher
 # Supports Windows "Open With" (Birlikte Aç) and Command-Line File Arguments
 # ==============================================================================
 
@@ -155,6 +155,18 @@ while ($listener.IsListening) {
         $relPath = $request.Url.LocalPath.TrimStart('/')
 
         # ====================================================================
+        # API 0: /api/heartbeat, /api/ping, /api/exit (Lifecycle endpoints)
+        # ====================================================================
+        if ($relPath -eq "api/heartbeat" -or $relPath -eq "api/ping" -or $relPath -eq "api/exit") {
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"ok":true}')
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.Close()
+            continue
+        }
+
+        # ====================================================================
         # API 1: /api/opened-file-info (Check if a file was passed to open)
         # ====================================================================
         if ($relPath -eq "api/opened-file-info") {
@@ -207,7 +219,7 @@ while ($listener.IsListening) {
         }
 
         # ====================================================================
-        # API 3: /api/save-document (Save DOCX / PDF directly to disk / sync folder)
+        # API 3: /api/save-document (Save DOCX / PDF / JSON directly to disk)
         # ====================================================================
         if ($relPath -eq "api/save-document" -and $request.HttpMethod -eq "POST") {
             $filename = $request.QueryString["filename"]
@@ -280,7 +292,7 @@ while ($listener.IsListening) {
             $folder = Get-SyncFolder
             $fileList = @()
             if (Test-Path $folder) {
-                $files = Get-ChildItem -Path $folder -File | Where-Object { $_.Extension -match "^\.(docx|doc|txt|pdf|pptx|ppt)$" } | Sort-Object LastWriteTime -Descending
+                $files = Get-ChildItem -Path $folder -File | Where-Object { $_.Extension -match "^\.(docx|doc|txt|md|html|pdf|pptx|ppt|json)$" } | Sort-Object LastWriteTime -Descending
                 foreach ($f in $files) {
                     $sizeStr = if ($f.Length -gt 1MB) { "{0:N1} MB" -f ($f.Length / 1MB) } else { "{0} KB" -f [Math]::Max(1, [Math]::Round($f.Length / 1KB)) }
                     $fileList += @{
@@ -292,8 +304,9 @@ while ($listener.IsListening) {
                     }
                 }
             }
-            $json = $fileList | ConvertTo-Json -Compress
-            if (!$json) { $json = "[]" }
+            $json = ConvertTo-Json -InputObject @($fileList) -Compress
+            if (!$json -or $fileList.Count -eq 0) { $json = "[]" }
+            elseif ($fileList.Count -eq 1 -and !$json.StartsWith("[")) { $json = "[$json]" }
             $response.ContentType = "application/json; charset=utf-8"
             $response.AddHeader("Access-Control-Allow-Origin", "*")
             $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
@@ -344,12 +357,60 @@ while ($listener.IsListening) {
             $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
             $filePath = $reader.ReadToEnd().Trim()
             $reader.Close()
-            if (![string]::IsNullOrWhiteSpace($filePath) -and (Test-Path $filePath)) {
-                [System.IO.File]::WriteAllText($openFileRecord, (Resolve-Path $filePath).Path, [System.Text.Encoding]::UTF8)
+            $foundPath = $null
+            if (![string]::IsNullOrWhiteSpace($filePath)) {
+                if (Test-Path $filePath -PathType Leaf) {
+                    $foundPath = (Resolve-Path $filePath).Path
+                } else {
+                    $syncCandidate = Join-Path (Get-SyncFolder) ([System.IO.Path]::GetFileName($filePath))
+                    if (Test-Path $syncCandidate -PathType Leaf) {
+                        $foundPath = (Resolve-Path $syncCandidate).Path
+                    }
+                }
+            }
+            if ($foundPath) {
+                [System.IO.File]::WriteAllText($openFileRecord, $foundPath, [System.Text.Encoding]::UTF8)
+                $respJson = '{"success":true}'
+            } else {
+                $respJson = '{"success":false}'
             }
             $response.ContentType = "application/json; charset=utf-8"
             $response.AddHeader("Access-Control-Allow-Origin", "*")
-            $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"success":true}')
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($respJson)
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.Close()
+            continue
+        }
+
+        # ====================================================================
+        # API 8B: /api/delete-file (Delete file from sync folder)
+        # ====================================================================
+        if ($relPath -eq "api/delete-file" -and $request.HttpMethod -eq "POST") {
+            $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+            $filePath = $reader.ReadToEnd().Trim()
+            $reader.Close()
+            $deleted = $false
+            if (![string]::IsNullOrWhiteSpace($filePath)) {
+                $targetToDelete = $null
+                if (Test-Path $filePath -PathType Leaf) {
+                    $targetToDelete = $filePath
+                } else {
+                    $syncCandidate = Join-Path (Get-SyncFolder) ([System.IO.Path]::GetFileName($filePath))
+                    if (Test-Path $syncCandidate -PathType Leaf) {
+                        $targetToDelete = $syncCandidate
+                    }
+                }
+                if ($targetToDelete) {
+                    try {
+                        Remove-Item -LiteralPath $targetToDelete -Force -ErrorAction Stop
+                        $deleted = $true
+                    } catch {}
+                }
+            }
+            $respJson = if ($deleted) { '{"success":true}' } else { '{"success":false}' }
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($respJson)
             $response.OutputStream.Write($bytes, 0, $bytes.Length)
             $response.Close()
             continue

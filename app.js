@@ -306,8 +306,13 @@ const docManager = {
       switchTab('wordTab');
       const editor = document.getElementById('wordEditor');
       const titleInput = document.getElementById('wordDocTitle');
-      if (editor) editor.innerHTML = targetDoc.content || '<p></p>';
+      if (editor) {
+        editor.innerHTML = targetDoc.content || '<p></p>';
+        if (!targetDoc.content) editor.style.fontSize = '';
+      }
       if (titleInput) titleInput.value = targetDoc.title || 'Yeni Yazı.docx';
+      const fsInput = document.getElementById('fontSizeInput');
+      if (fsInput && !targetDoc.content) fsInput.value = '12';
       if (window.updateWordStats) window.updateWordStats();
     } else if (targetDoc.type === 'ppt') {
       switchTab('pptTab');
@@ -578,8 +583,13 @@ const docManager = {
       this.activeDocId = doc.id;
       switchTab('wordTab');
       const titleInput = document.getElementById('wordDocTitle');
-      if (editor) editor.innerHTML = '';
+      if (editor) {
+        editor.innerHTML = '';
+        editor.style.fontSize = '';
+      }
       if (titleInput) titleInput.value = doc.title;
+      const fsInput = document.getElementById('fontSizeInput');
+      if (fsInput) fsInput.value = '12';
       this.renderTabs();
       showToast('Belge sıfırlandı.');
       return;
@@ -1442,7 +1452,8 @@ document.addEventListener('DOMContentLoaded', () => {
       listEl.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-tertiary); font-size: 12px;">⏳ Belgeler yükleniyor...</div>';
       const res = await fetch('/api/drive-files');
       if (!res.ok) throw new Error('Sunucu yanıt vermedi');
-      const files = await res.json();
+      const rawFiles = await res.json();
+      const files = Array.isArray(rawFiles) ? rawFiles : (rawFiles ? [rawFiles] : []);
 
       if (countEl) countEl.textContent = `${files.length} belge`;
 
@@ -1626,6 +1637,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const val = e.target.value;
     const editor = document.getElementById('wordEditor');
     if (editor) editor.style.fontSize = val;
+    const ptNum = parseInt(val, 10);
+    const fsInput = document.getElementById('fontSizeInput');
+    if (fsInput && !isNaN(ptNum)) fsInput.value = ptNum;
     showToast('Yazı boyutu: ' + val);
   });
 
@@ -1761,7 +1775,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const res = await fetch('/api/drive-files');
         if (res.ok) {
-          files = await res.json();
+          const rawFiles = await res.json();
+          files = Array.isArray(rawFiles) ? rawFiles : (rawFiles ? [rawFiles] : []);
         }
         const stRes = await fetch('/api/drive-status');
         if (stRes.ok) {
