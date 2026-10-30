@@ -22,8 +22,10 @@ New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 
 $filesToInclude = @(
     "index.html", "styles.css", "app.js", "word-editor.js", "ppt-editor.js", "pdf-editor.js", "pdf-tools.js",
-    "manifest.json", "README.md", "Baslat.bat", "Baslat.ps1", "Baslat.vbs", "launcher.vbs", "server.ps1",
-    "Kurulum_Baslat.bat", "Masaustu_Kisayol_Olustur.ps1", "register_open_with.ps1", "Dosya_Simgelerini_Uygula.bat", "Dosya_Simgelerini_Varsayilana_Dondur.bat",
+    "manifest.json", "README.md", "Baslat.bat", "Baslat.ps1", "KalptenKaleme.ps1", "server.ps1",
+    "Kurulum_Baslat.bat", "Masaustu_Kisayol_Olustur.ps1", "register_open_with.ps1", "apply_file_icons.ps1",
+    "Dosya_Simgelerini_Uygula.bat", "Dosya_Simgelerini_Varsayilana_Dondur.bat",
+    "Microsoft.Web.WebView2.Core.dll", "Microsoft.Web.WebView2.WinForms.dll", "WebView2Loader.dll",
     "BelgeDuzenleyici.ico", "favicon.ico", "app.ico", "docx_file.ico", "pdf_file.ico", "kk_pptx.ico",
     "app.png", "docx_file.png", "pdf_file.png", "pptx_file.png", "tools_file.png"
 )

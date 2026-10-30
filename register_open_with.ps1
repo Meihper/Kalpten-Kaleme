@@ -4,8 +4,8 @@ if ([string]::IsNullOrWhiteSpace($rootDir)) {
 }
 
 $psExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-$serverScript = Join-Path $rootDir "server.ps1"
-$openCmd = "`"$psExe`" -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$serverScript`" -FilePath `"%1`""
+$launcherScript = Join-Path $rootDir "KalptenKaleme.ps1"
+$openCmd = "`"$psExe`" -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -STA -File `"$launcherScript`" `"%1`""
 
 $icoPath = Join-Path $rootDir "app.ico"
 if (-not (Test-Path $icoPath)) { $icoPath = Join-Path $rootDir "BelgeDuzenleyici.ico" }
@@ -33,9 +33,6 @@ New-Item -Path $suppKey -Force | Out-Null
 foreach ($ext in $exts) {
     Set-ItemProperty -Path $suppKey -Name $ext -Value ""
 }
-
-# Also remove any old BelgeDuzenleyici.exe registry references in HKCU:\Software\Classes\Applications
-Remove-Item -Path "HKCU:\Software\Classes\Applications\BelgeDuzenleyici.exe" -Recurse -Force -ErrorAction SilentlyContinue
 
 # 3. Clean and Create Desktop Shortcut via Masaustu_Kisayol_Olustur.ps1
 & (Join-Path $rootDir "Masaustu_Kisayol_Olustur.ps1")
