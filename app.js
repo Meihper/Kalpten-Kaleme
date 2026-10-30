@@ -121,10 +121,20 @@ function isWindowsSuiteMode() {
   return (isOnlineServer || window.location.protocol === 'file:') && !isMobileWordStudio();
 }
 
+function isInstalledApp() {
+  if (Boolean(window.AndroidBridge)) return true;
+  if (window.location.protocol === 'file:') return true;
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return true;
+  if (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)) return true;
+  if (window.navigator.standalone === true) return true;
+  return false;
+}
+
 function syncMobileAppMode() {
   const isMobile = isMobileWordStudio();
   const isLandscape = isMobile && window.innerWidth > window.innerHeight;
   const isSuite = isWindowsSuiteMode();
+  const isInstalled = isInstalledApp();
 
   document.documentElement.classList.toggle('is-mobile-app', isMobile);
   document.body.classList.toggle('is-mobile-app', isMobile);
@@ -132,6 +142,13 @@ function syncMobileAppMode() {
   document.body.classList.toggle('is-mobile-landscape', isLandscape);
   document.documentElement.classList.toggle('is-windows-suite', isSuite);
   document.body.classList.toggle('is-windows-suite', isSuite);
+  document.documentElement.classList.toggle('is-installed-app', isInstalled);
+  document.body.classList.toggle('is-installed-app', isInstalled);
+
+  const suiteDlBtn = document.getElementById('suiteDownloadBtn');
+  const mobileDlBtn = document.getElementById('mobileDownloadAppBtn');
+  if (suiteDlBtn) suiteDlBtn.style.display = isInstalled ? 'none' : '';
+  if (mobileDlBtn) mobileDlBtn.style.display = isInstalled ? 'none' : '';
 
   if (!isSuite) {
     appState.currentTab = 'wordTab';

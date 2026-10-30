@@ -5199,8 +5199,20 @@ html.is-mobile-landscape .word-canvas-sheet {
 }
 
 /* ==============================================================================
-   Suite Download Modal & Button Styles
+   Suite Download Modal & Button Styles (Visible ONLY on the Website)
    ============================================================================== */
+html.is-installed-app #suiteDownloadBtn,
+html.is-installed-app .suite-download-pill,
+html.is-installed-app #mobileDownloadAppBtn,
+body.is-installed-app #suiteDownloadBtn,
+body.is-installed-app .suite-download-pill,
+body.is-installed-app #mobileDownloadAppBtn,
+html.is-windows-suite #suiteDownloadBtn,
+html.is-windows-suite .suite-download-pill,
+html.is-windows-suite #mobileDownloadAppBtn {
+  display: none !important;
+}
+
 .suite-download-pill {
   background: var(--bg-secondary);
   border: 1px solid var(--border-light);

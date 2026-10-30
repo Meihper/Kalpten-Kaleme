@@ -53,7 +53,7 @@ Write-Host "`n=========================================="
 Write-Host "2. COMMITTING AND PUSHING TO GITHUB"
 Write-Host "=========================================="
 
-git add index.html word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js styles.css app.js BelgeDuzenleyici.cs BelgeDuzenleyici.exe Baslat.bat Baslat.vbs launcher.vbs server.ps1 Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 build_android_apk.ps1 package_and_upload.ps1 android/AndroidManifest.xml android/src/com/kalpten/kaleme/MainActivity.java android/assets/www/ android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig KalptenKaleme.apk
+git add index.html word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js styles.css app.js Baslat.bat Baslat.vbs launcher.vbs server.ps1 Kurulum_Baslat.bat Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 build_android_apk.ps1 package_and_upload.ps1 android/AndroidManifest.xml android/src/com/kalpten/kaleme/MainActivity.java android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig KalptenKaleme.apk
 $status = git status --porcelain
 if ($status) {
     git commit -m 'fix(audit): complete end-to-end verification, fix punto stepper 12pt sync, add delete-file/heartbeat APIs, and remove mobile duplicate toolbar divider'

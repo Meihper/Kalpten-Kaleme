@@ -10,6 +10,9 @@
   <link rel="manifest" href="manifest.json?v=3">
   <meta name="theme-color" content="#1C2438">
   <script>
+    if (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.AndroidBridge) {
+      document.documentElement.classList.add('is-installed-app');
+    }
     if (window.location.protocol === 'file:' && !window.AndroidBridge && !/Android/i.test(navigator.userAgent || '')) {
       fetch('http://localhost:52480/api/heartbeat', { method: 'GET', mode: 'cors', cache: 'no-store' })
         .then(function(r) {
@@ -20,7 +23,7 @@
         .catch(function() {});
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=1.1.2">
+  <link rel="stylesheet" href="styles.css?v=1.1.3">
   
   <!-- Offline Core Libraries (Deferred for instantaneous initial paint) -->
   <script src="vendor/jszip.min.js" defer></script>
@@ -724,7 +727,7 @@
           <div class="dropdown-wrapper" style="position: relative;">
             <button class="pill-btn pill-btn-secondary" id="pptExportDropdownBtn" style="height: 28px; padding: 0 8px; font-size: 11px;" title="Sunumu Dışa Aktar (.pptx, .html, .pdf, .json)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span class="btn-text">İndir ▾</span>
+              <span class="btn-text">Dışa Aktar ▾</span>
             </button>
             <div class="dropdown-menu" id="pptExportMenu" style="display: none; position: fixed; z-index: 999999; min-width: 235px; background: var(--surface); border: 1px solid var(--border-light); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,0.18); padding: 6px;">
               <button class="dropdown-item" id="pptExportPptxBtn" style="display: block; width: 100%; text-align: left; padding: 8px 12px; border: none; background: transparent; color: var(--text-primary); cursor: pointer; border-radius: 6px; font-size: 12px; font-weight: 600;">📊 PowerPoint Sunumu (.pptx)</button>
@@ -1410,10 +1413,10 @@
   </div>
 
   <!-- App Scripts (Cache-busted for instant live deployment) -->
-  <script src="app.js?v=1.1.2" defer></script>
-  <script src="word-editor.js?v=1.1.2" defer></script>
-  <script src="pdf-editor.js?v=1.1.2" defer></script>
-  <script src="pdf-tools.js?v=1.1.2" defer></script>
-  <script src="ppt-editor.js?v=1.1.2" defer></script>
+  <script src="app.js?v=1.1.3" defer></script>
+  <script src="word-editor.js?v=1.1.3" defer></script>
+  <script src="pdf-editor.js?v=1.1.3" defer></script>
+  <script src="pdf-tools.js?v=1.1.3" defer></script>
+  <script src="ppt-editor.js?v=1.1.3" defer></script>
 </body>
 </html>
