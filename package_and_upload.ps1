@@ -55,10 +55,10 @@ Write-Host "`n=========================================="
 Write-Host "2. COMMITTING AND PUSHING TO GITHUB"
 Write-Host "=========================================="
 
-git add index.html word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js styles.css app.js Baslat.bat Baslat.vbs launcher.vbs server.ps1 Kurulum_Baslat.bat Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 build_android_apk.ps1 package_and_upload.ps1 android/AndroidManifest.xml android/src/com/kalpten/kaleme/MainActivity.java android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig KalptenKaleme.apk
+git add index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js Baslat.bat Baslat.ps1 KalptenKaleme.ps1 server.ps1 Kurulum_Baslat.bat Masaustu_Kisayol_Olustur.ps1 "Masaüstü_Kısayolu_Oluştur.bat" register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 run_everything_test.ps1 KalptenKaleme.apk android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig
 $status = git status --porcelain
 if ($status) {
-    git commit -m 'fix(audit): complete end-to-end verification, fix punto stepper 12pt sync, add delete-file/heartbeat APIs, and remove mobile duplicate toolbar divider'
+    git commit -m 'fix(desktop): eliminate Smart App Control blocks, remove background powershell linger with silence watchdog, inline fast favicon, verify 47/47 E2E tests'
     git push origin main
     Write-Host "Git push completed."
 } else {

@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Kalpten Kaleme - Local Server & Desktop App Launcher
 # Supports Windows "Open With" (Birlikte Aç) and Command-Line File Arguments
 # ==============================================================================
@@ -43,9 +43,8 @@ foreach ($path in $edgePaths) {
 }
 
 $appUrl = "http://localhost:$port/index.html"
-$profileDir = Join-Path $rootDir "profile"
 $antiSyncFlags = "--no-first-run --no-default-browser-check --disable-sync --disable-features=msEdgeAutoSignIn,msEdgeFirstRunExperience,msEdgeFreV2,msEdgeSyncNotice,msEdgeShowFirstRunNotification,msEdgeSignInOptIn,msEdgeFrePromo,msEdgeWelcomePageExperience,msEdgeStartupBoost"
-$edgeArgs = "--app=`"$appUrl`" --user-data-dir=`"$profileDir`" $antiSyncFlags --window-size=1280,820"
+$edgeArgs = "--app=`"$appUrl`" $antiSyncFlags --window-size=1280,820"
 
 # If a file was passed via CLI ("Open With"), record its absolute path
 if (![string]::IsNullOrWhiteSpace($FilePath) -and (Test-Path $FilePath)) {
@@ -82,6 +81,7 @@ if ($isAlreadyListening) {
 # Start HTTP Listener
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
+$listener.Prefixes.Add("http://127.0.0.1:$port/")
 
 try {
     $listener.Start()
@@ -145,10 +145,39 @@ function Get-CloudProvider($folder) {
     return "local"
 }
 
-# Robust Request Loop with Full REST API support
+# Robust Request Loop with Automatic Lifecycle & Self-Termination on Exit
+$hasEverConnected = $false
+$startupGraceSeconds = 90
+$startupTime = [DateTime]::UtcNow
+$lastActiveTime = [DateTime]::UtcNow
+
 while ($listener.IsListening) {
     try {
-        $context = $listener.GetContext()
+        $contextTask = $listener.GetContextAsync()
+        while (-not $contextTask.AsyncWaitHandle.WaitOne(1000)) {
+            if ($Daemon) {
+                # In Daemon/CI mode, do not self-terminate on silence
+                continue
+            }
+            $now = [DateTime]::UtcNow
+            if ($hasEverConnected) {
+                # Browser connected previously. If no heartbeat or request for 4s, the window was closed!
+                if (($now - $lastActiveTime).TotalSeconds -ge 4) {
+                    try { $listener.Stop() } catch {}
+                    exit
+                }
+            } else {
+                # Startup grace period: allow up to 15s for the initial page load
+                if (($now - $startupTime).TotalSeconds -ge $startupGraceSeconds) {
+                    try { $listener.Stop() } catch {}
+                    exit
+                }
+            }
+        }
+        $context = $contextTask.Result
+        $hasEverConnected = $true
+        $lastActiveTime = [DateTime]::UtcNow
+
         $request = $context.Request
         $response = $context.Response
 
@@ -157,7 +186,24 @@ while ($listener.IsListening) {
         # ====================================================================
         # API 0: /api/heartbeat, /api/ping, /api/exit (Lifecycle endpoints)
         # ====================================================================
-        if ($relPath -eq "api/heartbeat" -or $relPath -eq "api/ping" -or $relPath -eq "api/exit") {
+        if ($relPath -eq "api/exit") {
+            try {
+                $response.ContentType = "application/json; charset=utf-8"
+                $response.AddHeader("Access-Control-Allow-Origin", "*")
+                $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"ok":true}')
+                $response.OutputStream.Write($bytes, 0, $bytes.Length)
+                $response.OutputStream.Flush()
+                $response.Close()
+            } catch {}
+            if (-not $Daemon) {
+                Start-Sleep -Milliseconds 150
+                try { $listener.Stop() } catch {}
+                exit
+            }
+            continue
+        }
+
+        if ($relPath -eq "api/heartbeat" -or $relPath -eq "api/ping") {
             $response.ContentType = "application/json; charset=utf-8"
             $response.AddHeader("Access-Control-Allow-Origin", "*")
             $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"ok":true}')
@@ -476,7 +522,11 @@ while ($listener.IsListening) {
         }
         $response.Close()
     } catch [System.Net.HttpListenerException] {
-        break
+        if ($listener.IsListening) {
+            continue
+        } else {
+            break
+        }
     } catch {
         continue
     }

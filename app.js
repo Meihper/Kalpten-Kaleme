@@ -1191,11 +1191,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ========================================================================
   // Application Heartbeat & Native Lifecycle Management
-  // Keeps BelgeDuzenleyici.exe alive while window is open, cleanly shuts down on exit
+  // Keeps desktop server alive while window is open, cleanly shuts down on exit
   // ========================================================================
-  const isOnlineServer = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-                         (window.location.protocol === 'http:' || window.location.protocol === 'https:');
-
   function pingServer() {
     if (!isOnlineServer) return;
     fetch('/api/heartbeat').catch(() => {});
@@ -1204,22 +1201,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (isOnlineServer) {
     try {
-      const blob = new Blob(["setInterval(function() { postMessage('p'); }, 2000);"], { type: 'application/javascript' });
+      const blob = new Blob(["setInterval(function() { postMessage('p'); }, 1000);"], { type: 'application/javascript' });
       const hbWorker = new Worker(URL.createObjectURL(blob));
       hbWorker.onmessage = pingServer;
     } catch (e) {
-      setInterval(pingServer, 2000);
+      setInterval(pingServer, 1000);
     }
-
-    window.addEventListener('beforeunload', () => {
-      try {
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon('/api/exit');
-        } else {
-          fetch('/api/exit', { method: 'POST', keepalive: true }).catch(() => {});
-        }
-      } catch (e) {}
-    });
   }
 
   // Windows "Open With" / CLI file integration polling (Desktop only)

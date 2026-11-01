@@ -4,8 +4,8 @@ if ([string]::IsNullOrWhiteSpace($rootDir)) {
 }
 
 $psExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-$launcherScript = Join-Path $rootDir "KalptenKaleme.ps1"
-$openCmd = "`"$psExe`" -WindowStyle Hidden -ExecutionPolicy Bypass -NoProfile -STA -File `"$launcherScript`" `"%1`""
+$serverScript = Join-Path $rootDir "server.ps1"
+$openCmd = "`"$psExe`" -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$serverScript`" -FilePath `"%1`""
 
 $icoPath = Join-Path $rootDir "app.ico"
 if (-not (Test-Path $icoPath)) { $icoPath = Join-Path $rootDir "BelgeDuzenleyici.ico" }
