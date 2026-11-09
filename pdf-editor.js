@@ -2060,34 +2060,36 @@ document.addEventListener('DOMContentLoaded', () => {
       let savedDirectly = false;
 
       // 1. Direct Server Save (Writes straight to sync/documents folder)
-      try {
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const resp = await fetch(`/api/save-document?filename=${encodeURIComponent(pdfFileName)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/octet-stream' },
-          body: blob
-        });
-        if (resp.ok) {
-          const resData = await resp.json();
-          if (resData.success) {
-            savedDirectly = true;
-            if (window.addRecentDocument) {
-              window.addRecentDocument(resData.filename || pdfFileName, 'pdf');
-            }
-            let saveMsg = `"${pdfFileName}" kaydedildi!`;
-            if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
-              saveMsg = `"${pdfFileName}" Google Drive'a kaydedildi ve eşitlendi!`;
-            } else if (resData.cloudProvider === 'onedrive') {
-              saveMsg = `"${pdfFileName}" OneDrive'a kaydedildi ve eşitlendi!`;
-            }
-            showToast(saveMsg);
-            if (window.loadDriveFiles) {
-              window.loadDriveFiles();
+      if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+        try {
+          const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+          const resp = await fetch(`/api/save-document?filename=${encodeURIComponent(pdfFileName)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: blob
+          });
+          if (resp.ok) {
+            const resData = await resp.json();
+            if (resData.success) {
+              savedDirectly = true;
+              if (window.addRecentDocument) {
+                window.addRecentDocument(resData.filename || pdfFileName, 'pdf');
+              }
+              let saveMsg = `"${pdfFileName}" kaydedildi!`;
+              if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
+                saveMsg = `"${pdfFileName}" Google Drive'a kaydedildi ve eşitlendi!`;
+              } else if (resData.cloudProvider === 'onedrive') {
+                saveMsg = `"${pdfFileName}" OneDrive'a kaydedildi ve eşitlendi!`;
+              }
+              showToast(saveMsg);
+              if (window.loadDriveFiles) {
+                window.loadDriveFiles();
+              }
             }
           }
+        } catch (serverErr) {
+          // Fallback to AndroidBridge or browser download below
         }
-      } catch (serverErr) {
-        // Fallback to AndroidBridge or browser download below
       }
 
       // 2. Android Bridge Save

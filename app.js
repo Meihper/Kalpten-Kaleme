@@ -105,36 +105,66 @@ function setTheme(theme) {
   }
 }
 
-const isOnlineServer = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-                       (window.location.protocol === 'http:' || window.location.protocol === 'https:');
+// ========================================================================
+// 🌟 AppPlatform Engine — Unified Platform Architecture
+// Seamlessly distinguishes Web (GitHub Pages), Windows Desktop, and Android APK
+// ========================================================================
+const AppPlatform = {
+  // 1. Android APK Native Wrapper
+  isAndroid: Boolean(window.AndroidBridge),
+
+  // 2. Windows Desktop Local Server Mode (server.ps1 / BelgeDuzenleyici C# WinForms)
+  isDesktop: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !Boolean(window.AndroidBridge),
+
+  // 3. Web Mode (GitHub Pages: https://meihper.github.io/Kalpten-Kaleme/ or external web server)
+  get isWeb() {
+    return !this.isAndroid && !this.isDesktop;
+  },
+
+  // 4. Form Factor (Small Mobile Screen <= 768px vs Desktop / Wide Screen)
+  isMobileScreen() {
+    return window.innerWidth <= 768;
+  },
+
+  // 5. Installed Standalone App Check
+  isInstalled() {
+    if (this.isAndroid || this.isDesktop) return true;
+    if (window.location.protocol === 'file:') return true;
+    if (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)) return true;
+    if (window.navigator && window.navigator.standalone === true) return true;
+    return false;
+  },
+
+  // 6. Platform Key
+  getType() {
+    if (this.isAndroid) return 'android';
+    if (this.isDesktop) return 'desktop';
+    return 'web';
+  }
+};
+window.AppPlatform = AppPlatform;
+
+// Backwards-compatible globals
+const isOnlineServer = AppPlatform.isDesktop;
 
 function isMobileWordStudio() {
-  if (Boolean(window.AndroidBridge)) return true;
-  const ua = navigator.userAgent || '';
-  if (/Android|iPhone|iPad|iPod|Mobile|Silk/i.test(ua)) return true;
-  const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  if (isTouch && window.innerWidth <= 768) return true;
-  return false;
+  return AppPlatform.isMobileScreen() && AppPlatform.isAndroid;
 }
 
 function isWindowsSuiteMode() {
-  return (isOnlineServer || window.location.protocol === 'file:') && !isMobileWordStudio();
+  return AppPlatform.isDesktop && !AppPlatform.isMobileScreen();
 }
 
 function isInstalledApp() {
-  if (Boolean(window.AndroidBridge)) return true;
-  if (window.location.protocol === 'file:') return true;
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return true;
-  if (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)) return true;
-  if (window.navigator.standalone === true) return true;
-  return false;
+  return AppPlatform.isInstalled();
 }
 
 function syncMobileAppMode() {
-  const isMobile = isMobileWordStudio();
+  const isMobile = AppPlatform.isMobileScreen();
   const isLandscape = isMobile && window.innerWidth > window.innerHeight;
   const isSuite = isWindowsSuiteMode();
-  const isInstalled = isInstalledApp();
+  const isInstalled = AppPlatform.isInstalled();
+  const isWeb = AppPlatform.isWeb;
 
   document.documentElement.classList.toggle('is-mobile-app', isMobile);
   document.body.classList.toggle('is-mobile-app', isMobile);
@@ -144,11 +174,18 @@ function syncMobileAppMode() {
   document.body.classList.toggle('is-windows-suite', isSuite);
   document.documentElement.classList.toggle('is-installed-app', isInstalled);
   document.body.classList.toggle('is-installed-app', isInstalled);
+  document.documentElement.classList.toggle('is-platform-web', isWeb);
+  document.body.classList.toggle('is-platform-web', isWeb);
+  document.documentElement.classList.toggle('is-platform-desktop', AppPlatform.isDesktop);
+  document.body.classList.toggle('is-platform-desktop', AppPlatform.isDesktop);
+  document.documentElement.classList.toggle('is-platform-android', AppPlatform.isAndroid);
+  document.body.classList.toggle('is-platform-android', AppPlatform.isAndroid);
 
   const suiteDlBtn = document.getElementById('suiteDownloadBtn');
   const mobileDlBtn = document.getElementById('mobileDownloadAppBtn');
-  if (suiteDlBtn) suiteDlBtn.style.display = isInstalled ? 'none' : '';
-  if (mobileDlBtn) mobileDlBtn.style.display = isInstalled ? 'none' : '';
+  // Download button only shown on Web!
+  if (suiteDlBtn) suiteDlBtn.style.display = isWeb ? 'inline-flex' : 'none';
+  if (mobileDlBtn) mobileDlBtn.style.display = isWeb ? '' : 'none';
 
   if (!isSuite) {
     appState.currentTab = 'wordTab';
@@ -1286,28 +1323,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const openBtn = document.getElementById('openDriveFolderBtn');
     const changeBtn = document.getElementById('changeDriveFolderBtn');
 
-    if (!isOnlineServer) {
-      const isAndroid = !!window.AndroidBridge;
-      const isMobile = window.innerWidth <= 768 || isAndroid;
-      if (dot) dot.classList.remove('local');
+    if (!AppPlatform.isDesktop) {
+      const isAndroid = AppPlatform.isAndroid;
+      if (dot) {
+        dot.className = isAndroid ? 'drive-status-dot active android' : 'drive-status-dot active web';
+      }
       if (openLibraryBtn) {
         openLibraryBtn.title = isAndroid
           ? 'Belgeleriniz telefonun Belgeler/Kalpten Kaleme klasöründe saklanır.\n(Kütüphaneyi açmak için tıklayın)'
-          : 'Kütüphanem & Yazı Arşivi (Belgeleri görüntülemek için tıklayın)';
+          : 'Kalpten Kaleme Web Sürümü — Belgeleriniz tarayıcınızda güvendedir.\n(Kütüphaneyi açmak için tıklayın)';
       }
       if (modalPath) {
         modalPath.textContent = isAndroid
           ? 'Dahili Depolama / Belgeler / Kalpten Kaleme'
-          : 'Tarayıcı & Bulut İndirme Klasörü (Google Drive / OneDrive / Cihaz)';
+          : '🌐 Tarayıcı Güvenli Belleği (Çevrimdışı Çalışabilir)';
       }
       if (modalBadge && modalDot && modalBadgeText) {
-        modalBadge.classList.remove('local');
-        modalDot.classList.remove('local');
+        modalBadge.className = isAndroid ? 'drive-modal-badge' : 'drive-modal-badge web';
+        modalDot.className = isAndroid ? 'drive-status-dot active android' : 'drive-status-dot active web';
         modalBadgeText.textContent = isAndroid
-          ? 'Android Belgeler & Bulut Eşitleme Aktif'
-          : 'Web & Bulut Dosya Erişimi Aktif';
+          ? 'Android Dahili Depolama Aktif'
+          : '🌐 Web & Çevrimdışı Sürüm Aktif';
       }
-      if (openBtn) openBtn.textContent = '📂 Buluttan / Cihazdan Aç';
+      if (openBtn) openBtn.textContent = isAndroid ? '📂 Belgeler Klasörünü Aç' : '📂 Dosya Aç';
       if (changeBtn) changeBtn.style.display = 'none';
       return;
     }

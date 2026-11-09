@@ -37,7 +37,8 @@ namespace BelgeDuzenleyici
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(244, 246, 249);
 
-            string iconPath = Path.Combine(appDir, "BelgeDuzenleyici.ico");
+            string iconPath = Path.Combine(appDir, "app.ico");
+            if (!File.Exists(iconPath)) iconPath = Path.Combine(appDir, "BelgeDuzenleyici.ico");
             if (!File.Exists(iconPath)) iconPath = Path.Combine(appDir, "kk_lux_app.ico");
             if (File.Exists(iconPath))
             {
@@ -256,23 +257,30 @@ namespace BelgeDuzenleyici
 
         private const int SW_RESTORE = 9;
 
-        private static void BringExistingInstanceToFront()
+        private static bool BringExistingInstanceToFront()
         {
             try
             {
                 int currentId = Process.GetCurrentProcess().Id;
-                string processName = Process.GetCurrentProcess().ProcessName;
-                foreach (var p in Process.GetProcessesByName(processName))
+                foreach (var p in Process.GetProcesses())
                 {
-                    if (p.Id != currentId && p.MainWindowHandle != IntPtr.Zero)
+                    try
                     {
-                        ShowWindow(p.MainWindowHandle, SW_RESTORE);
-                        SetForegroundWindow(p.MainWindowHandle);
-                        break;
+                        if (p.Id != currentId && p.MainWindowHandle != IntPtr.Zero && !string.IsNullOrEmpty(p.MainWindowTitle))
+                        {
+                            if (p.MainWindowTitle.StartsWith("Kalpten Kaleme", StringComparison.OrdinalIgnoreCase))
+                            {
+                                ShowWindow(p.MainWindowHandle, SW_RESTORE);
+                                SetForegroundWindow(p.MainWindowHandle);
+                                return true;
+                            }
+                        }
                     }
+                    catch {}
                 }
             }
             catch {}
+            return false;
         }
 
         public static bool IsSupportedDocumentPath(string path)
@@ -336,7 +344,17 @@ namespace BelgeDuzenleyici
 
             currentFilePath = targetFileToOpen;
 
-            // 1. Check if server is already active on DefaultPort
+            // 1. Check if GUI window is already open
+            if (string.IsNullOrEmpty(verifyShotPath) && BringExistingInstanceToFront())
+            {
+                if (!string.IsNullOrEmpty(targetFileToOpen))
+                {
+                    NotifyRunningInstance(DefaultPort, targetFileToOpen);
+                }
+                return; // An existing window was brought to front
+            }
+
+            // 2. Check if server is already active on DefaultPort or start built-in server
             if (IsServerActive(DefaultPort))
             {
                 activePort = DefaultPort;
@@ -344,31 +362,16 @@ namespace BelgeDuzenleyici
                 {
                     NotifyRunningInstance(DefaultPort, targetFileToOpen);
                 }
-                if (string.IsNullOrEmpty(verifyShotPath))
-                {
-                    BringExistingInstanceToFront();
-                    return; // Avoid duplicate window & race conditions
-                }
-                else
-                {
-                    Application.Run(new KalptenKalemeForm(DefaultPort, appDir, verifyShotPath));
-                    return;
-                }
             }
-
-            // 2. Pre-cache static assets
-            WarmUpCache();
-
-            // 3. Start Built-in HTTP Server
-            bool started = StartHttpServer();
-            if (!started)
+            else
             {
-                return;
+                WarmUpCache();
+                StartHttpServer();
             }
 
             if (!headlessServer)
             {
-                // 4. Run 100% Native Windows Desktop Window (WinForms + WebView2)
+                // 3. Run 100% Native Windows Desktop Window (WinForms + WebView2)
                 Application.Run(new KalptenKalemeForm(activePort, appDir, verifyShotPath));
                 isRunning = false;
             }

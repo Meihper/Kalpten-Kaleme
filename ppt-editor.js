@@ -2522,35 +2522,37 @@ const pptEditor = {
 
     const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
     const wordSaveStatus = document.getElementById('wordSaveStatus');
-    try {
-      const resp = await fetch('/api/save-document?filename=' + encodeURIComponent(fileName), {
-        method: 'POST',
-        body: blob
-      });
-      if (resp.ok) {
-        const resData = await resp.json();
-        if (resData && resData.success) {
-          const timeStr = resData.time || new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-          if (wordSaveStatus) {
-            if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
-              wordSaveStatus.textContent = `☁️ Drive'a Kaydedildi (${timeStr})`;
-            } else if (resData.cloudProvider === 'onedrive') {
-              wordSaveStatus.textContent = `☁️ OneDrive'a Kaydedildi (${timeStr})`;
-            } else {
-              wordSaveStatus.textContent = `💾 Kaydedildi (${timeStr})`;
+    if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+      try {
+        const resp = await fetch('/api/save-document?filename=' + encodeURIComponent(fileName), {
+          method: 'POST',
+          body: blob
+        });
+        if (resp.ok) {
+          const resData = await resp.json();
+          if (resData && resData.success) {
+            const timeStr = resData.time || new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            if (wordSaveStatus) {
+              if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
+                wordSaveStatus.textContent = `☁️ Drive'a Kaydedildi (${timeStr})`;
+              } else if (resData.cloudProvider === 'onedrive') {
+                wordSaveStatus.textContent = `☁️ OneDrive'a Kaydedildi (${timeStr})`;
+              } else {
+                wordSaveStatus.textContent = `💾 Kaydedildi (${timeStr})`;
+              }
             }
+            if (window.addRecentDocument) {
+              window.addRecentDocument(resData.filename || fileName, 'ppt');
+            }
+            if (window.loadDriveFiles) {
+              window.loadDriveFiles();
+            }
+            if (window.showToast) window.showToast(`"${resData.filename || fileName}" başarıyla kaydedildi.`);
+            return true;
           }
-          if (window.addRecentDocument) {
-            window.addRecentDocument(resData.filename || fileName, 'ppt');
-          }
-          if (window.loadDriveFiles) {
-            window.loadDriveFiles();
-          }
-          if (window.showToast) window.showToast(`"${resData.filename || fileName}" başarıyla kaydedildi.`);
-          return true;
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     if (window.AndroidBridge && window.AndroidBridge.saveBase64File) {
       try {

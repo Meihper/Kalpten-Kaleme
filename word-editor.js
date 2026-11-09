@@ -162,6 +162,18 @@ document.addEventListener('DOMContentLoaded', () => {
           };
           reader.readAsDataURL(blob);
         }
+        // 3. Web Client Storage Mode (Auto-Draft in localStorage)
+        else {
+          try {
+            localStorage.setItem('kk_web_draft_word', editor.innerHTML);
+            localStorage.setItem('kk_web_draft_title', title);
+            const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            if (headerSaveStatus) {
+              headerSaveStatus.textContent = `🌐 Tarayıcıya korundu (${timeStr})`;
+              headerSaveStatus.classList.remove('saving');
+            }
+          } catch (_) {}
+        }
       } catch (_) {}
     }, 2500);
   }
@@ -415,43 +427,45 @@ document.addEventListener('DOMContentLoaded', () => {
       const blob = buildWordBlob(title, editor.innerHTML);
 
       let savedDirectly = false;
-      try {
-        const resp = await fetch('/api/save-document?filename=' + encodeURIComponent(title), {
-          method: 'POST',
-          body: blob
-        });
-        if (resp.ok) {
-          const resData = await resp.json();
-          if (resData.success) {
-            savedDirectly = true;
-            const timeStr = resData.time || new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-            if (saveStatusEl) {
-              if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
-                saveStatusEl.textContent = `☁️ Drive'a Kaydedildi (${timeStr})`;
-              } else if (resData.cloudProvider === 'onedrive') {
-                saveStatusEl.textContent = `☁️ OneDrive'a Kaydedildi (${timeStr})`;
-              } else {
-                saveStatusEl.textContent = `💾 Kaydedildi (${timeStr})`;
+      if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+        try {
+          const resp = await fetch('/api/save-document?filename=' + encodeURIComponent(title), {
+            method: 'POST',
+            body: blob
+          });
+          if (resp.ok) {
+            const resData = await resp.json();
+            if (resData.success) {
+              savedDirectly = true;
+              const timeStr = resData.time || new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+              if (saveStatusEl) {
+                if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
+                  saveStatusEl.textContent = `☁️ Drive'a Kaydedildi (${timeStr})`;
+                } else if (resData.cloudProvider === 'onedrive') {
+                  saveStatusEl.textContent = `☁️ OneDrive'a Kaydedildi (${timeStr})`;
+                } else {
+                  saveStatusEl.textContent = `💾 Kaydedildi (${timeStr})`;
+                }
+                saveStatusEl.classList.remove('saving');
               }
-              saveStatusEl.classList.remove('saving');
-            }
-            if (window.addRecentDocument) {
-              window.addRecentDocument(resData.filename || title, 'word');
-            }
-            let saveMsg = `"${title}" kaydedildi!`;
-            if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
-              saveMsg = `"${title}" Google Drive'a kaydedildi ve eşitlendi!`;
-            } else if (resData.cloudProvider === 'onedrive') {
-              saveMsg = `"${title}" OneDrive'a kaydedildi ve eşitlendi!`;
-            }
-            showToast(saveMsg);
-            if (window.loadDriveFiles) {
-              window.loadDriveFiles();
+              if (window.addRecentDocument) {
+                window.addRecentDocument(resData.filename || title, 'word');
+              }
+              let saveMsg = `"${title}" kaydedildi!`;
+              if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
+                saveMsg = `"${title}" Google Drive'a kaydedildi ve eşitlendi!`;
+              } else if (resData.cloudProvider === 'onedrive') {
+                saveMsg = `"${title}" OneDrive'a kaydedildi ve eşitlendi!`;
+              }
+              showToast(saveMsg);
+              if (window.loadDriveFiles) {
+                window.loadDriveFiles();
+              }
             }
           }
+        } catch (fetchErr) {
+          // Fallback to download below
         }
-      } catch (fetchErr) {
-        // Fallback to download below
       }
 
       if (!savedDirectly && window.AndroidBridge && window.AndroidBridge.saveBase64File) {
