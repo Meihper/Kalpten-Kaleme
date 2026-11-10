@@ -14,17 +14,8 @@
     if (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.AndroidBridge) {
       document.documentElement.classList.add('is-installed-app');
     }
-    if (window.location.protocol === 'file:' && !window.AndroidBridge && !/Android/i.test(navigator.userAgent || '')) {
-      fetch('http://localhost:52480/api/heartbeat', { method: 'GET', mode: 'cors', cache: 'no-store' })
-        .then(function(r) {
-          if (r && r.ok) {
-            window.location.replace('http://localhost:52480/index.html' + window.location.search + window.location.hash);
-          }
-        })
-        .catch(function() {});
-    }
   </script>
-  <link rel="stylesheet" href="styles.css?v=1.1.4">
+  <link rel="stylesheet" href="styles.css?v=1.1.5">
   
   <!-- Offline Core Libraries (Deferred for instantaneous initial paint) -->
   <script src="vendor/jszip.min.js" defer></script>
@@ -1128,8 +1119,8 @@
             </div>
             <div class="suite-card-details">
               <div class="suite-card-platform">Windows Masaüstü</div>
-              <div class="suite-card-sub">Windows 7, 8, 10, 11 (Taşınabilir ZIP)</div>
-              <div class="suite-card-meta">Kurulumsuz · Tek tıkla çalışır · 3.2 MB</div>
+              <div class="suite-card-sub">Windows 7, 8, 10, 11 (Tek Dosya Stüdyo)</div>
+              <div class="suite-card-meta">Kurulumsuz · Tek tıkla çalışır · 1.1 MB</div>
             </div>
             <div class="suite-card-action">
               <span class="suite-dl-badge">
@@ -1414,10 +1405,10 @@
   </div>
 
   <!-- App Scripts (Cache-busted for instant live deployment) -->
-  <script src="app.js?v=1.1.4" defer></script>
-  <script src="word-editor.js?v=1.1.4" defer></script>
-  <script src="pdf-editor.js?v=1.1.4" defer></script>
-  <script src="pdf-tools.js?v=1.1.4" defer></script>
-  <script src="ppt-editor.js?v=1.1.4" defer></script>
+  <script src="app.js?v=1.1.5" defer></script>
+  <script src="word-editor.js?v=1.1.5" defer></script>
+  <script src="pdf-editor.js?v=1.1.5" defer></script>
+  <script src="pdf-tools.js?v=1.1.5" defer></script>
+  <script src="ppt-editor.js?v=1.1.5" defer></script>
 </body>
 </html>

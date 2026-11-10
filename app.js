@@ -230,8 +230,9 @@ const AppPlatform = {
   // 1. Android APK Native Wrapper
   isAndroid: Boolean(window.AndroidBridge),
 
-  // 2. Windows Desktop Local Server Mode (server.ps1 / BelgeDuzenleyici C# WinForms)
-  isDesktop: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !Boolean(window.AndroidBridge),
+  // 2. Windows Desktop Mode (Local Server OR Self-Contained Kalpten Kaleme.html on file://)
+  isDesktop: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' || Boolean(window.__KALPTEN_DESKTOP_STANDALONE)) && !Boolean(window.AndroidBridge),
+  isLocalServer: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !Boolean(window.AndroidBridge),
 
   // 3. Web Mode (GitHub Pages: https://meihper.github.io/Kalpten-Kaleme/ or external web server)
   get isWeb() {
@@ -240,6 +241,7 @@ const AppPlatform = {
 
   // 4. Form Factor (Small Mobile Screen <= 768px vs Desktop / Wide Screen)
   isMobileScreen() {
+    if (window.__KALPTEN_DESKTOP_STANDALONE) return false;
     return window.innerWidth <= 768;
   },
 
@@ -262,7 +264,185 @@ const AppPlatform = {
 window.AppPlatform = AppPlatform;
 
 // Backwards-compatible globals
-const isOnlineServer = AppPlatform.isDesktop;
+const isOnlineServer = AppPlatform.isLocalServer;
+
+// ========================================================================
+// 🗄️ KalptenKalemeVault — Offline IndexedDB + In-Memory Document Vault
+// Powers full Kütüphanem & Auto-Save in standalone Kalpten Kaleme.html mode
+// ========================================================================
+const kalptenVault = {
+  dbName: 'KalptenKalemeVaultDB',
+  storeName: 'documents',
+  memCache: new Map(),
+  dbPromise: null,
+
+  openDB() {
+    if (this.dbPromise) return this.dbPromise;
+    this.dbPromise = new Promise((resolve) => {
+      if (!window.indexedDB) return resolve(null);
+      try {
+        const req = window.indexedDB.open(this.dbName, 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(this.storeName)) {
+            db.createObjectStore(this.storeName, { keyPath: 'key' });
+          }
+        };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = () => resolve(null);
+      } catch (_) {
+        resolve(null);
+      }
+    });
+    return this.dbPromise;
+  },
+
+  async toUint8Array(data) {
+    if (!data) return new Uint8Array(0);
+    if (data instanceof Uint8Array) return data;
+    if (data instanceof ArrayBuffer) return new Uint8Array(data);
+    if (typeof Blob !== 'undefined' && data instanceof Blob) {
+      const buf = await data.arrayBuffer();
+      return new Uint8Array(buf);
+    }
+    if (typeof data === 'string') {
+      return new TextEncoder().encode(data);
+    }
+    return new Uint8Array(0);
+  },
+
+  formatSize(byteLen) {
+    if (byteLen > 1024 * 1024) return (byteLen / (1024 * 1024)).toFixed(1) + ' MB';
+    return Math.max(1, Math.round(byteLen / 1024)) + ' KB';
+  },
+
+  formatDate(d = new Date()) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  },
+
+  async saveFile(name, data, explicitExt) {
+    if (!name) return false;
+    const cleanName = String(name).trim();
+    const key = cleanName.toLowerCase();
+    const ext = (explicitExt || cleanName.split('.').pop() || 'docx').toLowerCase().replace(/^\./, '');
+    const bytes = await this.toUint8Array(data);
+    const record = {
+      key,
+      name: cleanName,
+      path: cleanName,
+      ext,
+      size: this.formatSize(bytes.byteLength),
+      date: this.formatDate(new Date()),
+      timestamp: Date.now(),
+      bytes
+    };
+    this.memCache.set(key, record);
+    const db = await this.openDB();
+    if (db) {
+      await new Promise((resolve) => {
+        try {
+          const tx = db.transaction(this.storeName, 'readwrite');
+          tx.objectStore(this.storeName).put(record);
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => resolve(false);
+        } catch (_) {
+          resolve(false);
+        }
+      });
+    }
+    return true;
+  },
+
+  async listFiles() {
+    const db = await this.openDB();
+    const merged = new Map();
+    for (const [k, v] of this.memCache.entries()) {
+      merged.set(k, v);
+    }
+    if (db) {
+      await new Promise((resolve) => {
+        try {
+          const tx = db.transaction(this.storeName, 'readonly');
+          const req = tx.objectStore(this.storeName).getAll();
+          req.onsuccess = () => {
+            const rows = req.result || [];
+            rows.forEach(r => {
+              if (r && r.key) {
+                merged.set(r.key, r);
+                this.memCache.set(r.key, r);
+              }
+            });
+            resolve();
+          };
+          req.onerror = () => resolve();
+        } catch (_) {
+          resolve();
+        }
+      });
+    }
+    return Array.from(merged.values())
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+      .map(r => ({
+        name: r.name,
+        path: r.name,
+        size: r.size || '1 KB',
+        date: r.date || 'Bugün',
+        ext: r.ext || 'docx'
+      }));
+  },
+
+  async getFileBytes(name) {
+    if (!name) return null;
+    const key = String(name).trim().toLowerCase();
+    if (this.memCache.has(key)) {
+      const rec = this.memCache.get(key);
+      if (rec && rec.bytes) return rec.bytes.buffer.slice(rec.bytes.byteOffset, rec.bytes.byteOffset + rec.bytes.byteLength);
+    }
+    const db = await this.openDB();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(this.storeName, 'readonly');
+        const req = tx.objectStore(this.storeName).get(key);
+        req.onsuccess = () => {
+          const rec = req.result;
+          if (rec && rec.bytes) {
+            this.memCache.set(key, rec);
+            const u8 = rec.bytes instanceof Uint8Array ? rec.bytes : new Uint8Array(rec.bytes);
+            resolve(u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength));
+          } else {
+            resolve(null);
+          }
+        };
+        req.onerror = () => resolve(null);
+      } catch (_) {
+        resolve(null);
+      }
+    });
+  },
+
+  async deleteFile(name) {
+    if (!name) return false;
+    const key = String(name).trim().toLowerCase();
+    this.memCache.delete(key);
+    const db = await this.openDB();
+    if (db) {
+      await new Promise((resolve) => {
+        try {
+          const tx = db.transaction(this.storeName, 'readwrite');
+          tx.objectStore(this.storeName).delete(key);
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => resolve(false);
+        } catch (_) {
+          resolve(false);
+        }
+      });
+    }
+    return true;
+  }
+};
+window.kalptenVault = kalptenVault;
 
 function isMobileWordStudio() {
   return AppPlatform.isMobileScreen() && AppPlatform.isAndroid;
@@ -1945,6 +2125,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       libraryFilesCache = JSON.parse(window.AndroidBridge.listSavedFilesJson() || '[]');
     } catch (_) {}
+  } else if (window.kalptenVault) {
+    window.kalptenVault.listFiles().then(arr => {
+      if (arr && arr.length > 0) libraryFilesCache = arr;
+    }).catch(() => {});
   }
 
   async function openLibrary(filter) {
@@ -2019,20 +2203,34 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {}
     }
 
-    // 3. Web / Fallback Recent Cache
+    // 3. Standalone Desktop / Web Vault (IndexedDB + Recents)
     if (!files || files.length === 0) {
       try {
+        const vaultFiles = window.kalptenVault ? await window.kalptenVault.listFiles() : [];
         const recents = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
-        files = recents.map(r => ({
-          name: r.name,
-          path: r.name,
-          size: 'Kayıtlı',
-          date: r.time || 'Bugün',
-          ext: (r.name.split('.').pop() || 'docx').toLowerCase(),
-          isRecentOnly: true
-        }));
+        const map = new Map();
+        vaultFiles.forEach(vf => map.set(vf.name.toLowerCase(), vf));
+        recents.forEach(r => {
+          if (r && r.name && !map.has(r.name.toLowerCase())) {
+            map.set(r.name.toLowerCase(), {
+              name: r.name,
+              path: r.name,
+              size: 'Kayıtlı',
+              date: r.time || 'Bugün',
+              ext: (r.name.split('.').pop() || 'docx').toLowerCase(),
+              isRecentOnly: true
+            });
+          }
+        });
+        files = Array.from(map.values());
         if (storageLocation && !isOnlineServer) {
-          storageLocation.textContent = 'Tarayıcı Yerel Hafızası';
+          storageLocation.textContent = AppPlatform.isDesktop ? 'Bilgisayar Arşivi & Kütüphanem' : 'Tarayıcı Yerel Hafızası';
+        }
+        if (storageSubtitle && !isOnlineServer && AppPlatform.isDesktop) {
+          storageSubtitle.textContent = 'Yazılarınız otomatik korunur; Kaydet tuşuyla bilgisayarınıza da indirilir';
+        }
+        if (syncDot && !isOnlineServer) {
+          syncDot.className = 'drive-status-dot active';
         }
       } catch (_) { files = []; }
     }
@@ -2183,6 +2381,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           } catch (e) {}
         }
+        // Offline Vault load (Kalpten Kaleme.html standalone desktop or Web)
+        if (window.kalptenVault) {
+          try {
+            const buffer = await window.kalptenVault.getFileBytes(fileName);
+            if (buffer && buffer.byteLength > 0) {
+              if (ext === 'pdf') {
+                switchTab('pdfTab');
+                if (window.loadPdfFromBuffer) await window.loadPdfFromBuffer(buffer, fileName);
+              } else if (ext === 'pptx' || ext === 'ppt' || ext === 'json') {
+                switchTab('pptTab');
+                if (window.pptEditor) await window.pptEditor.loadFile(new File([buffer], fileName));
+              } else {
+                switchTab('wordTab');
+                if (window.loadWordFromBuffer) await window.loadWordFromBuffer(buffer, fileName);
+              }
+              showToast(`"${fileName}" açıldı.`);
+              return;
+            }
+          } catch (e) {}
+        }
         // Standalone file picker fallback
         showToast(`"${fileName}" açılıyor...`);
         document.getElementById('wordFileInput')?.click();
@@ -2216,8 +2434,9 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             } catch (_) {}
           } else {
-            // Remove from local storage
+            // Remove from IndexedDB vault & local storage
             try {
+              if (window.kalptenVault) await window.kalptenVault.deleteFile(fileName);
               const recents = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
               const filtered = recents.filter(r => r.name !== fileName);
               localStorage.setItem('belge_recent_documents', JSON.stringify(filtered));

@@ -3,7 +3,7 @@
  * Doğrudan Tıklayıp Metin Düzenleme, Word Entegrasyonu, Sayfa Yönetimi ve Vektörel PDF Kaydetme.
  */
 
-if (window.pdfjsLib) {
+if (window.pdfjsLib && !window.pdfjsWorker && window.location.protocol !== 'file:') {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
 }
 
@@ -113,8 +113,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Configure worker if not already running on main thread
-      if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc && (!window.pdfjsWorker || !window.pdfjsWorker.WorkerMessageHandler)) {
+      if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc && (!window.pdfjsWorker || !window.pdfjsWorker.WorkerMessageHandler) && window.location.protocol !== 'file:') {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+      }
+
+      if (window.kalptenVault && arrayBuffer) {
+        window.kalptenVault.saveFile(pdfState.fileName, arrayBuffer, 'pdf').catch(() => {});
       }
 
       const workerBytes = new Uint8Array(arrayBuffer.slice ? arrayBuffer.slice(0) : arrayBuffer);
@@ -2080,6 +2084,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!pdfBytes) throw new Error('PDF verisi oluşturulamadı.');
       const rawName = (pdfState.fileName || 'Belge.pdf').trim();
       const pdfFileName = rawName.toLowerCase().endsWith('.pdf') ? rawName : rawName + '.pdf';
+      if (window.kalptenVault) {
+        await window.kalptenVault.saveFile(pdfFileName, pdfBytes, 'pdf');
+      }
+      if (window.addRecentDocument) {
+        window.addRecentDocument(pdfFileName, 'pdf');
+      }
 
       let savedDirectly = false;
 

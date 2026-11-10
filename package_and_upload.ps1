@@ -1,12 +1,15 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 Set-Location "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice"
 
 Write-Host "=========================================="
-Write-Host "1. PREPARING WINDOWS ZIP"
+Write-Host "1. BUILDING SELF-CONTAINED WINDOWS STUDIO"
 Write-Host "=========================================="
+
+powershell -ExecutionPolicy Bypass -File "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\build_windows_standalone.ps1"
 
 $projectApk = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\KalptenKaleme.apk"
 $projectZip = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\KalptenKaleme-Windows.zip"
+$standaloneHtml = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\Kalpten Kaleme.html"
 $artifactDir = "C:\Users\Erdem\.gemini\antigravity\brain\b47cda16-5d7a-491a-a8ce-7abf0b3bf149"
 
 # Sync APK to brain artifact directory
@@ -15,37 +18,12 @@ if ((Test-Path $projectApk) -and (Test-Path $artifactDir)) {
     Write-Host "APK synced to brain artifact directory."
 }
 
-# Create staging dir for clean Windows zip
-$stageDir = Join-Path $env:TEMP "KK_Win_Stage"
+# Create clean single-file Windows ZIP containing ONLY 'Kalpten Kaleme.html'
+$stageDir = Join-Path $env:TEMP "KK_Win_Stage_Single"
 if (Test-Path $stageDir) { Remove-Item $stageDir -Recurse -Force }
 New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 
-$filesToInclude = @(
-    "KalptenKaleme.exe", "BelgeDuzenleyici.cs", "KULLANIM_KILAVUZU.txt",
-    "index.html", "styles.css", "app.js", "word-editor.js", "ppt-editor.js", "pdf-editor.js", "pdf-tools.js",
-    "manifest.json", "README.md", "Baslat.bat", "Baslat.ps1", "KalptenKaleme.ps1", "server.ps1",
-    "Kurulum_Baslat.bat", "Masaustu_Kisayol_Olustur.ps1", "register_open_with.ps1", "apply_file_icons.ps1",
-    "Dosya_Simgelerini_Uygula.bat", "Dosya_Simgelerini_Varsayilana_Dondur.bat",
-    "Microsoft.Web.WebView2.Core.dll", "Microsoft.Web.WebView2.WinForms.dll", "WebView2Loader.dll",
-    "BelgeDuzenleyici.ico", "favicon.ico", "app.ico", "docx_file.ico", "pdf_file.ico", "kk_pptx.ico",
-    "app.png", "docx_file.png", "pdf_file.png", "pptx_file.png", "tools_file.png"
-)
-
-foreach ($f in $filesToInclude) {
-    if (Test-Path $f) {
-        Copy-Item $f (Join-Path $stageDir $f) -Force
-    }
-}
-
-if (Test-Path "vendor") {
-    Copy-Item "vendor" (Join-Path $stageDir "vendor") -Recurse -Force
-}
-
-if (Test-Path "runtimes") {
-    Copy-Item "runtimes" (Join-Path $stageDir "runtimes") -Recurse -Force
-}
-
-Get-ChildItem -Path $stageDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
+Copy-Item $standaloneHtml (Join-Path $stageDir "Kalpten Kaleme.html") -Force
 
 if (Test-Path $projectZip) { Remove-Item $projectZip -Force }
 Compress-Archive -Path "$stageDir\*" -DestinationPath $projectZip -Force
@@ -54,16 +32,16 @@ if (Test-Path $artifactDir) {
 }
 Remove-Item $stageDir -Recurse -Force
 
-Write-Host "Windows ZIP created at $projectZip ($([Math]::Round((Get-Item $projectZip).Length / 1MB, 2)) MB)"
+Write-Host "Clean single-file Windows ZIP created at $projectZip ($([Math]::Round((Get-Item $projectZip).Length / 1MB, 2)) MB)"
 
 Write-Host "`n=========================================="
 Write-Host "2. COMMITTING AND PUSHING TO GITHUB"
 Write-Host "=========================================="
 
-git add index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js Baslat.bat Baslat.ps1 KalptenKaleme.ps1 server.ps1 Kurulum_Baslat.bat Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 check_compile.ps1 run_everything_test.ps1 KalptenKaleme.apk android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig BelgeDuzenleyici.cs KULLANIM_KILAVUZU.txt package_and_upload.ps1
+git add index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js build_windows_standalone.ps1 "Kalpten Kaleme.html" KalptenKaleme.apk android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig package_and_upload.ps1
 $status = git status --porcelain
 if ($status) {
-    git commit -m 'fix(suite): prevent auto-save file overwrite, replace localhost alerts with custom modals, harden PDF/PPT/Word edge cases, make Windows installer resilient'
+    git commit -m 'feat(windows): package Windows Desktop Suite into a single zero-SAC-warning self-contained Kalpten Kaleme.html with offline IndexedDB vault'
     git push origin main
     Write-Host "Git push completed."
 } else {

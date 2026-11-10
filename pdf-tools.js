@@ -6,24 +6,29 @@
 document.addEventListener('DOMContentLoaded', () => {
 
   async function savePdfFile(pdfBytes, defaultFileName) {
+    if (window.kalptenVault) {
+      await window.kalptenVault.saveFile(defaultFileName, pdfBytes, 'pdf');
+    }
     // 1. Direct Server Save on Windows Desktop
-    try {
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const resp = await fetch(`/api/save-document?filename=${encodeURIComponent(defaultFileName)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream' },
-        body: blob
-      });
-      if (resp.ok) {
-        const resData = await resp.json();
-        if (resData && resData.success) {
-          if (window.addRecentDocument) window.addRecentDocument(resData.filename || defaultFileName, 'pdf');
-          if (window.loadDriveFiles) window.loadDriveFiles();
-          showToast(`"${resData.filename || defaultFileName}" başarıyla kaydedildi!`);
-          return;
+    if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+      try {
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const resp = await fetch(`/api/save-document?filename=${encodeURIComponent(defaultFileName)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: blob
+        });
+        if (resp.ok) {
+          const resData = await resp.json();
+          if (resData && resData.success) {
+            if (window.addRecentDocument) window.addRecentDocument(resData.filename || defaultFileName, 'pdf');
+            if (window.loadDriveFiles) window.loadDriveFiles();
+            showToast(`"${resData.filename || defaultFileName}" başarıyla kaydedildi!`);
+            return;
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     // 2. Android Bridge Save
     if (window.AndroidBridge && typeof window.AndroidBridge.saveBase64File === 'function') {

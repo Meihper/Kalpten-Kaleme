@@ -137,6 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const blob = buildWordBlob(title, editor.innerHTML);
+        if (window.kalptenVault) {
+          window.kalptenVault.saveFile(title, blob, 'docx').catch(() => {});
+        }
+        if (window.addRecentDocument) {
+          window.addRecentDocument(title, 'word');
+        }
 
         // 1. Desktop Server Mode
         if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
@@ -256,6 +262,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (docTitleInput) docTitleInput.value = fileName;
     if (window.addRecentDocument) window.addRecentDocument(fileName, 'word');
+    if (window.kalptenVault && arrayBuffer) {
+      window.kalptenVault.saveFile(fileName, arrayBuffer, ext).catch(() => {});
+    }
 
     if (ext === 'docx' || ext === 'doc') {
       const parseWordDoc = async () => {
@@ -438,6 +447,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const blob = buildWordBlob(title, editor.innerHTML);
+      if (window.kalptenVault) {
+        await window.kalptenVault.saveFile(title, blob, 'docx');
+      }
+      if (window.addRecentDocument) {
+        window.addRecentDocument(title, 'word');
+      }
 
       let savedDirectly = false;
       if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {

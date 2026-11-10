@@ -2368,6 +2368,9 @@ const pptEditor = {
   },
 
   async saveOrDownloadExport(blob, fileName, mimeType, successMsg) {
+    if (window.kalptenVault) {
+      await window.kalptenVault.saveFile(fileName, blob);
+    }
     // 1. Direct Server Save on Windows Desktop
     if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
       try {
@@ -2599,6 +2602,9 @@ const pptEditor = {
     }, null, 2);
 
     const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+    if (window.kalptenVault) {
+      await window.kalptenVault.saveFile(fileName, blob, 'json');
+    }
     const wordSaveStatus = document.getElementById('wordSaveStatus');
     if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
       try {
@@ -2647,8 +2653,17 @@ const pptEditor = {
     }
 
     if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
+    if (window.loadDriveFiles) window.loadDriveFiles();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     if (wordSaveStatus) wordSaveStatus.textContent = '✓ Sunum Kaydedildi';
-    if (window.showToast) window.showToast(`"${this.state.fileName || 'Sunum'}" yerel belleğe kaydedildi.`);
+    if (window.showToast) window.showToast(`"${fileName}" başarıyla kaydedildi.`);
     return true;
   },
 
@@ -2656,6 +2671,9 @@ const pptEditor = {
     if (!file) return;
     if (typeof switchTab === 'function') switchTab('pptTab');
     const name = (file.name || '').toLowerCase();
+    if (window.kalptenVault) {
+      window.kalptenVault.saveFile(file.name || 'Sunum.json', file).catch(() => {});
+    }
     try {
       if (name.endsWith('.json')) {
         const text = await file.text();
