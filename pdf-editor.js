@@ -891,8 +891,8 @@ document.addEventListener('DOMContentLoaded', () => {
     box.className = 'annotation-box';
     box.id = annot.id;
 
-    const layerWidth = layer.clientWidth;
-    const layerHeight = layer.clientHeight;
+    const layerWidth = layer.clientWidth || parseFloat(layer.parentElement?.style.width) || 600;
+    const layerHeight = layer.clientHeight || parseFloat(layer.parentElement?.style.height) || 800;
 
     box.style.left = `${annot.pctX * layerWidth}px`;
     box.style.top = `${annot.pctY * layerHeight}px`;
@@ -1011,8 +1011,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const img = new Image();
     img.onload = () => {
-      const pw = pageWrapper.clientWidth;
-      const ph = pageWrapper.clientHeight;
+      const pw = pageWrapper.clientWidth || parseFloat(pageWrapper.style.width) || 600;
+      const ph = pageWrapper.clientHeight || parseFloat(pageWrapper.style.height) || 800;
 
       let initW = Math.min(220, pw * 0.45);
       let initH = (img.naturalHeight / img.naturalWidth) * initW;
@@ -1061,8 +1061,8 @@ document.addEventListener('DOMContentLoaded', () => {
     box.className = 'pdf-image-box active';
     box.id = imgRecord.id;
 
-    const pw = pageWrapper.clientWidth;
-    const ph = pageWrapper.clientHeight;
+    const pw = pageWrapper.clientWidth || parseFloat(pageWrapper.style.width) || 600;
+    const ph = pageWrapper.clientHeight || parseFloat(pageWrapper.style.height) || 800;
 
     box.style.left = `${imgRecord.pctX * pw}px`;
     box.style.top = `${imgRecord.pctY * ph}px`;
@@ -1411,19 +1411,33 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Delete Page
-  document.getElementById('pdfDeletePageBtn')?.addEventListener('click', async () => {
+  document.getElementById('pdfDeletePageBtn')?.addEventListener('click', () => {
     if (pdfState.pageOrder.length <= 1) {
       showToast('Belgedeki son sayfa silinemez.', 'error');
       return;
     }
-    if (confirm(`Sayfa ${pdfState.currentPage} belgeden silinsin mi?`)) {
-      const curIdx = pdfState.currentPage - 1;
+    const delPageNum = pdfState.currentPage;
+    const doDeletePage = async () => {
+      const curIdx = delPageNum - 1;
       pdfState.pageOrder.splice(curIdx, 1);
+      // Remap editedTexts, annotations, and images so items on subsequent pages stay on their correct page
+      const remapAfterDelete = (arr) => (arr || []).filter(it => it.page !== delPageNum).map(it => {
+        if (it.page > delPageNum) it.page -= 1;
+        return it;
+      });
+      pdfState.editedTexts = remapAfterDelete(pdfState.editedTexts);
+      pdfState.annotations = remapAfterDelete(pdfState.annotations);
+      pdfState.images = remapAfterDelete(pdfState.images);
       pdfState.currentPage = Math.min(pdfState.currentPage, pdfState.pageOrder.length);
       updatePageIndicator();
       await renderAllPages();
       await renderThumbnails();
       showToast('Sayfa silindi.');
+    };
+    if (typeof window.showConfirmDialog === 'function') {
+      window.showConfirmDialog(`Sayfa ${delPageNum} belgeden silinsin mi?`, doDeletePage, 'Sayfayı Sil');
+    } else if (confirm(`Sayfa ${delPageNum} belgeden silinsin mi?`)) {
+      doDeletePage();
     }
   });
 
@@ -1648,7 +1662,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('savePageOrganizerBtn')?.addEventListener('click', async () => {
     closeModal('organizePagesModal');
     if (pendingPageOrder) {
-      pdfState.pageOrder = [...pendingPageOrder];
+      const oldOrder = [...pdfState.pageOrder];
+      const newOrder = [...pendingPageOrder];
+      const remapDisplayPage = (oldDisp) => {
+        const orig = oldOrder[oldDisp - 1];
+        const newIdx = newOrder.indexOf(orig);
+        return newIdx >= 0 ? (newIdx + 1) : oldDisp;
+      };
+      (pdfState.editedTexts || []).forEach(it => { it.page = remapDisplayPage(it.page); });
+      (pdfState.annotations || []).forEach(it => { it.page = remapDisplayPage(it.page); });
+      (pdfState.images || []).forEach(it => { it.page = remapDisplayPage(it.page); });
+      pdfState.pageOrder = newOrder;
       pendingPageOrder = null;
     }
     updatePageIndicator();
@@ -1989,7 +2013,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // 2. Process Annotations
-      const pageAnnots = (pdfState.annotations || []).filter(a => a.page === origNum);
+      const pageAnnots = (pdfState.annotations || []).filter(a => a.page === displayPageNum);
       for (const annot of pageAnnots) {
         const targetX = annot.pctX * pWidth;
         if (annot.type === 'highlight') {
@@ -2201,6 +2225,8 @@ document.addEventListener('DOMContentLoaded', () => {
         textEl.style.fontSize = editItem.fontSize + 'pt';
         textEl.style.lineHeight = '1.15';
         textEl.style.whiteSpace = 'pre';
+        if (editItem.pctW) textEl.style.minWidth = (editItem.pctW * 100) + '%';
+        if (editItem.pctH) textEl.style.minHeight = (editItem.pctH * 100) + '%';
         if (editItem.color) textEl.style.color = editItem.color;
         if (editItem.isBold) textEl.style.fontWeight = 'bold';
         if (editItem.isItalic) textEl.style.fontStyle = 'italic';
@@ -2209,6 +2235,22 @@ document.addEventListener('DOMContentLoaded', () => {
           textEl.style.backgroundColor = editItem.bgColor || '#FFFFFF';
         }
         pageDiv.appendChild(textEl);
+      });
+
+      // Render highlight annotations on print page
+      const pageAnnots = (pdfState.annotations || []).filter(a => a.page === displayNum);
+      pageAnnots.forEach(annot => {
+        if (annot.type === 'highlight') {
+          const hlEl = document.createElement('div');
+          hlEl.style.position = 'absolute';
+          hlEl.style.left = ((annot.pctX || 0) * 100) + '%';
+          hlEl.style.top = ((annot.pctY || 0) * 100) + '%';
+          hlEl.style.width = ((annot.pctW || 0.15) * 100) + '%';
+          hlEl.style.height = ((annot.pctH || 0.03) * 100) + '%';
+          hlEl.style.background = 'rgba(255, 235, 59, 0.45)';
+          hlEl.style.pointerEvents = 'none';
+          pageDiv.appendChild(hlEl);
+        }
       });
 
       // Render inserted images on print page

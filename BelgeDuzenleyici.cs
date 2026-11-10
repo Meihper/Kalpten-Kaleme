@@ -790,8 +790,9 @@ namespace BelgeDuzenleyici
                 {
                     string filename = req.QueryString["filename"];
                     if (string.IsNullOrEmpty(filename)) filename = "Yeni Yazı.docx";
+                    filename = Path.GetFileName(filename);
                     string fExt = Path.GetExtension(filename).ToLower();
-                    if (fExt != ".docx" && fExt != ".pdf" && fExt != ".pptx" && fExt != ".ppt" && fExt != ".json") filename += ".docx";
+                    if (fExt != ".docx" && fExt != ".pdf" && fExt != ".pptx" && fExt != ".ppt" && fExt != ".json" && fExt != ".html" && fExt != ".md" && fExt != ".txt") filename += ".docx";
 
                     string targetFolder = GetSyncFolder();
                     if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
@@ -830,7 +831,7 @@ namespace BelgeDuzenleyici
                     return;
                 }
 
-                if (rawUrl == "/api/drive-files")
+                if (rawUrl == "/api/drive-files" || rawUrl == "/api/list-documents" || rawUrl == "/api/list-cloud-files")
                 {
                     string folder = GetSyncFolder();
                     var fileList = new List<string>();
@@ -844,7 +845,7 @@ namespace BelgeDuzenleyici
                         foreach (var fi in files)
                         {
                             string ext = fi.Extension.ToLower();
-                            if (ext == ".docx" || ext == ".doc" || ext == ".txt" || ext == ".pdf" || ext == ".pptx" || ext == ".ppt" || ext == ".json")
+                            if (ext == ".docx" || ext == ".doc" || ext == ".txt" || ext == ".md" || ext == ".html" || ext == ".pdf" || ext == ".pptx" || ext == ".ppt" || ext == ".json")
                             {
                                 string sizeStr;
                                 if (fi.Length > 1024 * 1024)

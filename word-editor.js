@@ -123,6 +123,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let title = (docTitleInput?.value || 'Yeni Yazı').trim();
         if (!title.toLowerCase().endsWith('.docx')) title += '.docx';
 
+        // Protect existing files on disk: if this is an untitled default document and the name already exists on disk, auto-assign a unique title
+        if (window.docManager && typeof window.getKnownCloudFileNames === 'function') {
+          const activeDoc = window.docManager.getActiveDoc();
+          if (activeDoc && activeDoc.isDefault) {
+            const knownFiles = window.getKnownCloudFileNames();
+            if (knownFiles.includes(title.toLowerCase())) {
+              title = window.docManager.getUniqueWordTitle('Yeni Yazı');
+              if (docTitleInput) docTitleInput.value = title;
+            }
+            window.docManager.updateActiveDocTitle(title);
+          }
+        }
+
         const blob = buildWordBlob(title, editor.innerHTML);
 
         // 1. Desktop Server Mode
@@ -1160,17 +1173,52 @@ document.addEventListener('DOMContentLoaded', () => {
   // Insert Link
   document.getElementById('wordInsertLinkBtn')?.addEventListener('click', () => {
     saveCurrentSelection();
-    const url = prompt('Bağlantı URL adresini girin:', 'https://');
-    if (url && url !== 'https://') {
-      restoreCurrentSelection();
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) {
-        editor.focus();
-        document.execCommand('insertHTML', false, `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+    const askUrl = (cb) => {
+      if (typeof window.showPromptDialog === 'function') {
+        window.showPromptDialog('Bağlantı URL adresini girin:', 'https://', cb, 'Bağlantı Ekle');
       } else {
-        executeCmd('createLink', url);
+        const u = prompt('Bağlantı URL adresini girin:', 'https://');
+        if (u !== null) cb(u);
       }
-      showToast('Bağlantı eklendi.');
+    };
+    askUrl((url) => {
+      if (url && url.trim() && url.trim() !== 'https://') {
+        const cleanUrl = url.trim();
+        restoreCurrentSelection();
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) {
+          editor.focus();
+          document.execCommand('insertHTML', false, `<a href="${escapeHtml(cleanUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(cleanUrl)}</a>`);
+        } else {
+          executeCmd('createLink', cleanUrl);
+        }
+        showToast('Bağlantı eklendi.');
+      }
+    });
+  });
+
+  // Smart Paste Sanitizer (Prevents broken web layouts / scripts from corrupting A4 sheet)
+  editor.addEventListener('paste', (e) => {
+    if (!e.clipboardData) return;
+    const html = e.clipboardData.getData('text/html');
+    if (html && html.trim().length > 0) {
+      e.preventDefault();
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      temp.querySelectorAll('script, style, iframe, object, embed, meta, link').forEach(el => el.remove());
+      temp.querySelectorAll('*').forEach(el => {
+        if (el.style) {
+          if (el.style.position === 'fixed' || el.style.position === 'absolute') {
+            el.style.position = 'static';
+          }
+          el.style.maxWidth = '100%';
+        }
+        el.removeAttribute('onload');
+        el.removeAttribute('onerror');
+        el.removeAttribute('onclick');
+      });
+      document.execCommand('insertHTML', false, temp.innerHTML);
+      updateStats();
     }
   });
 

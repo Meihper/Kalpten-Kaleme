@@ -85,7 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const mergedPdfBytes = await mergedDoc.save();
-      savePdfFile(mergedPdfBytes, 'Birlestirilmis_Belgeler.pdf');
+      await savePdfFile(mergedPdfBytes, 'Birlestirilmis_Belgeler.pdf');
+      if (typeof window.loadPdfFromBuffer === 'function') {
+        await window.loadPdfFromBuffer(mergedPdfBytes.buffer, 'Birlestirilmis_Belgeler.pdf');
+      }
     } catch (err) {
       console.error(err);
       showToast('Birleştirme hatası: ' + err.message, 'error');
@@ -109,55 +112,67 @@ document.addEventListener('DOMContentLoaded', () => {
       const { PDFDocument } = window.PDFLib;
       const srcDoc = await PDFDocument.load(bytes);
       const totalPages = srcDoc.getPageCount();
+      const fileName = file.name;
+      e.target.value = '';
 
-      const rangeInput = prompt(
-        `"${file.name}" toplam ${totalPages} sayfadan oluşuyor.\n\n` +
-        `Ayıklamak istediğiniz sayfa numaralarını girin (Örn: 1-3 veya 1, 4, 7):`,
-        `1-${Math.min(3, totalPages)}`
-      );
+      const executeSplit = async (rangeInput) => {
+        if (!rangeInput) return;
+        try {
+          const targetIndices = new Set();
+          const parts = rangeInput.split(',');
 
-      if (!rangeInput) return;
-
-      const targetIndices = new Set();
-      const parts = rangeInput.split(',');
-
-      for (const part of parts) {
-        const trimmed = part.trim();
-        if (trimmed.includes('-')) {
-          const [startStr, endStr] = trimmed.split('-');
-          const start = parseInt(startStr);
-          const end = parseInt(endStr);
-          if (!isNaN(start) && !isNaN(end)) {
-            for (let p = Math.max(1, start); p <= Math.min(totalPages, end); p++) {
-              targetIndices.add(p - 1);
+          for (const part of parts) {
+            const trimmed = part.trim();
+            if (trimmed.includes('-')) {
+              const [startStr, endStr] = trimmed.split('-');
+              const start = parseInt(startStr);
+              const end = parseInt(endStr);
+              if (!isNaN(start) && !isNaN(end)) {
+                for (let p = Math.max(1, start); p <= Math.min(totalPages, end); p++) {
+                  targetIndices.add(p - 1);
+                }
+              }
+            } else {
+              const p = parseInt(trimmed);
+              if (!isNaN(p) && p >= 1 && p <= totalPages) {
+                targetIndices.add(p - 1);
+              }
             }
           }
-        } else {
-          const p = parseInt(trimmed);
-          if (!isNaN(p) && p >= 1 && p <= totalPages) {
-            targetIndices.add(p - 1);
+
+          if (targetIndices.size === 0) {
+            showToast('Geçerli bir sayfa aralığı girilmedi.', 'error');
+            return;
           }
+
+          const newDoc = await PDFDocument.create();
+          const sortedIndices = Array.from(targetIndices).sort((a, b) => a - b);
+          const copiedPages = await newDoc.copyPages(srcDoc, sortedIndices);
+          copiedPages.forEach(p => newDoc.addPage(p));
+
+          const newBytes = await newDoc.save();
+          const outName = fileName.replace(/\.pdf$/i, '') + '_ayiklanan.pdf';
+          await savePdfFile(newBytes, outName);
+          if (typeof window.loadPdfFromBuffer === 'function') {
+            await window.loadPdfFromBuffer(newBytes.buffer, outName);
+          }
+          showToast(`${sortedIndices.length} sayfa ayıklandı ve kaydedildi!`);
+        } catch (innerErr) {
+          console.error(innerErr);
+          showToast('Sayfa ayıklama hatası: ' + innerErr.message, 'error');
         }
+      };
+
+      const msg = `"${fileName}" toplam ${totalPages} sayfadan oluşuyor.\n\nAyıklamak istediğiniz sayfa numaralarını girin (Örn: 1-3 veya 1, 4, 7):`;
+      const defVal = `1-${Math.min(3, totalPages)}`;
+      if (window.showPromptDialog) {
+        window.showPromptDialog(msg, defVal, executeSplit, '✂️ PDF Sayfa Ayırıcı');
+      } else {
+        await executeSplit(prompt(msg, defVal));
       }
-
-      if (targetIndices.size === 0) {
-        showToast('Geçerli bir sayfa aralığı girilmedi.', 'error');
-        return;
-      }
-
-      const newDoc = await PDFDocument.create();
-      const sortedIndices = Array.from(targetIndices).sort((a, b) => a - b);
-      const copiedPages = await newDoc.copyPages(srcDoc, sortedIndices);
-      copiedPages.forEach(p => newDoc.addPage(p));
-
-      const newBytes = await newDoc.save();
-      const outName = file.name.replace(/\.pdf$/i, '') + '_ayiklanan.pdf';
-      savePdfFile(newBytes, outName);
-      showToast(`${sortedIndices.length} sayfa ayıklandı ve kaydedildi!`);
     } catch (err) {
       console.error(err);
       showToast('Sayfa ayıklama hatası: ' + err.message, 'error');
-    } finally {
       e.target.value = '';
     }
   });
@@ -242,7 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const pdfBytes = await pdfDoc.save();
-      savePdfFile(pdfBytes, 'Gorsellerden_Olusturulan_Belge.pdf');
+      await savePdfFile(pdfBytes, 'Gorsellerden_Olusturulan_Belge.pdf');
+      if (typeof window.loadPdfFromBuffer === 'function') {
+        await window.loadPdfFromBuffer(pdfBytes.buffer, 'Gorsellerden_Olusturulan_Belge.pdf');
+      }
     } catch (err) {
       console.error(err);
       showToast('Dönüştürme hatası: ' + err.message, 'error');

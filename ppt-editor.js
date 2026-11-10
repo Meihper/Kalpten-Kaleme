@@ -1164,6 +1164,7 @@ const pptEditor = {
       dragHandle.className = 'ppt-el-drag-handle';
       dragHandle.innerHTML = '✥ Sürükle / Taşı';
       dragHandle.addEventListener('mousedown', (e) => this.startDragOrResize(e, el, 'move'));
+      dragHandle.addEventListener('touchstart', (e) => this.startDragOrResize(e, el, 'move'), { passive: false });
 
       // Quick Delete Button
       const delBtn = document.createElement('button');
@@ -1188,6 +1189,7 @@ const pptEditor = {
         content.innerHTML = `<img src="${el.src || ''}" style="width:100%;height:100%;object-fit:contain;border-radius:8px;pointer-events:none;display:block;" alt="Slayt Görseli">`;
         content.style.cursor = 'move';
         content.addEventListener('mousedown', (e) => this.startDragOrResize(e, el, 'move'));
+        content.addEventListener('touchstart', (e) => this.startDragOrResize(e, el, 'move'), { passive: false });
       } else {
         content.contentEditable = 'true';
         content.spellcheck = false;
@@ -1208,6 +1210,14 @@ const pptEditor = {
           this.startDragOrResize(e, el, 'move');
         }
       });
+      node.addEventListener('touchstart', (e) => {
+        if (this.selectedElementId !== el.id) {
+          this.selectCanvasElement(el.id);
+        }
+        if (e.target === node) {
+          this.startDragOrResize(e, el, 'move');
+        }
+      }, { passive: false });
 
       node.appendChild(dragHandle);
       node.appendChild(delBtn);
@@ -1218,6 +1228,7 @@ const pptEditor = {
         const h = document.createElement('div');
         h.className = `ppt-resize-handle ${dir}`;
         h.addEventListener('mousedown', (e) => this.startDragOrResize(e, el, dir));
+        h.addEventListener('touchstart', (e) => this.startDragOrResize(e, el, dir), { passive: false });
         node.appendChild(h);
       });
 
@@ -1243,24 +1254,33 @@ const pptEditor = {
 
   startDragOrResize(e, el, mode) {
     e.stopPropagation();
-    e.preventDefault();
+    if (e.cancelable) e.preventDefault();
     this.selectCanvasElement(el.id);
 
     const canvas = document.getElementById('pptActiveSlideCanvas');
     const node = document.querySelector(`.ppt-canvas-el[data-el-id="${el.id}"]`);
     if (!canvas || !node) return;
 
+    const getPoint = (ev) => {
+      if (ev.touches && ev.touches.length > 0) return { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+      if (ev.changedTouches && ev.changedTouches.length > 0) return { x: ev.changedTouches[0].clientX, y: ev.changedTouches[0].clientY };
+      return { x: ev.clientX, y: ev.clientY };
+    };
+
     const rect = canvas.getBoundingClientRect();
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const startPt = getPoint(e);
+    const startX = startPt.x;
+    const startY = startPt.y;
     const origX = el.x ?? 15;
     const origY = el.y ?? 25;
     const origW = el.w ?? 30;
     const origH = el.h ?? 22;
 
     const onMove = (me) => {
-      const dxPct = ((me.clientX - startX) / rect.width) * 100;
-      const dyPct = ((me.clientY - startY) / rect.height) * 100;
+      if (me.cancelable && me.touches) me.preventDefault();
+      const pt = getPoint(me);
+      const dxPct = ((pt.x - startX) / Math.max(1, rect.width)) * 100;
+      const dyPct = ((pt.y - startY) / Math.max(1, rect.height)) * 100;
 
       if (mode === 'move') {
         el.x = Math.max(0, Math.min(96 - origW, Number((origX + dxPct).toFixed(2))));
@@ -1302,11 +1322,15 @@ const pptEditor = {
     const onUp = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
       this.debounceSave();
     };
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onUp);
   },
 
   styleSelectedElement({ fill, border, color }) {
@@ -2331,20 +2355,76 @@ const pptEditor = {
         type: 'blob',
         mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${title}.pptx`;
-      a.click();
-      URL.revokeObjectURL(url);
-      if (window.showToast) window.showToast(`"${title}.pptx" PowerPoint sunumu olarak indirildi.`);
+      await this.saveOrDownloadExport(
+        blob,
+        `${title}.pptx`,
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        `"${title}.pptx" PowerPoint sunumu olarak kaydedildi.`
+      );
     } catch (err) {
       console.error('PPTX export error:', err);
       if (window.showToast) window.showToast('PPTX oluşturulurken hata oluştu.', 'error');
     }
   },
 
-  exportHtml() {
+  async saveOrDownloadExport(blob, fileName, mimeType, successMsg) {
+    // 1. Direct Server Save on Windows Desktop
+    if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+      try {
+        const resp = await fetch('/api/save-document?filename=' + encodeURIComponent(fileName), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: blob
+        });
+        if (resp.ok) {
+          const resData = await resp.json();
+          if (resData && resData.success) {
+            if (window.addRecentDocument && (fileName.endsWith('.pptx') || fileName.endsWith('.json'))) {
+              window.addRecentDocument(resData.filename || fileName, 'ppt');
+            }
+            if (window.loadDriveFiles) window.loadDriveFiles();
+            if (window.showToast) window.showToast(successMsg || `"${resData.filename || fileName}" başarıyla kaydedildi.`);
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Android Bridge Save
+    if (window.AndroidBridge && typeof window.AndroidBridge.saveBase64File === 'function') {
+      try {
+        const buffer = await blob.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        const b64 = btoa(binary);
+        window.AndroidBridge.saveBase64File(fileName, b64, mimeType || 'application/octet-stream');
+        if (window.addRecentDocument && (fileName.endsWith('.pptx') || fileName.endsWith('.json'))) {
+          window.addRecentDocument(fileName, 'ppt');
+        }
+        if (window.showToast) window.showToast(`"${fileName}" telefonunuzdaki Belgeler/Kalpten Kaleme klasörüne kaydedildi!`);
+        return;
+      } catch (e) {
+        console.warn('AndroidBridge export error:', e);
+      }
+    }
+
+    // 3. Browser Download Fallback
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (window.addRecentDocument && (fileName.endsWith('.pptx') || fileName.endsWith('.json'))) {
+      window.addRecentDocument(fileName, 'ppt');
+    }
+    if (window.showToast) window.showToast(successMsg || `"${fileName}" indirildi.`);
+  },
+
+  async exportHtml() {
     this.syncCurrentSlideFromDOM();
     const title = this.state.fileName ? this.state.fileName.replace(/\.[^/.]+$/, '') : 'Kalpten_Kaleme_Sunum';
     const theme = this.state.theme || 'theme-clean-light';
@@ -2471,16 +2551,15 @@ const pptEditor = {
 </html>`;
 
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    if (window.showToast) window.showToast(`"${title}.html" etkileşimli sunum olarak indirildi.`);
+    await this.saveOrDownloadExport(
+      blob,
+      `${title}.html`,
+      'text/html',
+      `"${title}.html" etkileşimli sunum olarak kaydedildi.`
+    );
   },
 
-  exportJson() {
+  async exportJson() {
     this.syncCurrentSlideFromDOM();
     const title = this.state.fileName ? this.state.fileName.replace(/\.[^/.]+$/, '') : 'Kalpten_Kaleme_Sunum';
     const data = {
@@ -2490,13 +2569,12 @@ const pptEditor = {
       fileName: this.state.fileName
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    if (window.showToast) window.showToast(`"${title}.json" sunum proje dosyası indirildi.`);
+    await this.saveOrDownloadExport(
+      blob,
+      `${title}.json`,
+      'application/json',
+      `"${title}.json" sunum proje dosyası olarak kaydedildi.`
+    );
   },
 
   exportPrint() {
@@ -2568,6 +2646,7 @@ const pptEditor = {
       } catch (_) {}
     }
 
+    if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
     if (wordSaveStatus) wordSaveStatus.textContent = '✓ Sunum Kaydedildi';
     if (window.showToast) window.showToast(`"${this.state.fileName || 'Sunum'}" yerel belleğe kaydedildi.`);
     return true;

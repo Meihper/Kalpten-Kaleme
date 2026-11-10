@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 Set-Location "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice"
 
 Write-Host "=========================================="
@@ -7,10 +7,10 @@ Write-Host "=========================================="
 
 $projectApk = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\KalptenKaleme.apk"
 $projectZip = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\KalptenKaleme-Windows.zip"
-$artifactDir = "C:\Users\Erdem\.gemini\antigravity\brain\fc7d5a54-3292-42a2-b99e-ca574ab289ce"
+$artifactDir = "C:\Users\Erdem\.gemini\antigravity\brain\b47cda16-5d7a-491a-a8ce-7abf0b3bf149"
 
 # Sync APK to brain artifact directory
-if (Test-Path $projectApk) {
+if ((Test-Path $projectApk) -and (Test-Path $artifactDir)) {
     Copy-Item $projectApk (Join-Path $artifactDir "KalptenKaleme.apk") -Force
     Write-Host "APK synced to brain artifact directory."
 }
@@ -49,7 +49,9 @@ Get-ChildItem -Path $stageDir -Recurse | Unblock-File -ErrorAction SilentlyConti
 
 if (Test-Path $projectZip) { Remove-Item $projectZip -Force }
 Compress-Archive -Path "$stageDir\*" -DestinationPath $projectZip -Force
-Copy-Item $projectZip (Join-Path $artifactDir "KalptenKaleme-Windows.zip") -Force
+if (Test-Path $artifactDir) {
+    Copy-Item $projectZip (Join-Path $artifactDir "KalptenKaleme-Windows.zip") -Force
+}
 Remove-Item $stageDir -Recurse -Force
 
 Write-Host "Windows ZIP created at $projectZip ($([Math]::Round((Get-Item $projectZip).Length / 1MB, 2)) MB)"
@@ -58,10 +60,10 @@ Write-Host "`n=========================================="
 Write-Host "2. COMMITTING AND PUSHING TO GITHUB"
 Write-Host "=========================================="
 
-git add index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js Baslat.bat Baslat.ps1 KalptenKaleme.ps1 server.ps1 Kurulum_Baslat.bat Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 run_everything_test.ps1 KalptenKaleme.apk android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig BelgeDuzenleyici.cs KULLANIM_KILAVUZU.txt package_and_upload.ps1
+git add index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js Baslat.bat Baslat.ps1 KalptenKaleme.ps1 server.ps1 Kurulum_Baslat.bat Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 check_compile.ps1 run_everything_test.ps1 KalptenKaleme.apk android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig BelgeDuzenleyici.cs KULLANIM_KILAVUZU.txt package_and_upload.ps1
 $status = git status --porcelain
 if ($status) {
-    git commit -m 'fix(desktop): eliminate Smart App Control blocks, remove background powershell linger with silence watchdog, inline fast favicon, verify 47/47 E2E tests'
+    git commit -m 'fix(suite): prevent auto-save file overwrite, replace localhost alerts with custom modals, harden PDF/PPT/Word edge cases, make Windows installer resilient'
     git push origin main
     Write-Host "Git push completed."
 } else {

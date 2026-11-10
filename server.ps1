@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # Kalpten Kaleme - Local Server & Desktop App Launcher
 # Supports Windows "Open With" (Birlikte Aç) and Command-Line File Arguments
 # ==============================================================================
@@ -364,7 +364,7 @@ while ($listener.IsListening) {
         # ====================================================================
         # API 5: /api/drive-files (List documents in sync folder)
         # ====================================================================
-        if ($relPath -eq "api/drive-files") {
+        if ($relPath -eq "api/drive-files" -or $relPath -eq "api/list-documents" -or $relPath -eq "api/list-cloud-files") {
             $folder = Get-SyncFolder
             $fileList = @()
             if (Test-Path $folder) {

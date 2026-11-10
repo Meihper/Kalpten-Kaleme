@@ -1,4 +1,4 @@
-$rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrWhiteSpace($rootDir)) {
     $rootDir = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice"
 }

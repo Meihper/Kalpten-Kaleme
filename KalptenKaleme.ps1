@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # Kalpten Kaleme - Native Windows Desktop Launcher (WinForms + WebView2)
 # 100% Native Taskbar Icon: Zero Edge icon flash, Zero Smart App Control blocks
 # ==============================================================================

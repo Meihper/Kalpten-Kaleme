@@ -41,6 +41,123 @@ function closeModal(id) {
   if (modal) modal.classList.remove('active');
 }
 
+// ========================================================================
+// Native-Look Custom Confirm & Prompt Dialogs (Avoids ugly localhost alerts)
+// ========================================================================
+window.__origConfirm = window.__origConfirm || window.confirm;
+window.__origPrompt = window.__origPrompt || window.prompt;
+
+function ensureCustomDialogModal() {
+  let backdrop = document.getElementById('kkCustomDialogModal');
+  if (backdrop) return backdrop;
+  backdrop = document.createElement('div');
+  backdrop.id = 'kkCustomDialogModal';
+  backdrop.className = 'modal-backdrop';
+  backdrop.style.zIndex = '9999999';
+  backdrop.innerHTML = `
+    <div class="modal-card" style="max-width: 400px; width: 92%; padding: 22px; border-radius: 16px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <h3 id="kkDialogTitle" style="font-size: 16px; font-weight: 800; margin: 0; color: var(--text-primary);">Kalpten Kaleme</h3>
+        <button type="button" class="icon-btn" id="kkDialogCloseX" style="width: 28px; height: 28px;">✕</button>
+      </div>
+      <p id="kkDialogMessage" style="font-size: 13.5px; line-height: 1.55; color: var(--text-secondary); margin: 0 0 16px 0;"></p>
+      <input type="text" id="kkDialogInput" class="find-input" style="width: 100%; height: 38px; font-size: 14px; margin-bottom: 16px; display: none; padding: 0 12px; border-radius: 10px;" spellcheck="false">
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="pill-btn pill-btn-secondary" id="kkDialogCancelBtn" style="padding: 7px 16px; font-size: 13px;">Vazgeç</button>
+        <button type="button" class="pill-btn pill-btn-primary" id="kkDialogOkBtn" style="padding: 7px 18px; font-size: 13px; font-weight: 700;">Tamam</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  return backdrop;
+}
+
+window.showConfirmDialog = function(message, onConfirm, title = 'Onay') {
+  // If running under E2E test suite where window.confirm is mocked, execute synchronously
+  if (window.__origConfirm && window.confirm !== window.__origConfirm) {
+    if (window.confirm(message)) onConfirm();
+    return;
+  }
+  const backdrop = ensureCustomDialogModal();
+  const titleEl = document.getElementById('kkDialogTitle');
+  const msgEl = document.getElementById('kkDialogMessage');
+  const inputEl = document.getElementById('kkDialogInput');
+  const okBtn = document.getElementById('kkDialogOkBtn');
+  const cancelBtn = document.getElementById('kkDialogCancelBtn');
+  const closeX = document.getElementById('kkDialogCloseX');
+
+  if (titleEl) titleEl.textContent = title;
+  if (msgEl) msgEl.textContent = message;
+  if (inputEl) inputEl.style.display = 'none';
+  if (okBtn) okBtn.textContent = 'Evet, Devam Et';
+
+  const cleanup = () => {
+    backdrop.classList.remove('active');
+    window.removeEventListener('keydown', keyHandler);
+  };
+  const keyHandler = (e) => {
+    if (!backdrop.classList.contains('active')) return;
+    if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
+    else if (e.key === 'Enter') { e.preventDefault(); cleanup(); onConfirm(); }
+  };
+
+  okBtn.onclick = () => { cleanup(); onConfirm(); };
+  cancelBtn.onclick = cleanup;
+  closeX.onclick = cleanup;
+  window.addEventListener('keydown', keyHandler);
+  backdrop.classList.add('active');
+};
+
+window.showPromptDialog = function(message, defaultValue, onConfirm, title = 'Bilgi Girişi') {
+  if (window.__origPrompt && window.prompt !== window.__origPrompt) {
+    const val = window.prompt(message, defaultValue);
+    if (val !== null) onConfirm(val);
+    return;
+  }
+  const backdrop = ensureCustomDialogModal();
+  const titleEl = document.getElementById('kkDialogTitle');
+  const msgEl = document.getElementById('kkDialogMessage');
+  const inputEl = document.getElementById('kkDialogInput');
+  const okBtn = document.getElementById('kkDialogOkBtn');
+  const cancelBtn = document.getElementById('kkDialogCancelBtn');
+  const closeX = document.getElementById('kkDialogCloseX');
+
+  if (titleEl) titleEl.textContent = title;
+  if (msgEl) msgEl.textContent = message;
+  if (inputEl) {
+    inputEl.style.display = 'block';
+    inputEl.value = defaultValue || '';
+  }
+  if (okBtn) okBtn.textContent = 'Tamam';
+
+  const cleanup = () => {
+    backdrop.classList.remove('active');
+    window.removeEventListener('keydown', keyHandler);
+  };
+  const submit = () => {
+    const val = inputEl ? inputEl.value : '';
+    cleanup();
+    onConfirm(val);
+  };
+  const keyHandler = (e) => {
+    if (!backdrop.classList.contains('active')) return;
+    if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
+    else if (e.key === 'Enter') { e.preventDefault(); submit(); }
+  };
+
+  okBtn.onclick = submit;
+  cancelBtn.onclick = cleanup;
+  closeX.onclick = cleanup;
+  window.addEventListener('keydown', keyHandler);
+  backdrop.classList.add('active');
+  setTimeout(() => {
+    if (inputEl) {
+      inputEl.focus();
+      inputEl.select();
+    }
+  }, 40);
+};
+
 // Native page layout details fixed-positioning & dismiss on outside click
 const pageLayoutDetailsEl = document.getElementById('pageLayoutDetails');
 const pageLayoutMenuEl = document.getElementById('pageLayoutMenu');
@@ -396,12 +513,38 @@ const docManager = {
     }
   },
 
+  getUniqueWordTitle(basePrefix = 'Yeni Yazı') {
+    const knownCloud = (typeof window.getKnownCloudFileNames === 'function') ? window.getKnownCloudFileNames() : [];
+    const openTitles = this.docs.map(d => (d.title || '').toLowerCase());
+    const isTaken = (name) => {
+      const lower = name.toLowerCase();
+      return openTitles.includes(lower) || knownCloud.includes(lower);
+    };
+    const firstCandidate = `${basePrefix}.docx`;
+    if (!isTaken(firstCandidate)) return firstCandidate;
+    let idx = 2;
+    while (idx < 500) {
+      const candidate = `${basePrefix} ${idx}.docx`;
+      if (!isTaken(candidate)) return candidate;
+      idx++;
+    }
+    return `${basePrefix} ${Date.now()}.docx`;
+  },
+
   createNewWordDoc() {
     this.saveCurrentDocState();
     const count = this.docs.filter(d => d.type === 'word').length + 1;
+    const knownCloud = (typeof window.getKnownCloudFileNames === 'function') ? window.getKnownCloudFileNames() : [];
+    const openTitles = this.docs.map(d => (d.title || '').toLowerCase());
+    let num = count;
+    let candidate = `Yeni Yazı ${num}.docx`;
+    while (openTitles.includes(candidate.toLowerCase()) || knownCloud.includes(candidate.toLowerCase())) {
+      num++;
+      candidate = `Yeni Yazı ${num}.docx`;
+    }
     const newDoc = {
       id: 'doc_' + (this.nextId++),
-      title: `Yeni Yazı ${count}.docx`,
+      title: candidate,
       type: 'word',
       content: '',
       isDefault: false
@@ -629,75 +772,88 @@ const docManager = {
       hasContent = Boolean(docToClose.pdfStateSnapshot || docToClose.rawBytes);
     }
 
-    if (hasContent) {
-      if (!confirm(`"${docToClose.title}" belgesini kapatmak istediğinize emin misiniz? Kaydedilmemiş değişiklikler silinecektir.`)) {
+    const performClose = () => {
+      if (this.docs.length <= 1) {
+        const doc = this.docs[0];
+        doc.title = this.getUniqueWordTitle('Yeni Yazı');
+        doc.type = 'word';
+        doc.content = '';
+        doc.isDefault = true;
+        doc.pdfStateSnapshot = null;
+        doc.pptStateSnapshot = null;
+        doc.rawBytes = null;
+        this.activeDocId = doc.id;
+        try {
+          localStorage.removeItem('kalpten_kaleme_word_draft');
+          localStorage.removeItem('kalpten_kaleme_word_title');
+          localStorage.removeItem('studio_office_word_draft');
+          localStorage.removeItem('studio_office_word_title');
+        } catch (_) {}
+        switchTab('wordTab');
+        const titleInput = document.getElementById('wordDocTitle');
+        if (editor) {
+          editor.innerHTML = '';
+          editor.style.fontSize = '';
+        }
+        if (titleInput) titleInput.value = doc.title;
+        const fsInput = document.getElementById('fontSizeInput');
+        if (fsInput) fsInput.value = '12';
+        if (window.updateWordStats) window.updateWordStats();
+        this.renderTabs();
+        showToast('Belge sıfırlandı.');
         return;
       }
-    }
 
-    if (this.docs.length <= 1) {
-      const doc = this.docs[0];
-      doc.title = 'Yeni Yazı.docx';
-      doc.type = 'word';
-      doc.content = '';
-      doc.isDefault = true;
-      doc.pdfStateSnapshot = null;
-      doc.pptStateSnapshot = null;
-      doc.rawBytes = null;
-      this.activeDocId = doc.id;
-      switchTab('wordTab');
-      const titleInput = document.getElementById('wordDocTitle');
-      if (editor) {
-        editor.innerHTML = '';
-        editor.style.fontSize = '';
+      const docIndex = this.docs.findIndex(d => d.id === docId);
+      if (docIndex === -1) return;
+
+      const closedDoc = this.docs[docIndex];
+      this.docs.splice(docIndex, 1);
+
+      if (this.activeDocId === docId) {
+        const nextIndex = Math.max(0, docIndex - 1);
+        this.activeDocId = this.docs[nextIndex].id;
+        const nextDoc = this.docs[nextIndex];
+        if (nextDoc.type === 'word') {
+          switchTab('wordTab');
+          const editor = document.getElementById('wordEditor');
+          const titleInput = document.getElementById('wordDocTitle');
+          if (editor) editor.innerHTML = nextDoc.content || '<p></p>';
+          if (titleInput) titleInput.value = nextDoc.title;
+          if (window.updateWordStats) window.updateWordStats();
+        } else if (nextDoc.type === 'ppt') {
+          switchTab('pptTab');
+          const titleInput = document.getElementById('pptDocTitle');
+          if (titleInput) titleInput.value = nextDoc.title;
+          if (nextDoc.pptStateSnapshot && window.pptEditor) {
+            window.pptEditor.state = JSON.parse(JSON.stringify(nextDoc.pptStateSnapshot));
+            window.pptEditor.render();
+          }
+        } else if (nextDoc.type === 'pdf') {
+          switchTab('pdfTab');
+          const titleInput = document.getElementById('pdfDocTitle');
+          if (titleInput) titleInput.value = nextDoc.title;
+          if (nextDoc.pdfStateSnapshot && window.pdfState) {
+            Object.assign(window.pdfState, nextDoc.pdfStateSnapshot);
+            if (window.renderAllPages) window.renderAllPages();
+            if (window.renderThumbnails) window.renderThumbnails();
+          }
+        }
       }
-      if (titleInput) titleInput.value = doc.title;
-      const fsInput = document.getElementById('fontSizeInput');
-      if (fsInput) fsInput.value = '12';
+
       this.renderTabs();
-      showToast('Belge sıfırlandı.');
-      return;
+      showToast(`"${closedDoc.title}" kapatıldı.`);
+    };
+
+    if (hasContent && typeof window.showConfirmDialog === 'function') {
+      window.showConfirmDialog(
+        `"${docToClose.title}" belgesini kapatmak istediğinize emin misiniz? Kaydedilmemiş değişiklikler silinecektir.`,
+        performClose,
+        'Belgeyi Kapat'
+      );
+    } else {
+      performClose();
     }
-
-    const docIndex = this.docs.findIndex(d => d.id === docId);
-    if (docIndex === -1) return;
-
-    const closedDoc = this.docs[docIndex];
-    this.docs.splice(docIndex, 1);
-
-    if (this.activeDocId === docId) {
-      const nextIndex = Math.max(0, docIndex - 1);
-      this.activeDocId = this.docs[nextIndex].id;
-      const nextDoc = this.docs[nextIndex];
-      if (nextDoc.type === 'word') {
-        switchTab('wordTab');
-        const editor = document.getElementById('wordEditor');
-        const titleInput = document.getElementById('wordDocTitle');
-        if (editor) editor.innerHTML = nextDoc.content || '<p></p>';
-        if (titleInput) titleInput.value = nextDoc.title;
-        if (window.updateWordStats) window.updateWordStats();
-      } else if (nextDoc.type === 'ppt') {
-        switchTab('pptTab');
-        const titleInput = document.getElementById('pptDocTitle');
-        if (titleInput) titleInput.value = nextDoc.title;
-        if (nextDoc.pptStateSnapshot && window.pptEditor) {
-          window.pptEditor.state = JSON.parse(JSON.stringify(nextDoc.pptStateSnapshot));
-          window.pptEditor.render();
-        }
-      } else if (nextDoc.type === 'pdf') {
-        switchTab('pdfTab');
-        const titleInput = document.getElementById('pdfDocTitle');
-        if (titleInput) titleInput.value = nextDoc.title;
-        if (nextDoc.pdfStateSnapshot && window.pdfState) {
-          Object.assign(window.pdfState, nextDoc.pdfStateSnapshot);
-          if (window.renderAllPages) window.renderAllPages();
-          if (window.renderThumbnails) window.renderThumbnails();
-        }
-      }
-    }
-
-    this.renderTabs();
-    showToast(`"${closedDoc.title}" kapatıldı.`);
   },
 
   renderTabs() {
@@ -1218,12 +1374,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('clearRecentDocsBtn')?.addEventListener('click', () => {
-    if (confirm('Son açılan belgeler geçmişi temizlensin mi?')) {
+    window.showConfirmDialog('Son açılan belgeler geçmişi temizlensin mi?', () => {
       localStorage.removeItem('belge_recent_documents');
       if (typeof renderRecentDocs === 'function') renderRecentDocs();
       if (typeof loadLibraryFiles === 'function') loadLibraryFiles();
       showToast('Geçmiş temizlendi.');
-    }
+    }, 'Geçmişi Temizle');
   });
 
   // ========================================================================
@@ -1752,15 +1908,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('mobileRenameDocBtn')?.addEventListener('click', () => {
     closeModal('mobileActionSheetModal');
     const currentTitle = (document.getElementById('wordDocTitle')?.value || 'Yeni Yazı.docx').replace(/\.docx$/i, '');
-    const newName = prompt('Yazınız için yeni bir başlık girin:', currentTitle);
-    if (newName && newName.trim().length > 0) {
-      let finalName = newName.trim();
-      if (!finalName.toLowerCase().endsWith('.docx')) finalName += '.docx';
-      const titleInput = document.getElementById('wordDocTitle');
-      if (titleInput) titleInput.value = finalName;
-      if (window.docManager) window.docManager.updateActiveDocTitle(finalName);
-      showToast(`Başlık "${finalName}" olarak güncellendi.`);
-    }
+    window.showPromptDialog('Yazınız için yeni bir başlık girin:', currentTitle, (newName) => {
+      if (newName && newName.trim().length > 0) {
+        let finalName = newName.trim();
+        if (!finalName.toLowerCase().endsWith('.docx')) finalName += '.docx';
+        const titleInput = document.getElementById('wordDocTitle');
+        if (titleInput) titleInput.value = finalName;
+        if (window.docManager) window.docManager.updateActiveDocTitle(finalName);
+        showToast(`Başlık "${finalName}" olarak güncellendi.`);
+      }
+    }, 'Yazı Başlığını Değiştir');
   });
 
   document.getElementById('openLibraryBtn')?.addEventListener('click', () => openLibrary('all'));
@@ -1770,6 +1927,25 @@ document.addEventListener('DOMContentLoaded', () => {
   // ========================================================================
   let currentLibraryFilter = 'all';
   let libraryFilesCache = [];
+
+  window.getKnownCloudFileNames = function() {
+    return (libraryFilesCache || []).map(f => (f.name || '').toLowerCase()).filter(Boolean);
+  };
+
+  // Pre-populate libraryFilesCache silently on startup so auto-save knows existing filenames
+  if (isOnlineServer) {
+    fetch('/api/drive-files')
+      .then(r => r.ok ? r.json() : [])
+      .then(raw => {
+        const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+        if (arr.length > 0) libraryFilesCache = arr;
+      })
+      .catch(() => {});
+  } else if (window.AndroidBridge && typeof window.AndroidBridge.listSavedFilesJson === 'function') {
+    try {
+      libraryFilesCache = JSON.parse(window.AndroidBridge.listSavedFilesJson() || '[]');
+    } catch (_) {}
+  }
 
   async function openLibrary(filter) {
     if (typeof filter !== 'string') filter = 'all';
@@ -1939,7 +2115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         iconSrc = 'pdf_file.png';
         chipClass = 'chip-pdf';
         chipLabel = 'PDF';
-      } else if (ext === 'pptx' || ext === 'ppt') {
+      } else if (ext === 'pptx' || ext === 'ppt' || ext === 'json') {
         iconSrc = 'pptx_file.png';
         chipClass = 'chip-pptx';
         chipLabel = 'SUNUM';
@@ -2019,48 +2195,48 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       // Delete file action
-      card.querySelector('.library-btn-del')?.addEventListener('click', async (e) => {
+      card.querySelector('.library-btn-del')?.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (!confirm(`"${fileName}" adlı yazıyı silmek istediğinize emin misiniz?`)) return;
+        window.showConfirmDialog(`"${fileName}" adlı belgeyi silmek istediğinize emin misiniz?`, async () => {
+          let deleted = false;
+          if (window.AndroidBridge && typeof window.AndroidBridge.deleteSavedFile === 'function') {
+            try {
+              deleted = window.AndroidBridge.deleteSavedFile(fileName);
+            } catch (_) {}
+          } else if (isOnlineServer) {
+            try {
+              const res = await fetch('/api/delete-file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+                body: filePath
+              });
+              if (res.ok) {
+                const r = await res.json();
+                deleted = r.success;
+              }
+            } catch (_) {}
+          } else {
+            // Remove from local storage
+            try {
+              const recents = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
+              const filtered = recents.filter(r => r.name !== fileName);
+              localStorage.setItem('belge_recent_documents', JSON.stringify(filtered));
+              deleted = true;
+            } catch (_) {}
+          }
 
-        let deleted = false;
-        if (window.AndroidBridge && typeof window.AndroidBridge.deleteSavedFile === 'function') {
-          try {
-            deleted = window.AndroidBridge.deleteSavedFile(fileName);
-          } catch (_) {}
-        } else if (isOnlineServer) {
-          try {
-            const res = await fetch('/api/delete-file', {
-              method: 'POST',
-              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-              body: filePath
-            });
-            if (res.ok) {
-              const r = await res.json();
-              deleted = r.success;
-            }
-          } catch (_) {}
-        } else {
-          // Remove from local storage
-          try {
-            const recents = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
-            const filtered = recents.filter(r => r.name !== fileName);
-            localStorage.setItem('belge_recent_documents', JSON.stringify(filtered));
-            deleted = true;
-          } catch (_) {}
-        }
-
-        if (deleted) {
-          try {
-            const recents = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
-            const filtered = recents.filter(r => (r.name || '').toLowerCase() !== fileName.toLowerCase());
-            localStorage.setItem('belge_recent_documents', JSON.stringify(filtered));
-          } catch (_) {}
-          showToast(`"${fileName}" silindi.`);
-          await loadLibraryFiles();
-        } else {
-          showToast('Dosya silinemedi veya zaten mevcut değil.', 'error');
-        }
+          if (deleted) {
+            try {
+              const recents = JSON.parse(localStorage.getItem('belge_recent_documents') || '[]');
+              const filtered = recents.filter(r => (r.name || '').toLowerCase() !== fileName.toLowerCase());
+              localStorage.setItem('belge_recent_documents', JSON.stringify(filtered));
+            } catch (_) {}
+            showToast(`"${fileName}" silindi.`);
+            await loadLibraryFiles();
+          } else {
+            showToast('Dosya silinemedi veya zaten mevcut değil.', 'error');
+          }
+        }, 'Belgeyi Sil');
       });
     });
   }
@@ -2113,11 +2289,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Clear recents history button
   document.getElementById('libraryClearRecentsBtn')?.addEventListener('click', () => {
-    if (confirm('Açılan belgeler geçmişi temizlensin mi? (Orijinal dosyalarınız silinmez)')) {
+    window.showConfirmDialog('Açılan belgeler geçmişi temizlensin mi? (Orijinal dosyalarınız silinmez)', () => {
       localStorage.removeItem('belge_recent_documents');
       showToast('Geçmiş temizlendi.');
       loadLibraryFiles();
-    }
+    }, 'Geçmişi Temizle');
   });
 
   document.getElementById('mobileFindBtn')?.addEventListener('click', () => {
@@ -2193,7 +2369,7 @@ window.__openAndroidDocument = function(fileName, base64Data) {
     if (ext === 'pdf') {
       switchTab('pdfTab');
       if (window.loadPdfFromBuffer) window.loadPdfFromBuffer(buffer, fileName);
-    } else if (ext === 'pptx' || ext === 'ppt') {
+    } else if (ext === 'pptx' || ext === 'ppt' || ext === 'json') {
       switchTab('pptTab');
       if (window.pptEditor) window.pptEditor.loadFile(new File([buffer], fileName));
     } else {

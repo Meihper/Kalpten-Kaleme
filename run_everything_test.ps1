@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Set-Location "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice"
 
@@ -117,7 +117,7 @@ New-Item -ItemType Directory -Path $tempProfile -Force | Out-Null
   window.prompt = (msg, def) => def || 'Test';
 
   let retries = 50;
-  while ((!window.JSZip || !window.mammoth || !window.htmlDocx || !window.pdfjsLib || !window.PDFLib || !document.querySelector('.header-center')) && retries-- > 0) {
+  while ((!window.JSZip || !window.mammoth || !window.htmlDocx || !window.pdfjsLib || !window.PDFLib || !document.querySelector('.header-center') || !window.docManager || !window.docManager.docs || window.docManager.docs.length === 0 || !window.saveWordDocument || !window.loadPdfFromBuffer || !window.pptEditor) && retries-- > 0) {
     await sleep(100);
   }
 
@@ -550,6 +550,10 @@ New-Item -ItemType Directory -Path $tempProfile -Force | Out-Null
   window.confirm = window.__origConfirm;
   window.prompt = window.__origPrompt;
 
+  assert('8. Hata Denetimi', 'Yerel modal diyalog sistemi (showConfirmDialog / showPromptDialog) ve benzersiz baslik korumasi aktif',
+    typeof window.showConfirmDialog === 'function' && typeof window.showPromptDialog === 'function' && typeof window.docManager.getUniqueWordTitle === 'function',
+    'showConfirmDialog + showPromptDialog + getUniqueWordTitle hazir');
+
   assert('8. Hata Denetimi', 'Tum masaustu testleri boyunca 0 calisma zamani hatasi (0 Console Error)',
     errors.length === 0, errors.length ? errors.join('; ') : 'Sifir hata');
 
@@ -568,7 +572,7 @@ New-Item -ItemType Directory -Path $tempProfile -Force | Out-Null
     }
     $desktopReport = $evalResp.result.result.value
 
-    $artifactDir = "C:\Users\Erdem\.gemini\antigravity\brain\fc7d5a54-3292-42a2-b99e-ca574ab289ce"
+    $artifactDir = "C:\Users\Erdem\.gemini\antigravity\brain\b47cda16-5d7a-491a-a8ce-7abf0b3bf149"
     Save-Screenshot (Join-Path $artifactDir "audit_desktop_word_v110.png")
 
     # =========================================================================
