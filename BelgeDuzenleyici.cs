@@ -529,6 +529,10 @@ namespace BelgeDuzenleyici
                 catch {}
             }
 
+            string oneDrive = Environment.GetEnvironmentVariable("OneDrive");
+            string oneDriveConsumer = Environment.GetEnvironmentVariable("OneDriveConsumer");
+            string oneDriveCommercial = Environment.GetEnvironmentVariable("OneDriveCommercial");
+
             var candidateList = new List<string>
             {
                 @"G:\My Drive\Kalpten Kaleme",
@@ -536,14 +540,20 @@ namespace BelgeDuzenleyici
                 @"G:\Kalpten Kaleme",
                 Path.Combine(userProfile, "Google Drive", "Kalpten Kaleme"),
                 Path.Combine(userProfile, "Google Drive'ım", "Kalpten Kaleme"),
-                Path.Combine(userProfile, "GoogleDrive", "Kalpten Kaleme"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Kalpten Kaleme")
+                Path.Combine(userProfile, "GoogleDrive", "Kalpten Kaleme")
             };
+
+            if (!string.IsNullOrEmpty(oneDrive)) candidateList.Add(Path.Combine(oneDrive, "Kalpten Kaleme"));
+            if (!string.IsNullOrEmpty(oneDriveConsumer)) candidateList.Add(Path.Combine(oneDriveConsumer, "Kalpten Kaleme"));
+            if (!string.IsNullOrEmpty(oneDriveCommercial)) candidateList.Add(Path.Combine(oneDriveCommercial, "Kalpten Kaleme"));
+            candidateList.Add(Path.Combine(userProfile, "OneDrive", "Kalpten Kaleme"));
+            candidateList.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Kalpten Kaleme"));
 
             foreach (string path in candidateList)
             {
+                if (string.IsNullOrEmpty(path)) continue;
                 string parent = Path.GetDirectoryName(path);
-                if (Directory.Exists(parent) || path.StartsWith("G:\\", StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrEmpty(parent) && (Directory.Exists(parent) || path.StartsWith("G:\\", StringComparison.OrdinalIgnoreCase)))
                 {
                     try
                     {
@@ -948,6 +958,73 @@ namespace BelgeDuzenleyici
                     }
                     bool success = !string.IsNullOrEmpty(currentFilePath);
                     respBytes = Encoding.UTF8.GetBytes(success ? "{\"success\":true}" : "{\"success\":false}");
+                    res.ContentType = "application/json; charset=utf-8";
+                    res.StatusCode = 200;
+                    res.OutputStream.Write(respBytes, 0, respBytes.Length);
+                    res.Close();
+                    return;
+                }
+
+                if (rawUrl == "/api/open-file-by-path")
+                {
+                    string p = req.QueryString["path"];
+                    if (!string.IsNullOrEmpty(p) && File.Exists(p) && IsSupportedDocumentPath(p))
+                    {
+                        byte[] fileBytes = File.ReadAllBytes(p);
+                        string ext = Path.GetExtension(p);
+                        string mime = MimeTypes.ContainsKey(ext) ? MimeTypes[ext] : "application/octet-stream";
+                        res.ContentType = mime;
+                        res.ContentLength64 = fileBytes.Length;
+                        res.StatusCode = 200;
+                        res.OutputStream.Write(fileBytes, 0, fileBytes.Length);
+                        res.Close();
+                        return;
+                    }
+                    else
+                    {
+                        res.StatusCode = 404;
+                        res.Close();
+                        return;
+                    }
+                }
+
+                if (rawUrl == "/api/delete-file" && req.HttpMethod == "POST")
+                {
+                    string targetToDelete = null;
+                    using (var reader = new StreamReader(req.InputStream, Encoding.UTF8))
+                    {
+                        string target = reader.ReadToEnd().Trim().Trim('"', '\'');
+                        if (!string.IsNullOrEmpty(target))
+                        {
+                            if (File.Exists(target))
+                            {
+                                targetToDelete = target;
+                            }
+                            else
+                            {
+                                string sync = GetSyncFolder();
+                                string candidate = Path.Combine(sync, Path.GetFileName(target));
+                                if (File.Exists(candidate))
+                                {
+                                    targetToDelete = candidate;
+                                }
+                            }
+                        }
+                    }
+
+                    bool deleted = false;
+                    if (!string.IsNullOrEmpty(targetToDelete) && File.Exists(targetToDelete))
+                    {
+                        try
+                        {
+                            File.Delete(targetToDelete);
+                            deleted = true;
+                        }
+                        catch {}
+                    }
+
+                    string delJson = deleted ? "{\"success\":true}" : "{\"success\":false}";
+                    respBytes = Encoding.UTF8.GetBytes(delJson);
                     res.ContentType = "application/json; charset=utf-8";
                     res.StatusCode = 200;
                     res.OutputStream.Write(respBytes, 0, respBytes.Length);

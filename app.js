@@ -1244,6 +1244,17 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       setInterval(pingServer, 1000);
     }
+
+    // Clean exit notification when the user closes the window
+    window.addEventListener('pagehide', () => {
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('/api/exit');
+        } else {
+          fetch('/api/exit', { keepalive: true, method: 'GET' }).catch(() => {});
+        }
+      } catch (e) {}
+    });
   }
 
   // Windows "Open With" / CLI file integration polling (Desktop only)

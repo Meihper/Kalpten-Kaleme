@@ -21,6 +21,7 @@ if (Test-Path $stageDir) { Remove-Item $stageDir -Recurse -Force }
 New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 
 $filesToInclude = @(
+    "KalptenKaleme.exe", "BelgeDuzenleyici.cs", "KULLANIM_KILAVUZU.txt",
     "index.html", "styles.css", "app.js", "word-editor.js", "ppt-editor.js", "pdf-editor.js", "pdf-tools.js",
     "manifest.json", "README.md", "Baslat.bat", "Baslat.ps1", "KalptenKaleme.ps1", "server.ps1",
     "Kurulum_Baslat.bat", "Masaustu_Kisayol_Olustur.ps1", "register_open_with.ps1", "apply_file_icons.ps1",
@@ -44,6 +45,8 @@ if (Test-Path "runtimes") {
     Copy-Item "runtimes" (Join-Path $stageDir "runtimes") -Recurse -Force
 }
 
+Get-ChildItem -Path $stageDir -Recurse | Unblock-File -ErrorAction SilentlyContinue
+
 if (Test-Path $projectZip) { Remove-Item $projectZip -Force }
 Compress-Archive -Path "$stageDir\*" -DestinationPath $projectZip -Force
 Copy-Item $projectZip (Join-Path $artifactDir "KalptenKaleme-Windows.zip") -Force
@@ -55,7 +58,7 @@ Write-Host "`n=========================================="
 Write-Host "2. COMMITTING AND PUSHING TO GITHUB"
 Write-Host "=========================================="
 
-git add index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js Baslat.bat Baslat.ps1 KalptenKaleme.ps1 server.ps1 Kurulum_Baslat.bat Masaustu_Kisayol_Olustur.ps1 "Masaüstü_Kısayolu_Oluştur.bat" register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 run_everything_test.ps1 KalptenKaleme.apk android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig
+git add index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js Baslat.bat Baslat.ps1 KalptenKaleme.ps1 server.ps1 Kurulum_Baslat.bat Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 run_everything_test.ps1 KalptenKaleme.apk android/KalptenKaleme_Signed.apk android/KalptenKaleme_Signed.apk.idsig BelgeDuzenleyici.cs KULLANIM_KILAVUZU.txt package_and_upload.ps1
 $status = git status --porcelain
 if ($status) {
     git commit -m 'fix(desktop): eliminate Smart App Control blocks, remove background powershell linger with silence watchdog, inline fast favicon, verify 47/47 E2E tests'

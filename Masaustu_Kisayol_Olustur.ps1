@@ -18,12 +18,18 @@ Remove-Item (Join-Path $desktopDir "KalptenKaleme.apk") -Force -ErrorAction Sile
 Remove-Item (Join-Path $desktopDir "KalptenKaleme-Windows.zip") -Force -ErrorAction SilentlyContinue
 
 $serverScript = Join-Path $appDir "server.ps1"
+$exePath = Join-Path $appDir "KalptenKaleme.exe"
 $psExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 
 $wsh = New-Object -ComObject WScript.Shell
 $sc = $wsh.CreateShortcut($lnkPath)
-$sc.TargetPath = $psExe
-$sc.Arguments = "-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$serverScript`""
+if (Test-Path $exePath) {
+    $sc.TargetPath = $exePath
+    $sc.Arguments = ""
+} else {
+    $sc.TargetPath = $psExe
+    $sc.Arguments = "-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$serverScript`""
+}
 $sc.WorkingDirectory = $appDir
 $sc.IconLocation = "$iconPath,0"
 $sc.Description = "Kalpten Kaleme - Edebi Yazı, PDF ve Sunum Stüdyosu"

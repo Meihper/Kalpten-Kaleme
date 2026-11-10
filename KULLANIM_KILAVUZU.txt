@@ -1,0 +1,37 @@
+========================================================================
+             KALPTEN KALEME - TÜRKÇE YAZI, PDF VE SUNUM STÜDYOSU
+========================================================================
+
+Hoş geldiniz!
+
+Kalpten Kaleme; Word (.docx), PowerPoint (.pptx) ve PDF belgelerinizi
+en yüksek hızda, dikkatiniz dağılmadan ve tamamen çevrimdışı düzenlemeniz
+için tasarlanmış özel bir masaüstü stüdyosudur.
+
+------------------------------------------------------------------------
+📌 İLK KURULUM (TEK TIKLA MASAÜSTÜ KISAYOLU):
+------------------------------------------------------------------------
+1. Klasördeki "Kurulum_Baslat.bat" dosyasına ÇİFT TIKLAYIN.
+2. Otomatik olarak:
+   - Masaüstünüze altın tüylü "Kalpten Kaleme" simgesi eklenir.
+   - Word (.docx), PDF ve Sunum (.pptx) dosyalarınız için
+     sağ tık "Kalpten Kaleme ile Aç" menüsü Windows'a kaydedilir.
+   - Uygulama hemen açılır.
+
+------------------------------------------------------------------------
+🚀 SONRAKİ KULLANIMLAR:
+------------------------------------------------------------------------
+- Doğrudan Masaüstünüzdeki "Kalpten Kaleme" simgesine çift tıklayabilirsiniz.
+- Veya herhangi bir Word, PDF ya da Sunum dosyasına sağ tıklayıp
+  "Kalpten Kaleme ile Aç" diyebilirsiniz.
+
+------------------------------------------------------------------------
+☁️ GOOGLE DRIVE & ONEDRIVE SENKRONİZASYONU:
+------------------------------------------------------------------------
+Bilgisayarınızda Google Drive veya OneDrive kurulu ise belgeleriniz
+otomatik olarak bulut klasörünüze kaydedilir. Dosyalarınızı istediğiniz
+zaman sol alt kısımdaki Kütüphane butonundan görebilir ve yönetebilirsiniz.
+
+Sorunsuz, hızlı ve güvenli yazılar dileriz!
+Kalpten Kaleme Ekibi
+========================================================================

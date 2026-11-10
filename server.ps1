@@ -68,11 +68,37 @@ try {
 if ($isAlreadyListening) {
     # If called as Daemon, do nothing and exit cleanly
     if (!$Daemon) {
-        # Server is already active! Launch Edge in dedicated profile mode
-        if ($edgeExe) {
-            Start-Process $edgeExe -ArgumentList $edgeArgs
-        } else {
-            Start-Process $appUrl
+        # Try bringing existing Kalpten Kaleme window to front instead of duplicating
+        Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class WinAct {
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+}
+"@ -ErrorAction SilentlyContinue
+
+        $broughtToFront = $false
+        foreach ($p in Get-Process) {
+            try {
+                if ($p.MainWindowHandle -ne 0 -and $p.MainWindowTitle -like "*Kalpten Kaleme*") {
+                    if ([WinAct]::IsIconic($p.MainWindowHandle)) {
+                        [WinAct]::ShowWindow($p.MainWindowHandle, 9) | Out-Null
+                    }
+                    [WinAct]::SetForegroundWindow($p.MainWindowHandle) | Out-Null
+                    $broughtToFront = $true
+                    break
+                }
+            } catch {}
+        }
+
+        if (-not $broughtToFront) {
+            if ($edgeExe) {
+                Start-Process $edgeExe -ArgumentList $edgeArgs
+            } else {
+                Start-Process $appUrl
+            }
         }
     }
     exit
@@ -116,20 +142,24 @@ function Get-SyncFolder {
         }
     }
 
-    # 1. Search all common Google Drive paths on Windows (G: drive and UserProfile)
-    $gdriveCandidates = @(
+    # 1. Search all common Google Drive & OneDrive paths on Windows
+    $cloudCandidates = @(
         "G:\My Drive\Kalpten Kaleme",
         "G:\Drive'ım\Kalpten Kaleme",
         "G:\Kalpten Kaleme",
         (Join-Path $env:UserProfile "Google Drive\My Drive\Kalpten Kaleme"),
         (Join-Path $env:UserProfile "Google Drive\Drive'ım\Kalpten Kaleme"),
         (Join-Path $env:UserProfile "Google Drive\Kalpten Kaleme"),
-        (Join-Path $env:UserProfile "GoogleDrive\Kalpten Kaleme")
+        (Join-Path $env:UserProfile "GoogleDrive\Kalpten Kaleme"),
+        (if ($env:OneDrive) { Join-Path $env:OneDrive "Kalpten Kaleme" }),
+        (if ($env:OneDriveConsumer) { Join-Path $env:OneDriveConsumer "Kalpten Kaleme" }),
+        (Join-Path $env:UserProfile "OneDrive\Kalpten Kaleme")
     )
 
-    foreach ($cand in $gdriveCandidates) {
+    foreach ($cand in $cloudCandidates) {
+        if ([string]::IsNullOrWhiteSpace($cand)) { continue }
         $parent = Split-Path $cand -Parent
-        if (Test-Path $parent) {
+        if (![string]::IsNullOrWhiteSpace($parent) -and (Test-Path $parent)) {
             return $cand
         }
     }
@@ -161,13 +191,13 @@ while ($listener.IsListening) {
             }
             $now = [DateTime]::UtcNow
             if ($hasEverConnected) {
-                # Browser connected previously. If no heartbeat or request for 4s, the window was closed!
-                if (($now - $lastActiveTime).TotalSeconds -ge 4) {
+                # Browser connected previously. If no heartbeat or request for 120s, the window was closed!
+                if (($now - $lastActiveTime).TotalSeconds -ge 120) {
                     try { $listener.Stop() } catch {}
                     exit
                 }
             } else {
-                # Startup grace period: allow up to 15s for the initial page load
+                # Startup grace period: allow up to 90s for the initial page load
                 if (($now - $startupTime).TotalSeconds -ge $startupGraceSeconds) {
                     try { $listener.Stop() } catch {}
                     exit
