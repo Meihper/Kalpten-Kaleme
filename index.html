@@ -15,7 +15,7 @@
       document.documentElement.classList.add('is-installed-app');
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=1.1.5">
+  <link rel="stylesheet" href="styles.css?v=1.1.6">
   
   <!-- Offline Core Libraries (Deferred for instantaneous initial paint) -->
   <script src="vendor/jszip.min.js" defer></script>
@@ -48,6 +48,7 @@
         <input type="text" class="doc-name-pill" id="wordDocTitle" value="Yeni Yazı.docx" title="Yazı Başlığını Düzenle" spellcheck="false">
         <input type="text" class="doc-name-pill" id="pdfDocTitle" style="display: none;" value="PDF Seçilmedi.pdf" title="PDF Dosya Adını Düzenle" spellcheck="false">
         <input type="text" class="doc-name-pill" id="pptDocTitle" style="display: none;" value="Sunum 1.pptx" title="Sunum Başlığını Düzenle" spellcheck="false">
+        <span class="doc-name-pill doc-name-static" id="toolsDocLabel" style="display: none;">PDF &amp; Belge Araçları</span>
       </div>
       <button class="pill-btn pill-btn-secondary library-top-btn" id="openLibraryBtn" title="Kütüphanem &amp; Yazı Arşivi">
         <span class="drive-status-dot active" id="driveStatusDot"></span>
@@ -1178,8 +1179,8 @@
             </div>
             <div class="suite-card-details">
               <div class="suite-card-platform">Windows Masaüstü</div>
-              <div class="suite-card-sub">Windows 7, 8, 10, 11 (Tek Dosya Stüdyo)</div>
-              <div class="suite-card-meta">Kurulumsuz · Tek tıkla çalışır · 1.1 MB</div>
+              <div class="suite-card-sub">Windows 7, 8, 10, 11 (Bağımsız Masaüstü Uygulaması)</div>
+              <div class="suite-card-meta">Kurulum_Baslat.bat / Baslat.bat ile tarayıcısız pencere · 4.3 MB</div>
             </div>
             <div class="suite-card-action">
               <span class="suite-dl-badge">
@@ -1464,10 +1465,10 @@
   </div>
 
   <!-- App Scripts (Cache-busted for instant live deployment) -->
-  <script src="app.js?v=1.1.5" defer></script>
-  <script src="word-editor.js?v=1.1.5" defer></script>
-  <script src="pdf-editor.js?v=1.1.5" defer></script>
-  <script src="pdf-tools.js?v=1.1.5" defer></script>
-  <script src="ppt-editor.js?v=1.1.5" defer></script>
+  <script src="app.js?v=1.1.6" defer></script>
+  <script src="word-editor.js?v=1.1.6" defer></script>
+  <script src="pdf-editor.js?v=1.1.6" defer></script>
+  <script src="pdf-tools.js?v=1.1.6" defer></script>
+  <script src="ppt-editor.js?v=1.1.6" defer></script>
 </body>
 </html>

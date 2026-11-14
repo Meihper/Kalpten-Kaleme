@@ -19,3 +19,7 @@ clean_*.ps1
 crop_*.ps1
 make_*.ps1
 update_*.ps1
+KalptenKaleme.exe
+*.zip
+cloud_sync_config.txt
+current_open_file.txt

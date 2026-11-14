@@ -122,7 +122,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .app-brand-pill {
@@ -235,13 +236,21 @@ body {
   color: var(--text-primary);
   outline: none;
   font-family: inherit;
-  min-width: 150px;
-  max-width: 280px;
+  width: 175px;
+  min-width: 110px;
+  max-width: 240px;
   transition: all 0.15s ease;
   cursor: text;
 }
 
-.doc-name-pill:hover {
+.doc-name-pill.doc-name-static {
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-name-pill:not(.doc-name-static):hover {
   background: var(--bg-secondary);
   border-color: var(--border-light);
 }
@@ -576,10 +585,10 @@ html.is-windows-suite .header-center {
   height: 42px;
   background: var(--surface);
   border-bottom: 1px solid var(--border-light);
-  padding: 0 14px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   overflow-x: auto;
   overflow-y: visible;
   scrollbar-width: none;
@@ -597,7 +606,7 @@ html.is-windows-suite .header-center {
   width: 1px;
   height: 18px;
   background: var(--divider);
-  margin: 0 4px;
+  margin: 0 2px;
   flex-shrink: 0;
 }
 
@@ -649,6 +658,10 @@ body.format-painter-active #wordEditor {
   flex-shrink: 0;
   box-sizing: border-box;
 }
+
+#wordFormatBlock { max-width: 122px; }
+#wordFontFamily { max-width: 134px; }
+#wordLineHeight { max-width: 84px; }
 
 /* Punto Stepper (Apple / Minimalist Seamless Elegance) */
 .font-size-stepper {
@@ -1059,13 +1072,18 @@ html.is-windows-suite #toolsTab:not(.active) {
   display: none !important;
 }
 
-#wordTab {
+html:not(.is-windows-suite) #wordTab,
+html.is-windows-suite #wordTab.active {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 auto !important;
   height: 100% !important;
   width: 100% !important;
   overflow: hidden !important;
+}
+
+html.is-windows-suite #wordTab:not(.active) {
+  display: none !important;
 }
 
 /* Word Workspace & A4 Canvas */
@@ -1173,7 +1191,9 @@ html.is-windows-suite #toolsTab:not(.active) {
   color: #0369A1;
   background: rgba(2, 132, 199, 0.1);
   border: 1px solid rgba(2, 132, 199, 0.25);
-  max-width: 240px;
+  max-width: 185px;
+  min-width: 0;
+  flex: 0 1 auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2540,62 +2560,122 @@ html:not([data-theme="dark"])[data-paper="book"] .word-workspace {
    Only active for desktop viewports (height > 550px) to prevent overriding landscape phones.
    ============================================================================== */
 
-@media screen and (max-width: 1220px) and (min-height: 551px) {
-  html:not(.is-mobile-app) .doc-name-pill {
-    max-width: 250px;
-    min-width: 160px;
+@media screen and (max-width: 1420px) and (min-height: 551px) {
+  html:not(.is-mobile-app) .unified-header {
+    padding: 0 12px;
+    gap: 8px;
   }
-  html:not(.is-mobile-app) #wordSaveStatus {
-    font-size: 11px;
-    padding: 2px 6px;
+  html:not(.is-mobile-app) .header-left {
+    gap: 7px;
+  }
+  html:not(.is-mobile-app) .header-right {
+    gap: 5px;
+  }
+  html:not(.is-mobile-app) .doc-name-pill {
+    width: 148px;
+    min-width: 90px;
+    max-width: 175px;
+    font-size: 13px;
+  }
+  html:not(.is-mobile-app) .local-file-badge {
+    max-width: 120px;
+    padding: 3px 8px;
+    font-size: 10.5px;
+  }
+  html:not(.is-mobile-app) .nav-pill-btn {
+    padding: 5px 11px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  html:not(.is-mobile-app) #openLibraryBtn {
+    padding: 0 10px !important;
+    gap: 5px !important;
+  }
+  html:not(.is-mobile-app) #globalSaveBtn,
+  html:not(.is-mobile-app) #globalSaveAsBtn {
+    padding: 6px 11px;
+    gap: 5px;
   }
   html:not(.is-mobile-app) #paperToneBtn .btn-text,
   html:not(.is-mobile-app) #wordNewBtn .btn-text,
   html:not(.is-mobile-app) #globalOpenBtn .btn-text {
     display: none !important;
   }
-  html:not(.is-mobile-app) #paperToneBtn {
-    padding: 0 9px !important;
-    height: 32px;
-  }
+  html:not(.is-mobile-app) #paperToneBtn,
   html:not(.is-mobile-app) #wordNewBtn,
   html:not(.is-mobile-app) #globalOpenBtn {
     padding: 0 9px !important;
     height: 32px;
+    gap: 0;
+  }
+  html:not(.is-mobile-app) #paperToneBtn .paper-dot {
+    margin-right: 0 !important;
+  }
+  html:not(.is-mobile-app) #wordTab .slim-toolbar {
+    padding: 0 10px;
+    gap: 3px;
+  }
+  html:not(.is-mobile-app) #wordTab .tool-item {
+    width: 26px;
+    height: 26px;
+  }
+  html:not(.is-mobile-app) #wordFontFamily {
+    max-width: 122px;
+  }
+  html:not(.is-mobile-app) #wordFormatBlock {
+    max-width: 112px;
+  }
+  html:not(.is-mobile-app) #wordLineHeight {
+    max-width: 78px;
+  }
+}
+
+@media screen and (max-width: 1220px) and (min-height: 551px) {
+  html:not(.is-mobile-app) .doc-name-pill {
+    width: 130px;
+    max-width: 160px;
+    min-width: 80px;
+  }
+  html:not(.is-mobile-app) .local-file-badge {
+    max-width: 95px;
+  }
+  html:not(.is-mobile-app) #globalSaveAsBtn .btn-text {
+    display: none !important;
+  }
+  html:not(.is-mobile-app) #globalSaveAsBtn {
+    padding: 0 9px !important;
+    height: 32px;
+    gap: 0;
   }
   html:not(.is-mobile-app) #pdfEditTextBtn span,
   html:not(.is-mobile-app) #pdfInsertImageBtn span {
     display: none !important;
   }
-  html:not(.is-mobile-app) #wordFontFamily {
-    max-width: 120px;
-  }
-  html:not(.is-mobile-app) #wordFormatBlock {
-    max-width: 115px;
-  }
 }
 
 @media screen and (max-width: 1050px) and (min-height: 551px) {
   html:not(.is-mobile-app) .unified-header {
-    padding: 0 12px !important;
-    gap: 8px !important;
+    padding: 0 10px !important;
+    gap: 6px !important;
   }
   html:not(.is-mobile-app) .header-left {
     gap: 6px !important;
   }
   html:not(.is-mobile-app) .doc-name-pill {
-    max-width: 190px !important;
-    min-width: 120px !important;
-    font-size: 13px !important;
+    width: 115px !important;
+    max-width: 145px !important;
+    min-width: 75px !important;
+    font-size: 12.5px !important;
   }
-  html:not(.is-mobile-app) #wordSaveStatus {
+  html:not(.is-mobile-app) .local-file-badge {
     display: none !important;
   }
-  html:not(.is-mobile-app) #driveStatusText {
+  html:not(.is-mobile-app) #openLibraryBtn .btn-text {
     display: none !important;
   }
-  html:not(.is-mobile-app) .drive-sync-pill {
-    padding: 5px 8px !important;
+  html:not(.is-mobile-app) #openLibraryBtn {
+    padding: 0 9px !important;
+    gap: 0 !important;
   }
   html:not(.is-mobile-app) .nav-pill-btn {
     padding: 5px 10px !important;
@@ -2639,6 +2719,7 @@ html:not([data-theme="dark"])[data-paper="book"] .word-workspace {
     gap: 4px !important;
   }
   html:not(.is-mobile-app) .doc-name-pill {
+    width: 90px !important;
     max-width: 100px !important;
     min-width: 60px !important;
     font-size: 12px !important;

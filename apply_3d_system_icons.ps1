@@ -2,9 +2,9 @@
 # Kalpten Kaleme - 3D Ultra-Professional Icon & System Integrator
 # ==============================================================================
 
-$rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$rootDir = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($rootDir)) {
-    $rootDir = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice"
+    $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 }
 
 & (Join-Path $rootDir "Masaustu_Kisayol_Olustur.ps1")

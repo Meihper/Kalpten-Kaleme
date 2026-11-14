@@ -3,26 +3,42 @@
 # PDF, Word (DOCX), PowerPoint (PPTX) simgelerini ve doğrudan açıcıyı tanıtır.
 # ==============================================================================
 
-$rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$rootDir = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($rootDir)) {
-    $rootDir = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice"
+    $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 }
 
-$psExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+$wscriptExe = Join-Path $env:SystemRoot "System32\wscript.exe"
+$vbsPath = Join-Path $rootDir "Baslat.vbs"
+$psExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+$nativeScript = Join-Path $rootDir "KalptenKaleme.ps1"
 $serverScript = Join-Path $rootDir "server.ps1"
+
+$sacEnforced = $false
+try {
+    $sacVal = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy" -Name "VerifiedAndReputablePolicyState" -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState
+    if ($sacVal -eq 1) { $sacEnforced = $true }
+} catch {}
 $exePath = Join-Path $rootDir "KalptenKaleme.exe"
-if (Test-Path $exePath) {
+
+if ((Test-Path $vbsPath) -and (Test-Path $wscriptExe)) {
+    $openCmd = "`"$wscriptExe`" //nologo `"$vbsPath`" `"%1`""
+} elseif (-not $sacEnforced -and (Test-Path $exePath)) {
     $openCmd = "`"$exePath`" `"%1`""
+} elseif (Test-Path $nativeScript) {
+    $openCmd = "`"$psExe`" -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$nativeScript`" -FilePath `"%1`""
 } else {
     $openCmd = "`"$psExe`" -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$serverScript`" -FilePath `"%1`""
 }
 
 $pdfIcoPath = Join-Path $rootDir "kk_pdf.ico"
 if (-not (Test-Path $pdfIcoPath)) { $pdfIcoPath = Join-Path $rootDir "pdf_file.ico" }
+if (-not (Test-Path $pdfIcoPath)) { $pdfIcoPath = Join-Path $rootDir "app.ico" }
 $docxIcoPath = Join-Path $rootDir "kk_docx.ico"
 if (-not (Test-Path $docxIcoPath)) { $docxIcoPath = Join-Path $rootDir "docx_file.ico" }
+if (-not (Test-Path $docxIcoPath)) { $docxIcoPath = Join-Path $rootDir "app.ico" }
 $pptxIcoPath = Join-Path $rootDir "kk_pptx.ico"
-$appIcoPath = Join-Path $rootDir "app.ico"
+if (-not (Test-Path $pptxIcoPath)) { $pptxIcoPath = Join-Path $rootDir "app.ico" }
 
 # 1. Register PDF ProgID
 $pdfProgId = "HKCU:\Software\Classes\KalptenKaleme.PDF"
@@ -68,16 +84,10 @@ foreach ($ext in $extMap.Keys) {
     Set-ItemProperty -Path $extKey -Name "(default)" -Value $extMap[$ext]
 }
 
-# 6. Notify Windows Shell to Refresh Icon Cache immediately
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public class ShellNotifierExt {
-    [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    public static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+# 6. Refresh Windows Shell Icon Cache without dynamic C# compilation (SAC-safe)
+$ie4u = Join-Path $env:SystemRoot "System32\ie4uinit.exe"
+if (Test-Path $ie4u) {
+    Start-Process -FilePath $ie4u -ArgumentList "-show" -WindowStyle Hidden -ErrorAction SilentlyContinue
 }
-"@ -ErrorAction SilentlyContinue
-
-[ShellNotifierExt]::SHChangeNotify(0x08000000, 0x1000, [IntPtr]::Zero, [IntPtr]::Zero)
 
 Write-Host "FILE_ASSOCIATIONS_AND_ICONS_APPLIED_SUCCESSFULLY" -ForegroundColor Green

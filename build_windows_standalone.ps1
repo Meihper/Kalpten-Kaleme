@@ -1,5 +1,9 @@
-$ErrorActionPreference = "Stop"
-Set-Location "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice"
+﻿$ErrorActionPreference = "Stop"
+$rootDir = $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($rootDir)) {
+    $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+Set-Location $rootDir
 
 Add-Type -AssemblyName System.Drawing
 
@@ -24,15 +28,15 @@ function Get-ResizedPngDataUri([string]$filePath, [int]$size = 96) {
 Write-Host "Building self-contained Kalpten Kaleme.html..."
 
 $iconMap = @{
-    "app.png"        = Get-ResizedPngDataUri "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\app.png" 96
-    "docx_file.png"  = Get-ResizedPngDataUri "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\docx_file.png" 96
-    "pdf_file.png"   = Get-ResizedPngDataUri "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\pdf_file.png" 96
-    "pptx_file.png"  = Get-ResizedPngDataUri "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\pptx_file.png" 96
-    "tools_file.png" = Get-ResizedPngDataUri "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\tools_file.png" 96
+    "app.png"        = Get-ResizedPngDataUri (Join-Path $rootDir "app.png") 96
+    "docx_file.png"  = Get-ResizedPngDataUri (Join-Path $rootDir "docx_file.png") 96
+    "pdf_file.png"   = Get-ResizedPngDataUri (Join-Path $rootDir "pdf_file.png") 96
+    "pptx_file.png"  = Get-ResizedPngDataUri (Join-Path $rootDir "pptx_file.png") 96
+    "tools_file.png" = Get-ResizedPngDataUri (Join-Path $rootDir "tools_file.png") 96
 }
 
-$html = [System.IO.File]::ReadAllText("C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\index.html", [System.Text.Encoding]::UTF8)
-$css  = [System.IO.File]::ReadAllText("C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\styles.css", [System.Text.Encoding]::UTF8)
+$html = [System.IO.File]::ReadAllText((Join-Path $rootDir "index.html"), [System.Text.Encoding]::UTF8)
+$css  = [System.IO.File]::ReadAllText((Join-Path $rootDir "styles.css"), [System.Text.Encoding]::UTF8)
 
 # 1. Remove external favicon.ico & manifest.json links (prevents file:// CORS warnings)
 $html = [regex]::Replace($html, '<link\s+rel="icon"\s+type="image/x-icon"\s+href="favicon\.ico[^"]*">\s*', '')
@@ -63,7 +67,7 @@ $scriptOrder = @(
 
 $sb = New-Object System.Text.StringBuilder
 foreach ($relScript in $scriptOrder) {
-    $fullPath = Join-Path "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice" $relScript
+    $fullPath = Join-Path $rootDir $relScript
     $jsCode = [System.IO.File]::ReadAllText($fullPath, [System.Text.Encoding]::UTF8)
     # Escape any literal </script inside JS so HTML parser never closes <script> early
     $jsCode = [regex]::Replace($jsCode, '(?i)</script', '<\/script')
@@ -88,7 +92,7 @@ foreach ($k in $iconMap.Keys) {
     $html = $html.Replace("'$k'", "'$uri'")
 }
 
-$outHtmlPath = "C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\Kalpten Kaleme.html"
+$outHtmlPath = Join-Path $rootDir "Kalpten Kaleme.html"
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($outHtmlPath, $html, $utf8NoBom)
 

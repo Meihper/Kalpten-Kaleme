@@ -1,22 +1,28 @@
-========================================================================
+﻿========================================================================
              KALPTEN KALEME - TÜRKÇE YAZI, PDF VE SUNUM STÜDYOSU
 ========================================================================
 
 Hoş geldiniz!
 
 Kalpten Kaleme; Word (.docx), PowerPoint (.pptx) ve PDF belgelerinizi
-en yüksek hızda, dikkatiniz dağılmadan ve tamamen çevrimdışı düzenlemeniz
-için tasarlanmış özel bir masaüstü stüdyosudur.
+tarayıcı çubuğu ve sekmeleri olmadan, tamamen bağımsız bir masaüstü
+penceresinde ve çevrimdışı düzenlemeniz için tasarlanmıştır.
 
 ------------------------------------------------------------------------
-📌 İLK KURULUM (TEK TIKLA MASAÜSTÜ KISAYOLU):
+📌 İLK KURULUM VE ÇALIŞTIRMA (TARAYICISIZ MASAÜSTÜ PENCERESİ):
 ------------------------------------------------------------------------
-1. Klasördeki "Kurulum_Baslat.bat" dosyasına ÇİFT TIKLAYIN.
+1. ZIP'i klasöre çıkartın (veya ZIP içinden doğrudan açın) ve
+   "Kurulum_Baslat.bat" dosyasına ÇİFT TIKLAYIN.
 2. Otomatik olarak:
+   - Uygulama %LOCALAPPDATA%\KalptenKaleme\Studio klasörüne kurulur.
    - Masaüstünüze altın tüylü "Kalpten Kaleme" simgesi eklenir.
    - Word (.docx), PDF ve Sunum (.pptx) dosyalarınız için
      sağ tık "Kalpten Kaleme ile Aç" menüsü Windows'a kaydedilir.
-   - Uygulama hemen açılır.
+   - Uygulama tarayıcı adres çubuğu olmadan yerel WebView2
+     penceresinde hemen açılır (Windows 11 Smart App Control uyumludur).
+
+💡 Alternatif: Kurulumsuz hızlı açılış için "Baslat.bat" dosyasına
+   çift tıklayabilirsiniz; doğrudan yerel uygulama penceresi açılır.
 
 ------------------------------------------------------------------------
 🚀 SONRAKİ KULLANIMLAR:
@@ -30,7 +36,7 @@ için tasarlanmış özel bir masaüstü stüdyosudur.
 ------------------------------------------------------------------------
 Bilgisayarınızda Google Drive veya OneDrive kurulu ise belgeleriniz
 otomatik olarak bulut klasörünüze kaydedilir. Dosyalarınızı istediğiniz
-zaman sol alt kısımdaki Kütüphane butonundan görebilir ve yönetebilirsiniz.
+zaman sol üst kısımdaki Kütüphanem butonundan görebilir ve yönetebilirsiniz.
 
 Sorunsuz, hızlı ve güvenli yazılar dileriz!
 Kalpten Kaleme Ekibi

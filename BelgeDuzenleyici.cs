@@ -143,6 +143,16 @@ namespace BelgeDuzenleyici
                             {
                                 nev.Handled = true;
                             };
+
+                            webView.CoreWebView2.DocumentTitleChanged += (ts, tev) =>
+                            {
+                                try
+                                {
+                                    string docTitle = webView.CoreWebView2.DocumentTitle;
+                                    if (!string.IsNullOrEmpty(docTitle)) this.Text = docTitle;
+                                }
+                                catch {}
+                            };
                         }
                         catch {}
                     }
@@ -192,7 +202,7 @@ namespace BelgeDuzenleyici
                     };
                 }
 
-                webView.Source = new Uri("http://localhost:" + serverPort + "/index.html");
+                webView.Source = new Uri(Program.ActiveBaseUrl + "/index.html");
             }
             catch
             {
@@ -207,6 +217,12 @@ namespace BelgeDuzenleyici
         public static KalptenKalemeForm MainFormInstance = null;
         private const int DefaultPort = 52480;
         private static int activePort = DefaultPort;
+        private static string activeHost = "localhost";
+        public static int ActivePort { get { return activePort; } }
+        public static string ActiveBaseUrl { get { return "http://" + activeHost + ":" + activePort; } }
+        public static volatile bool LaunchedBrowserFallback = false;
+        private static DateTime lastHttpActivityUtc = DateTime.UtcNow;
+        private static bool hasEverServedClient = false;
         public static string CustomAppDir = null;
         private static string appDir;
         private static string currentFilePath = null;
@@ -375,6 +391,23 @@ namespace BelgeDuzenleyici
             {
                 // 3. Run 100% Native Windows Desktop Window (WinForms + WebView2)
                 Application.Run(new KalptenKalemeForm(activePort, appDir, verifyShotPath));
+                if (LaunchedBrowserFallback && listener != null && listener.IsListening)
+                {
+                    DateTime fallbackStart = DateTime.UtcNow;
+                    while (isRunning)
+                    {
+                        Thread.Sleep(1500);
+                        DateTime now = DateTime.UtcNow;
+                        if (hasEverServedClient)
+                        {
+                            if ((now - lastHttpActivityUtc).TotalSeconds >= 120) break;
+                        }
+                        else if ((now - fallbackStart).TotalSeconds >= 90)
+                        {
+                            break;
+                        }
+                    }
+                }
                 isRunning = false;
             }
             else
@@ -415,26 +448,31 @@ namespace BelgeDuzenleyici
 
         private static bool StartHttpServer()
         {
-            int[] candidatePorts = new int[] { DefaultPort, 52481, 52482, 52483 };
+            int[] candidatePorts = new int[] { DefaultPort, 52481, 52482, 52483, 52484 };
+            string[] candidateHosts = new string[] { "localhost", "127.0.0.1" };
             foreach (int port in candidatePorts)
             {
-                try
+                foreach (string host in candidateHosts)
                 {
-                    var l = new HttpListener();
-                    l.Prefixes.Add("http://localhost:" + port + "/");
-                    l.Start();
-                    listener = l;
-                    activePort = port;
-
-                    Thread serverThread = new Thread(RunServerLoop)
+                    try
                     {
-                        IsBackground = true
-                    };
-                    serverThread.Start();
-                    return true;
-                }
-                catch
-                {
+                        var l = new HttpListener();
+                        l.Prefixes.Add("http://" + host + ":" + port + "/");
+                        l.Start();
+                        listener = l;
+                        activePort = port;
+                        activeHost = host;
+
+                        Thread serverThread = new Thread(RunServerLoop)
+                        {
+                            IsBackground = true
+                        };
+                        serverThread.Start();
+                        return true;
+                    }
+                    catch
+                    {
+                    }
                 }
             }
             return false;
@@ -457,21 +495,26 @@ namespace BelgeDuzenleyici
 
         private static void NotifyRunningInstance(int port, string filePath)
         {
-            try
+            string[] hosts = new string[] { "localhost", "127.0.0.1" };
+            foreach (string host in hosts)
             {
-                var req = (HttpWebRequest)WebRequest.Create("http://localhost:" + port + "/api/open-file");
-                req.Method = "POST";
-                req.Timeout = 1200;
-                byte[] data = Encoding.UTF8.GetBytes(filePath);
-                req.ContentType = "text/plain; charset=utf-8";
-                req.ContentLength = data.Length;
-                using (var stream = req.GetRequestStream())
+                try
                 {
-                    stream.Write(data, 0, data.Length);
+                    var req = (HttpWebRequest)WebRequest.Create("http://" + host + ":" + port + "/api/open-file");
+                    req.Method = "POST";
+                    req.Timeout = 1200;
+                    byte[] data = Encoding.UTF8.GetBytes(filePath);
+                    req.ContentType = "text/plain; charset=utf-8";
+                    req.ContentLength = data.Length;
+                    using (var stream = req.GetRequestStream())
+                    {
+                        stream.Write(data, 0, data.Length);
+                    }
+                    using (var resp = req.GetResponse()) {}
+                    return;
                 }
-                using (var resp = req.GetResponse()) {}
+                catch {}
             }
-            catch {}
         }
 
         // ========================================================================
@@ -617,10 +660,99 @@ namespace BelgeDuzenleyici
             return GetCloudProvider(path) != "local";
         }
 
-        public static void LaunchFallbackBrowserWindow(int port)
+        private static string FindChromiumAppExecutable()
         {
-            string appUrl = "http://localhost:" + port + "/index.html";
-            try { Process.Start(appUrl); } catch {}
+            string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            string progFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+            var candidates = new List<string>();
+            if (!string.IsNullOrEmpty(progFilesX86))
+                candidates.Add(Path.Combine(progFilesX86, @"Microsoft\Edge\Application\msedge.exe"));
+            if (!string.IsNullOrEmpty(progFiles))
+                candidates.Add(Path.Combine(progFiles, @"Microsoft\Edge\Application\msedge.exe"));
+            if (!string.IsNullOrEmpty(localApp))
+                candidates.Add(Path.Combine(localApp, @"Microsoft\Edge\Application\msedge.exe"));
+
+            candidates.Add(@"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe");
+            candidates.Add(@"C:\Program Files\Microsoft\Edge\Application\msedge.exe");
+
+            if (!string.IsNullOrEmpty(progFiles))
+                candidates.Add(Path.Combine(progFiles, @"Google\Chrome\Application\chrome.exe"));
+            if (!string.IsNullOrEmpty(progFilesX86))
+                candidates.Add(Path.Combine(progFilesX86, @"Google\Chrome\Application\chrome.exe"));
+            if (!string.IsNullOrEmpty(localApp))
+                candidates.Add(Path.Combine(localApp, @"Google\Chrome\Application\chrome.exe"));
+
+            if (!string.IsNullOrEmpty(progFiles))
+                candidates.Add(Path.Combine(progFiles, @"BraveSoftware\Brave-Browser\Application\brave.exe"));
+            if (!string.IsNullOrEmpty(localApp))
+                candidates.Add(Path.Combine(localApp, @"BraveSoftware\Brave-Browser\Application\brave.exe"));
+
+            string[] regExes = new string[] { "msedge.exe", "chrome.exe", "brave.exe" };
+            foreach (string exeName in regExes)
+            {
+                try
+                {
+                    object val = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + exeName, "", null);
+                    if (val != null) candidates.Add(val.ToString().Trim('"', ' '));
+                }
+                catch {}
+                try
+                {
+                    object val2 = Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + exeName, "", null);
+                    if (val2 != null) candidates.Add(val2.ToString().Trim('"', ' '));
+                }
+                catch {}
+            }
+
+            foreach (string c in candidates)
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(c) && File.Exists(c)) return c;
+                }
+                catch {}
+            }
+            return null;
+        }
+
+        public static bool LaunchFallbackBrowserWindow(int port)
+        {
+            LaunchedBrowserFallback = true;
+            string appUrl = ActiveBaseUrl + "/index.html";
+            try
+            {
+                string browserExe = FindChromiumAppExecutable();
+                if (!string.IsNullOrEmpty(browserExe))
+                {
+                    string profileDir = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "KalptenKaleme",
+                        "EdgeAppProfile"
+                    );
+                    if (!Directory.Exists(profileDir))
+                    {
+                        Directory.CreateDirectory(profileDir);
+                    }
+                    string flags = string.Format(
+                        "--app=\"{0}\" --user-data-dir=\"{1}\" --no-first-run --no-default-browser-check --disable-sync --disable-features=msHub,msEdgeSidebarV2,msEdgeHub,Translate,msEdgeAutoSignIn,msEdgeFirstRunExperience,msEdgeFreV2,msEdgeSyncNotice,msEdgeShowFirstRunNotification,msEdgeSignInOptIn,msEdgeFrePromo,msEdgeWelcomePageExperience,msEdgeStartupBoost --window-size=1360,860",
+                        appUrl,
+                        profileDir
+                    );
+                    var psi = new ProcessStartInfo(browserExe, flags);
+                    psi.UseShellExecute = false;
+                    Process.Start(psi);
+                    return true;
+                }
+                Process.Start(appUrl);
+                return true;
+            }
+            catch
+            {
+                LaunchedBrowserFallback = false;
+                return false;
+            }
         }
 
         private static void RunServerLoop()
@@ -630,6 +762,8 @@ namespace BelgeDuzenleyici
                 try
                 {
                     var context = listener.GetContext();
+                    hasEverServedClient = true;
+                    lastHttpActivityUtc = DateTime.UtcNow;
                     ThreadPool.QueueUserWorkItem((c) => HandleRequest((HttpListenerContext)c), context);
                 }
                 catch
@@ -688,6 +822,10 @@ namespace BelgeDuzenleyici
                     res.StatusCode = 200;
                     res.OutputStream.Write(bye, 0, bye.Length);
                     res.Close();
+                    if (LaunchedBrowserFallback)
+                    {
+                        isRunning = false;
+                    }
                     return;
                 }
 

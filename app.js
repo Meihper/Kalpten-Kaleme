@@ -521,11 +521,15 @@ function switchTab(tabId) {
   const wordDocTitle = document.getElementById('wordDocTitle');
   const pdfDocTitle = document.getElementById('pdfDocTitle');
   const pptDocTitle = document.getElementById('pptDocTitle');
+  const toolsDocLabel = document.getElementById('toolsDocLabel');
   if (wordDocTitle && pdfDocTitle) {
     wordDocTitle.style.display = tabId === 'wordTab' ? 'inline-block' : 'none';
     pdfDocTitle.style.display = tabId === 'pdfTab' ? 'inline-block' : 'none';
     if (pptDocTitle) {
       pptDocTitle.style.display = tabId === 'pptTab' ? 'inline-block' : 'none';
+    }
+    if (toolsDocLabel) {
+      toolsDocLabel.style.display = tabId === 'toolsTab' ? 'inline-block' : 'none';
     }
   }
 
@@ -536,6 +540,10 @@ function switchTab(tabId) {
     else if (tabId === 'pptTab') capsuleIcon.src = 'pptx_file.png';
     else if (tabId === 'toolsTab') capsuleIcon.src = 'tools_file.png';
     else capsuleIcon.src = 'docx_file.png';
+  }
+
+  if (typeof window.updateDesktopWindowTitle === 'function') {
+    window.updateDesktopWindowTitle();
   }
 }
 
@@ -1163,9 +1171,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let lastSentWinTitle = '';
 window.updateDesktopWindowTitle = function() {
+  const isTools = appState.currentTab === 'toolsTab';
   const activeDoc = window.docManager ? window.docManager.getActiveDoc() : null;
-  const docName = (activeDoc && activeDoc.title) ? activeDoc.title : 'Yeni Yazı.docx';
-  const dirtyPrefix = (activeDoc && activeDoc.isDirty) ? '● ' : '';
+  const expectedType = appState.currentTab === 'pptTab' ? 'ppt' : appState.currentTab === 'pdfTab' ? 'pdf' : 'word';
+  let docName = 'Yeni Yazı.docx';
+  let isDirty = false;
+  if (isTools) {
+    docName = 'PDF & Belge Araçları';
+  } else if (activeDoc && activeDoc.type === expectedType) {
+    docName = activeDoc.title || docName;
+    isDirty = Boolean(activeDoc.isDirty);
+  } else if (appState.currentTab === 'pdfTab') {
+    docName = document.getElementById('pdfDocTitle')?.value || 'PDF Düzenleyici';
+  } else if (activeDoc && activeDoc.title) {
+    docName = activeDoc.title;
+    isDirty = Boolean(activeDoc.isDirty);
+  }
+  const dirtyPrefix = isDirty ? '● ' : '';
   const fullTitle = `${dirtyPrefix}${docName} — Kalpten Kaleme`;
   document.title = fullTitle;
   if (isOnlineServer && fullTitle !== lastSentWinTitle) {

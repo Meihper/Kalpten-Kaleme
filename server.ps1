@@ -1,6 +1,7 @@
-# ==============================================================================
+﻿# ==============================================================================
 # Kalpten Kaleme - Local Server & Desktop App Launcher
 # Supports Windows "Open With" (Birlikte Aç) and Command-Line File Arguments
+# 100% SAC-Safe: No dynamic inline C# compilation
 # ==============================================================================
 
 param(
@@ -8,9 +9,14 @@ param(
     [switch]$Daemon
 )
 
+$candidatePorts = @(52480, 52481, 52482, 52483, 52484)
 $port = 52480
 $rootDir = $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($rootDir)) {
+    $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
 $openFileRecord = Join-Path $rootDir "current_open_file.txt"
+$script:allowAutoExit = (-not [bool]$Daemon)
 
 $mimeTypes = @{
     ".html" = "text/html; charset=utf-8"
@@ -27,114 +33,185 @@ $mimeTypes = @{
     ".apk"  = "application/vnd.android.package-archive"
     ".pptx" = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     ".ppt"  = "application/vnd.ms-powerpoint"
+    ".docx" = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ".txt"  = "text/plain; charset=utf-8"
 }
 
-# Find Microsoft Edge
-$edgePaths = @(
-    "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
-)
-$edgeExe = $null
-foreach ($path in $edgePaths) {
-    if (Test-Path $path) {
-        $edgeExe = $path
-        break
-    }
-}
+function Find-ChromiumAppBrowser {
+    $candidates = New-Object System.Collections.Generic.List[string]
+    $pfX86 = ${env:ProgramFiles(x86)}
+    $pf = $env:ProgramFiles
+    $local = $env:LOCALAPPDATA
 
-$appUrl = "http://localhost:$port/index.html"
-$antiSyncFlags = "--no-first-run --no-default-browser-check --disable-sync --disable-features=msEdgeAutoSignIn,msEdgeFirstRunExperience,msEdgeFreV2,msEdgeSyncNotice,msEdgeShowFirstRunNotification,msEdgeSignInOptIn,msEdgeFrePromo,msEdgeWelcomePageExperience,msEdgeStartupBoost"
-$edgeArgs = "--app=`"$appUrl`" $antiSyncFlags --window-size=1280,820"
+    if ($pfX86) { $candidates.Add((Join-Path $pfX86 "Microsoft\Edge\Application\msedge.exe")) }
+    if ($pf)    { $candidates.Add((Join-Path $pf "Microsoft\Edge\Application\msedge.exe")) }
+    if ($local) { $candidates.Add((Join-Path $local "Microsoft\Edge\Application\msedge.exe")) }
+    $candidates.Add("C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")
+    $candidates.Add("C:\Program Files\Microsoft\Edge\Application\msedge.exe")
 
-# If a file was passed via CLI ("Open With"), record its absolute path
-if (![string]::IsNullOrWhiteSpace($FilePath) -and (Test-Path $FilePath)) {
-    try {
-        [System.IO.File]::WriteAllText($openFileRecord, (Resolve-Path $FilePath).Path, [System.Text.Encoding]::UTF8)
-    } catch {}
-}
+    if ($pf)    { $candidates.Add((Join-Path $pf "Google\Chrome\Application\chrome.exe")) }
+    if ($pfX86) { $candidates.Add((Join-Path $pfX86 "Google\Chrome\Application\chrome.exe")) }
+    if ($local) { $candidates.Add((Join-Path $local "Google\Chrome\Application\chrome.exe")) }
 
-# Test if port is already active
-$isAlreadyListening = $false
-try {
-    $testReq = [System.Net.WebRequest]::Create("http://localhost:$port/index.html")
-    $testReq.Timeout = 1000
-    $testResp = $testReq.GetResponse()
-    $testResp.Close()
-    $isAlreadyListening = $true
-} catch {
-    $isAlreadyListening = $false
-}
+    if ($pf)    { $candidates.Add((Join-Path $pf "BraveSoftware\Brave-Browser\Application\brave.exe")) }
+    if ($local) { $candidates.Add((Join-Path $local "BraveSoftware\Brave-Browser\Application\brave.exe")) }
 
-if ($isAlreadyListening) {
-    # If called as Daemon, do nothing and exit cleanly
-    if (!$Daemon) {
-        # Try bringing existing Kalpten Kaleme window to front instead of duplicating
-        Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public class WinAct {
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
-    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
-}
-"@ -ErrorAction SilentlyContinue
-
-        $broughtToFront = $false
-        foreach ($p in Get-Process) {
+    foreach ($exeName in @("msedge.exe", "chrome.exe", "brave.exe")) {
+        foreach ($hive in @("HKLM:", "HKCU:")) {
             try {
-                if ($p.MainWindowHandle -ne 0 -and $p.MainWindowTitle -like "*Kalpten Kaleme*") {
-                    if ([WinAct]::IsIconic($p.MainWindowHandle)) {
-                        [WinAct]::ShowWindow($p.MainWindowHandle, 9) | Out-Null
-                    }
-                    [WinAct]::SetForegroundWindow($p.MainWindowHandle) | Out-Null
-                    $broughtToFront = $true
-                    break
+                $v = (Get-ItemProperty -Path "$hive\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\$exeName" -ErrorAction SilentlyContinue)."(default)"
+                if (![string]::IsNullOrWhiteSpace($v)) {
+                    $candidates.Add($v.Trim('"', ' '))
                 }
             } catch {}
         }
+    }
+
+    foreach ($c in $candidates) {
+        if (![string]::IsNullOrWhiteSpace($c) -and (Test-Path $c -PathType Leaf)) {
+            return $c
+        }
+    }
+    return $null
+}
+
+$browserExe = Find-ChromiumAppBrowser
+$profileDir = Join-Path $env:LOCALAPPDATA "KalptenKaleme\EdgeAppProfile"
+if (!(Test-Path $profileDir)) {
+    try { New-Item -ItemType Directory -Path $profileDir -Force | Out-Null } catch {}
+}
+
+$antiSyncFlags = "--no-first-run --no-default-browser-check --disable-sync --disable-features=msHub,msEdgeSidebarV2,msEdgeHub,Translate,msEdgeAutoSignIn,msEdgeFirstRunExperience,msEdgeFreV2,msEdgeSyncNotice,msEdgeShowFirstRunNotification,msEdgeSignInOptIn,msEdgeFrePromo,msEdgeWelcomePageExperience,msEdgeStartupBoost"
+
+function Launch-DesktopAppWindow([string]$TargetUrl, [switch]$AllowFileAccess) {
+    if ($browserExe) {
+        $extra = if ($AllowFileAccess) { " --allow-file-access-from-files" } else { "" }
+        $argsStr = "--app=`"$TargetUrl`" --user-data-dir=`"$profileDir`"$extra $antiSyncFlags --window-size=1360,860"
+        Start-Process -FilePath $browserExe -ArgumentList $argsStr
+    } else {
+        Start-Process $TargetUrl
+    }
+}
+
+# If a file was passed via CLI ("Open With"), record its absolute path
+$resolvedCliFile = $null
+if (![string]::IsNullOrWhiteSpace($FilePath) -and (Test-Path $FilePath -PathType Leaf)) {
+    try {
+        $resolvedCliFile = (Resolve-Path $FilePath).Path
+        [System.IO.File]::WriteAllText($openFileRecord, $resolvedCliFile, [System.Text.Encoding]::UTF8)
+    } catch {}
+}
+
+# Test if server is already active on default or fallback ports
+$isAlreadyListening = $false
+$activeBaseUrl = "http://localhost:$port"
+foreach ($cp in $candidatePorts) {
+    foreach ($ch in @("localhost", "127.0.0.1")) {
+        $probeUrl = "http://${ch}:${cp}/api/heartbeat"
+        try {
+            $testReq = [System.Net.WebRequest]::Create($probeUrl)
+            $testReq.Timeout = 450
+            $testResp = $testReq.GetResponse()
+            $testResp.Close()
+            $isAlreadyListening = $true
+            $activeBaseUrl = "http://${ch}:${cp}"
+            break
+        } catch {}
+    }
+    if ($isAlreadyListening) { break }
+}
+
+if ($isAlreadyListening) {
+    if ($resolvedCliFile) {
+        try {
+            $fBytes = [System.Text.Encoding]::UTF8.GetBytes($resolvedCliFile)
+            $postReq = [System.Net.WebRequest]::Create("$activeBaseUrl/api/open-specific-file")
+            $postReq.Method = "POST"
+            $postReq.ContentType = "text/plain; charset=utf-8"
+            $postReq.Timeout = 1000
+            $postReq.ContentLength = $fBytes.Length
+            $st = $postReq.GetRequestStream()
+            $st.Write($fBytes, 0, $fBytes.Length)
+            $st.Close()
+            $postResp = $postReq.GetResponse()
+            $postResp.Close()
+        } catch {}
+    }
+
+    # If called as Daemon, do nothing and exit cleanly
+    if (!$Daemon) {
+        $broughtToFront = $false
+        try {
+            $wsh = New-Object -ComObject WScript.Shell
+            foreach ($p in (Get-Process -ErrorAction SilentlyContinue)) {
+                if ($p.MainWindowHandle -ne 0 -and $p.MainWindowTitle -like "*Kalpten Kaleme*") {
+                    if ($wsh.AppActivate($p.Id)) {
+                        $broughtToFront = $true
+                        break
+                    }
+                }
+            }
+        } catch {}
 
         if (-not $broughtToFront) {
-            if ($edgeExe) {
-                Start-Process $edgeExe -ArgumentList $edgeArgs
-            } else {
-                Start-Process $appUrl
-            }
+            Launch-DesktopAppWindow "$activeBaseUrl/index.html"
         }
     }
     exit
 }
 
-# Start HTTP Listener
-$listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add("http://localhost:$port/")
-$listener.Prefixes.Add("http://127.0.0.1:$port/")
+# Start HTTP Listener cleanly across localhost and 127.0.0.1 fallback
+$listener = $null
+$boundBaseUrl = $null
+foreach ($cp in $candidatePorts) {
+    # 1. Try dual localhost + 127.0.0.1 binding first
+    try {
+        $l = New-Object System.Net.HttpListener
+        $l.Prefixes.Add("http://localhost:$cp/")
+        $l.Prefixes.Add("http://127.0.0.1:$cp/")
+        $l.Start()
+        $listener = $l
+        $port = $cp
+        $boundBaseUrl = "http://localhost:$cp"
+        break
+    } catch {
+        try { if ($l) { $l.Close() } } catch {}
+    }
 
-try {
-    $listener.Start()
-} catch {
-    # Fallback to direct file mode
+    # 2. Retry binding single loopback address in case URLACL restricts dual prefix
+    foreach ($ch in @("127.0.0.1", "localhost")) {
+        try {
+            $l2 = New-Object System.Net.HttpListener
+            $l2.Prefixes.Add("http://${ch}:${cp}/")
+            $l2.Start()
+            $listener = $l2
+            $port = $cp
+            $boundBaseUrl = "http://${ch}:${cp}"
+            break
+        } catch {
+            try { if ($l2) { $l2.Close() } } catch {}
+        }
+    }
+    if ($listener) { break }
+}
+
+if (-not $listener) {
     $fileUrl = "file:///" + $rootDir.Replace('\', '/') + "/index.html"
     if (!$Daemon) {
-        if ($edgeExe) {
-            Start-Process $edgeExe -ArgumentList "--app=`"$fileUrl`" --user-data-dir=`"$profileDir`" --allow-file-access-from-files $antiSyncFlags --window-size=1280,820"
-        } else {
-            Start-Process $fileUrl
-        }
+        Launch-DesktopAppWindow $fileUrl -AllowFileAccess
     }
     exit
 }
 
-# Launch Edge in Native App Mode if not running as background daemon
+$appUrl = "$boundBaseUrl/index.html"
+
+# Launch Browser in App Mode if not running as background daemon
 if (!$Daemon) {
-    if ($edgeExe) {
-        Start-Process $edgeExe -ArgumentList $edgeArgs
-    } else {
-        Start-Process $appUrl
-    }
+    Launch-DesktopAppWindow $appUrl
 }
 
 function Get-SyncFolder {
-    $cfgPath = Join-Path $PSScriptRoot "cloud_sync_config.txt"
+    $cfgPath = Join-Path $rootDir "cloud_sync_config.txt"
     if (Test-Path $cfgPath) {
         $custom = [System.IO.File]::ReadAllText($cfgPath, [System.Text.Encoding]::UTF8).Trim()
         if (![string]::IsNullOrWhiteSpace($custom) -and (Test-Path $custom)) {
@@ -207,7 +284,7 @@ while ($listener.IsListening) {
     try {
         $contextTask = $listener.GetContextAsync()
         while (-not $contextTask.AsyncWaitHandle.WaitOne(1000)) {
-            if ($Daemon) {
+            if (-not $script:allowAutoExit) {
                 # In Daemon/CI mode, do not self-terminate on silence
                 continue
             }
@@ -236,9 +313,20 @@ while ($listener.IsListening) {
         $relPath = $request.Url.LocalPath.TrimStart('/')
 
         # ====================================================================
-        # API 0: /api/heartbeat, /api/ping, /api/exit (Lifecycle endpoints)
+        # API 0: /api/heartbeat, /api/ping, /api/detach-daemon, /api/exit
         # ====================================================================
+        if ($relPath -eq "api/detach-daemon") {
+            $script:allowAutoExit = $true
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"ok":true}')
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.Close()
+            continue
+        }
+
         if ($relPath -eq "api/exit") {
+            $forceShutdown = ($request.QueryString["shutdown"] -eq "1")
             try {
                 $response.ContentType = "application/json; charset=utf-8"
                 $response.AddHeader("Access-Control-Allow-Origin", "*")
@@ -247,7 +335,7 @@ while ($listener.IsListening) {
                 $response.OutputStream.Flush()
                 $response.Close()
             } catch {}
-            if (-not $Daemon) {
+            if ($script:allowAutoExit -or $forceShutdown) {
                 Start-Sleep -Milliseconds 150
                 try { $listener.Stop() } catch {}
                 exit
@@ -616,7 +704,7 @@ try {
         # ====================================================================
         # API 8: /api/open-specific-file (Queue file to be opened in app)
         # ====================================================================
-        if ($relPath -eq "api/open-specific-file" -and $request.HttpMethod -eq "POST") {
+        if (($relPath -eq "api/open-specific-file" -or $relPath -eq "api/open-file") -and $request.HttpMethod -eq "POST") {
             $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
             $filePath = $reader.ReadToEnd().Trim()
             $reader.Close()
@@ -711,7 +799,7 @@ try {
                 $selectedFolderRaw = Invoke-WinFormsStaDialog $folderScript $null
                 $selectedFolder = ($selectedFolderRaw | Select-Object -Last 1)
                 if ($selectedFolder -and !([string]::IsNullOrWhiteSpace([string]$selectedFolder))) {
-                    [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot "cloud_sync_config.txt"), [string]$selectedFolder, [System.Text.Encoding]::UTF8)
+                    [System.IO.File]::WriteAllText((Join-Path $rootDir "cloud_sync_config.txt"), [string]$selectedFolder, [System.Text.Encoding]::UTF8)
                 }
             } catch {}
 

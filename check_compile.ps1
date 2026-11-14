@@ -1,7 +1,9 @@
-﻿$edge = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+﻿$rootDir = $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($rootDir)) { $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path }
+$edge = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
 if (-not (Test-Path $edge)) { $edge = 'C:\Program Files\Microsoft\Edge\Application\msedge.exe' }
 $port = 9390
-$profileDir = 'C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice\profile_audit_word_pages'
+$profileDir = Join-Path $env:LOCALAPPDATA 'KalptenKaleme\AuditProfile'
 
 $p = Start-Process $edge -ArgumentList @(
     '--headless=new',
@@ -40,7 +42,7 @@ try {
     $jsFiles = @('app.js', 'word-editor.js', 'pdf-editor.js', 'pdf-tools.js', 'ppt-editor.js')
     $hasError = $false
     foreach ($file in $jsFiles) {
-        $fullPath = Join-Path 'C:\Users\Erdem\.gemini\antigravity\scratch\OneOffice' $file
+        $fullPath = Join-Path $rootDir $file
         $code = [System.IO.File]::ReadAllText($fullPath, [System.Text.Encoding]::UTF8)
         $compileRes = Send-Cdp 'Runtime.compileScript' @{ expression = $code; sourceURL = $file; persistScript = $false }
         if ($compileRes.result.exceptionDetails) {
