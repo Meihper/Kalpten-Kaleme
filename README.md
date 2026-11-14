@@ -9,7 +9,7 @@
 | Platform | İndirme / Erişim Bağlantısı | Kurulum Açıklaması |
 | :--- | :--- | :--- |
 | **📱 Android Telefon / Tablet (APK)** | [**KalptenKaleme.apk İndir (Son Sürüm)**](https://meihper.github.io/Kalpten-Kaleme/KalptenKaleme.apk) | Telefona indirip dokunarak kurun. Belgeleriniz `Belgeler/Kalpten Kaleme` klasörüne kaydedilir ve Drive/OneDrive ile açılabilir. |
-| **💻 Windows Bilgisayar (Masaüstü Stüdyosu)** | [**KalptenKaleme-Windows.zip İndir**](https://meihper.github.io/Kalpten-Kaleme/KalptenKaleme-Windows.zip) | İçindeki tek **`Kalpten_Kaleme_Setup.bat`** dosyasına çift tıklayın; grafiksel **Kurulum Sihirbazı** açılır. Tek tıkla masaüstüne kısayol kurar ve tarayıcı sekmesi olmadan bağımsız uygulama penceresinde başlatır. |
+| **💻 Windows Bilgisayar (Masaüstü Stüdyosu)** | [**Web'den Tek Tıkla Kur**](https://meihper.github.io/Kalpten-Kaleme/?install=1) veya [**KalptenKaleme-Windows.zip İndir**](https://meihper.github.io/Kalpten-Kaleme/KalptenKaleme-Windows.zip) | Windows 11 **Akıllı Uygulama Denetimi (SAC)** %100 uyumludur. Web sitesinden **Masaüstü Uygulaması Olarak Kur** seçeneğiyle tarayıcı sekmesiz bağımsız pencere olarak kurabilir veya ZIP içindeki tek **`Kalpten Kaleme.html`** dosyasıyla internetsiz çalıştırabilirsiniz. |
 | **🌐 Web / Tarayıcı (Kurulumsuz)** | [**https://meihper.github.io/Kalpten-Kaleme/**](https://meihper.github.io/Kalpten-Kaleme/) | Kurulum yapmadan doğrudan tarayıcıdan (veya telefondan *Ana Ekrana Ekle* diyerek PWA olarak) kullanabilirsiniz. |
 
 ---

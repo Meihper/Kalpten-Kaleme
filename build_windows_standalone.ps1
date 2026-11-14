@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 $rootDir = $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($rootDir)) {
     $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -98,3 +98,10 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 $sizeMB = [Math]::Round((Get-Item $outHtmlPath).Length / 1MB, 2)
 Write-Host "Created self-contained '$outHtmlPath' ($sizeMB MB)"
+
+$outZipPath = Join-Path $rootDir "KalptenKaleme-Windows.zip"
+if (Test-Path $outZipPath) { Remove-Item $outZipPath -Force }
+Compress-Archive -Path $outHtmlPath -DestinationPath $outZipPath -Force
+$zipMB = [Math]::Round((Get-Item $outZipPath).Length / 1MB, 2)
+Write-Host "Created SAC-safe single-file '$outZipPath' ($zipMB MB)"
+

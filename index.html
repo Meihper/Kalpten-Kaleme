@@ -15,7 +15,7 @@
       document.documentElement.classList.add('is-installed-app');
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=1.1.8">
+  <link rel="stylesheet" href="styles.css?v=1.1.9">
   
   <!-- Offline Core Libraries (Deferred for instantaneous initial paint) -->
   <script src="vendor/jszip.min.js" defer></script>
@@ -1143,7 +1143,7 @@
        DOWNLOAD MODAL (Windows Masaüstü & Android APK İndirme)
        ==================================================================== -->
   <div class="modal-backdrop" id="downloadSuiteModal">
-    <div class="studio-modal download-suite-modal" style="max-width: 540px;">
+    <div class="studio-modal download-suite-modal" style="max-width: 560px;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 10px;">
           <div class="download-modal-brand-badge">
@@ -1155,22 +1155,53 @@
           </div>
           <div style="display: flex; flex-direction: column;">
             <div style="display: flex; align-items: center; gap: 6px;">
-              <h3 style="font-size: 16px; margin: 0;">Kalpten Kaleme İndir</h3>
-              <span class="suite-version-tag">v1.0.0</span>
+              <h3 style="font-size: 16px; margin: 0;">Kalpten Kaleme Kurulum &amp; İndirme</h3>
+              <span class="suite-version-tag">v2.0</span>
             </div>
-            <span style="font-size: 11px; color: var(--text-tertiary);">Windows Masaüstü ve Android Sürümleri</span>
+            <span style="font-size: 11px; color: var(--text-tertiary);">Windows 10/11 Masaüstü ve Android Sürümleri</span>
           </div>
         </div>
         <button class="icon-btn" onclick="closeModal('downloadSuiteModal')" title="Kapat">✕</button>
       </div>
 
       <div class="modal-body" style="padding: 16px 20px;">
-        <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
-          Kalpten Kaleme'yi bilgisayarınıza veya telefonunuza ücretsiz olarak indirebilirsiniz. Tamamen kurulumsuzdur, internet bağlantısı olmadan çevrimdışı çalışır.
+        <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
+          Windows 11 <strong>Akıllı Uygulama Denetimi (SAC)</strong> engeline takılmadan tarayıcısız bağımsız masaüstü penceresi olarak kurabilir veya çevrimdışı tek dosya paketini indirebilirsiniz.
         </p>
 
         <div class="download-cards-container">
-          <!-- Windows Desktop Card -->
+          <!-- 1-Click Direct Desktop App Install (PWA - Zero SAC Block) -->
+          <div class="suite-download-card win-platform-card" id="pwaInstallCard" role="button" tabindex="0" onclick="if(window.triggerDesktopPwaInstall) window.triggerDesktopPwaInstall();" style="cursor: pointer; border-color: rgba(0, 114, 222, 0.45); background: linear-gradient(135deg, rgba(0, 114, 222, 0.08), rgba(37, 99, 235, 0.03));">
+            <div class="suite-card-icon win-icon" style="background: linear-gradient(135deg, #0072DE, #1D4ED8); color: #fff;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 22px; height: 22px;">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+            <div class="suite-card-details">
+              <div class="suite-card-platform" style="display: flex; align-items: center; gap: 6px;">
+                <span>Masaüstü Uygulaması Olarak Kur</span>
+                <span style="font-size: 10px; padding: 2px 6px; border-radius: 99px; background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700;">ÖNERİLEN</span>
+              </div>
+              <div class="suite-card-sub">Tarayıcı Sekmesiz Bağımsız Pencere + Masaüstü Kısayolu</div>
+              <div class="suite-card-meta">Windows 11 Akıllı Uygulama Denetimi (SAC) %100 Uyumlu · Anında Kurulum</div>
+            </div>
+            <div class="suite-card-action">
+              <span class="suite-dl-badge" style="background: var(--accent-primary); color: #fff;">
+                ⚡ Hemen Kur
+              </span>
+            </div>
+          </div>
+
+          <!-- Inline helper box shown when browser native prompt needs address bar icon -->
+          <div id="pwaInstallHelperBox" style="display: none; padding: 12px 14px; border-radius: 10px; background: rgba(0, 114, 222, 0.08); border: 1px solid rgba(0, 114, 222, 0.28); font-size: 12px; color: var(--text-primary); line-height: 1.55;">
+            <div style="font-weight: 700; margin-bottom: 4px; color: var(--accent-primary);">📌 Tarayıcısız Masaüstü Penceresi Nasıl Açılır?</div>
+            <div>1. Tarayıcınızın sağ üst adres çubuğundaki <strong>"Uygulamayı Yükle" (🖥️+)</strong> simgesine veya <strong>Menü (⋯) → Uygulamalar → Kalpten Kaleme uygulamasını yükle</strong> seçeneğine tıklayın.</div>
+            <div style="margin-top: 4px;">2. Uygulama masaüstünüze kısayol olarak eklenecek ve kendi bağımsız penceresinde açılacaktır.</div>
+          </div>
+
+          <!-- Windows Offline Single-File ZIP Card -->
           <a href="https://meihper.github.io/Kalpten-Kaleme/KalptenKaleme-Windows.zip" class="suite-download-card win-platform-card" id="winDownloadLink" download="KalptenKaleme-Windows.zip">
             <div class="suite-card-icon win-icon">
               <svg viewBox="0 0 24 24" fill="currentColor">
@@ -1178,9 +1209,9 @@
               </svg>
             </div>
             <div class="suite-card-details">
-              <div class="suite-card-platform">Windows Masaüstü</div>
-              <div class="suite-card-sub">Windows 7, 8, 10, 11 (Bağımsız Masaüstü Uygulaması)</div>
-              <div class="suite-card-meta">Tek dosya Kalpten_Kaleme_Setup.bat kurulum sihirbazı · 2.5 MB</div>
+              <div class="suite-card-platform">Windows Çevrimdışı Paket (.zip)</div>
+              <div class="suite-card-sub">Tek Dosya Taşınabilir Stüdyo (Kalpten Kaleme.html)</div>
+              <div class="suite-card-meta">Akıllı Denetim engellemez · İnternetsiz çalışır · 1.5 MB</div>
             </div>
             <div class="suite-card-action">
               <span class="suite-dl-badge">
@@ -1199,7 +1230,7 @@
             </div>
             <div class="suite-card-details">
               <div class="suite-card-platform">Android Uygulaması (APK)</div>
-              <div class="suite-card-sub">Telefon & Tablet (Android 7.0+)</div>
+              <div class="suite-card-sub">Telefon &amp; Tablet (Android 7.0+)</div>
               <div class="suite-card-meta">Resmi İmzalı APK Paketi · 3.1 MB</div>
             </div>
             <div class="suite-card-action">
@@ -1465,10 +1496,10 @@
   </div>
 
   <!-- App Scripts (Cache-busted for instant live deployment) -->
-  <script src="app.js?v=1.1.8" defer></script>
-  <script src="word-editor.js?v=1.1.8" defer></script>
-  <script src="pdf-editor.js?v=1.1.8" defer></script>
-  <script src="pdf-tools.js?v=1.1.8" defer></script>
-  <script src="ppt-editor.js?v=1.1.8" defer></script>
+  <script src="app.js?v=1.1.9" defer></script>
+  <script src="word-editor.js?v=1.1.9" defer></script>
+  <script src="pdf-editor.js?v=1.1.9" defer></script>
+  <script src="pdf-tools.js?v=1.1.9" defer></script>
+  <script src="ppt-editor.js?v=1.1.9" defer></script>
 </body>
 </html>

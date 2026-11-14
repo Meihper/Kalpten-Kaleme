@@ -230,8 +230,13 @@ const AppPlatform = {
   // 1. Android APK Native Wrapper
   isAndroid: Boolean(window.AndroidBridge),
 
-  // 2. Windows Desktop Mode (Local Server OR Self-Contained Kalpten Kaleme.html on file://)
-  isDesktop: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' || Boolean(window.__KALPTEN_DESKTOP_STANDALONE)) && !Boolean(window.AndroidBridge),
+  // 2. Windows Desktop Mode (Local Server, Self-Contained Kalpten Kaleme.html on file://, or Installed Desktop PWA)
+  get isDesktop() {
+    if (Boolean(window.AndroidBridge)) return false;
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' || Boolean(window.__KALPTEN_DESKTOP_STANDALONE)) return true;
+    if (window.innerWidth > 768 && (window.location.search.includes('mode=desktop') || (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: window-controls-overlay)').matches)))) return true;
+    return false;
+  },
   isLocalServer: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && !Boolean(window.AndroidBridge),
 
   // 3. Web Mode (GitHub Pages: https://meihper.github.io/Kalpten-Kaleme/ or external web server)
@@ -2720,8 +2725,88 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('globalPrintBtn')?.click();
   });
 
-  // Download Modal local vs remote links
+  // Download Modal local vs remote links & PWA Desktop Installer
+  function syncSuiteDownloadLinks() {
+    const winDl = document.getElementById('winDownloadLink');
+    const apkDl = document.getElementById('androidDownloadLink');
+    const pagesBase = 'https://meihper.github.io/Kalpten-Kaleme/';
+    if (winDl) winDl.href = pagesBase + 'KalptenKaleme-Windows.zip';
+    if (apkDl) apkDl.href = pagesBase + 'KalptenKaleme.apk';
+  }
+  window.syncSuiteDownloadLinks = syncSuiteDownloadLinks;
   syncSuiteDownloadLinks();
+
+  // Register Service Worker for 1-Click Native Desktop PWA Install & Offline Mode
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    window.__deferredPwaPrompt = e;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    window.__deferredPwaPrompt = null;
+    closeModal('downloadSuiteModal');
+    showToast('Kalpten Kaleme Masaüstü Uygulaması başarıyla kuruldu!');
+  });
+
+  window.triggerDesktopPwaInstall = async function() {
+    if (window.__deferredPwaPrompt) {
+      try {
+        window.__deferredPwaPrompt.prompt();
+        const choice = await window.__deferredPwaPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          window.__deferredPwaPrompt = null;
+          closeModal('downloadSuiteModal');
+          showToast('Masaüstü uygulaması kuruluyor...');
+        }
+        return;
+      } catch (_) {}
+    }
+    const helper = document.getElementById('pwaInstallHelperBox');
+    if (helper) {
+      helper.style.display = 'block';
+      showToast('Adres çubuğundaki "Uygulamayı Yükle" simgesine tıklayarak hemen kurabilirsiniz.');
+    }
+  };
+
+  if (location.search.includes('install=1')) {
+    setTimeout(() => openModal('downloadSuiteModal'), 300);
+  }
+
+  // Standalone file:// mode: Offer 1-Click Fullscreen Desktop Studio Mode (Hides browser tabs/address bar)
+  if (window.location.protocol === 'file:' && !sessionStorage.getItem('kk_fs_bar_dismissed')) {
+    const headerEl = document.querySelector('.global-header');
+    if (headerEl && !document.getElementById('standaloneFileModeBar')) {
+      const bar = document.createElement('div');
+      bar.id = 'standaloneFileModeBar';
+      bar.style.cssText = 'background: linear-gradient(90deg, #0f172a, #1e3a8a); color: #f8fafc; padding: 6px 16px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.12); z-index: 900;';
+      bar.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span>🖥️ <strong>Kalpten Kaleme Taşınabilir Masaüstü Stüdyosu</strong> — Tarayıcı sekmelerini gizleyip tam ekran masaüstü modunda çalışabilirsiniz:</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+          <button type="button" id="enterDesktopFullscreenBtn" style="background:#2563eb; color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:6px; padding:4px 11px; font-size:11.5px; font-weight:700; cursor:pointer;">⚡ Tam Ekran Masaüstü Modu (F11)</button>
+          <a href="https://meihper.github.io/Kalpten-Kaleme/?install=1" target="_blank" rel="noopener" style="background:rgba(255,255,255,0.12); color:#fff; text-decoration:none; border:1px solid rgba(255,255,255,0.2); border-radius:6px; padding:4px 10px; font-size:11.5px; font-weight:600;">📌 Kalıcı Pencere Kur</a>
+          <button type="button" id="dismissDesktopFullscreenBar" title="Gizle" style="background:transparent; color:#cbd5e1; border:none; font-size:14px; cursor:pointer; padding:2px 6px;">✕</button>
+        </div>
+      `;
+      headerEl.insertAdjacentElement('afterend', bar);
+      document.getElementById('enterDesktopFullscreenBtn')?.addEventListener('click', () => {
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else if (document.exitFullscreen && document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+      document.getElementById('dismissDesktopFullscreenBar')?.addEventListener('click', () => {
+        sessionStorage.setItem('kk_fs_bar_dismissed', '1');
+        bar.remove();
+      });
+    }
+  }
 
   // Initial Drive status fetch
   fetchDriveStatus();
