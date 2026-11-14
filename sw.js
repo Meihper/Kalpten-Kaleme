@@ -1,7 +1,8 @@
-const CACHE_NAME = 'kalpten-kaleme-v2';
+const CACHE_NAME = 'kalpten-kaleme-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
+  './index.html?mode=desktop',
   './styles.css',
   './app.js',
   './word-editor.js',
@@ -55,6 +56,8 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+      .catch(() =>
+        caches.match(event.request, { ignoreSearch: true }).then((cached) => cached || caches.match('./index.html'))
+      )
   );
 });

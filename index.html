@@ -1184,8 +1184,8 @@
                 <span>Masaüstü Uygulaması Olarak Kur</span>
                 <span style="font-size: 10px; padding: 2px 6px; border-radius: 99px; background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700;">ÖNERİLEN</span>
               </div>
-              <div class="suite-card-sub">Tarayıcı Sekmesiz Bağımsız Pencere + Masaüstü Kısayolu</div>
-              <div class="suite-card-meta">Windows 11 Akıllı Uygulama Denetimi (SAC) %100 Uyumlu · Anında Kurulum</div>
+              <div class="suite-card-sub">Bağımsız Pencere + Word, PowerPoint ve PDF "Birlikte Aç" Desteği</div>
+              <div class="suite-card-meta">Windows 7, 10, 11 Uyumlu · Akıllı Denetim Engellemez · Çevrimdışı Çalışır</div>
             </div>
             <div class="suite-card-action">
               <span class="suite-dl-badge" style="background: var(--accent-primary); color: #fff;">
@@ -1196,9 +1196,40 @@
 
           <!-- Inline helper box shown when browser native prompt needs address bar icon -->
           <div id="pwaInstallHelperBox" style="display: none; padding: 12px 14px; border-radius: 10px; background: rgba(0, 114, 222, 0.08); border: 1px solid rgba(0, 114, 222, 0.28); font-size: 12px; color: var(--text-primary); line-height: 1.55;">
-            <div style="font-weight: 700; margin-bottom: 4px; color: var(--accent-primary);">📌 Tarayıcısız Masaüstü Penceresi Nasıl Açılır?</div>
+            <div style="font-weight: 700; margin-bottom: 4px; color: var(--accent-primary);">📌 Tarayıcısız Masaüstü Penceresi &amp; "Birlikte Aç" Nasıl Kurulur?</div>
             <div>1. Tarayıcınızın sağ üst adres çubuğundaki <strong>"Uygulamayı Yükle" (🖥️+)</strong> simgesine veya <strong>Menü (⋯) → Uygulamalar → Kalpten Kaleme uygulamasını yükle</strong> seçeneğine tıklayın.</div>
-            <div style="margin-top: 4px;">2. Uygulama masaüstünüze kısayol olarak eklenecek ve kendi bağımsız penceresinde açılacaktır.</div>
+            <div style="margin-top: 4px;">2. Kurulduğunda bilgisayarınızdaki <strong>Word (.docx), PowerPoint (.pptx) ve PDF</strong> dosyalarına sağ tıklayıp <strong>Birlikte Aç → Kalpten Kaleme</strong> diyerek doğrudan açabilirsiniz.</div>
+          </div>
+
+          <!-- Windows 7 / 10 / 11 Right-Click & "Birlikte Aç" Association Card -->
+          <div class="suite-download-card win-platform-card" id="openWithSetupCard" role="button" tabindex="0" onclick="if(window.copyWindowsOpenWithCommand) window.copyWindowsOpenWithCommand();" style="cursor: pointer;">
+            <div class="suite-card-icon win-icon" style="background: linear-gradient(135deg, #059669, #047857); color: #fff;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width: 22px; height: 22px;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+            </div>
+            <div class="suite-card-details">
+              <div class="suite-card-platform">Word, Sunum ve PDF "Birlikte Aç" Bağlantısı (Win 7 / 10 / 11)</div>
+              <div class="suite-card-sub">Sağ Tık "Kalpten Kaleme ile Aç" + Masaüstü Kısayolu Oluşturur</div>
+              <div class="suite-card-meta">Windows 7 dahil tüm sürümlerde .docx, .pptx ve .pdf dosyalarını bağlar</div>
+            </div>
+            <div class="suite-card-action">
+              <span class="suite-dl-badge" style="background: #059669; color: #fff;">
+                📎 Bağla
+              </span>
+            </div>
+          </div>
+
+          <!-- Copyable Win+R command box for Windows 7/10/11 Open With -->
+          <div id="openWithCmdResultBox" style="display: none; padding: 12px 14px; border-radius: 10px; background: rgba(5, 150, 105, 0.08); border: 1px solid rgba(5, 150, 105, 0.3); font-size: 12px; color: var(--text-primary); line-height: 1.55;">
+            <div style="font-weight: 700; color: #059669; margin-bottom: 4px;">✅ Kurulum Komutu Kopyalandı! (Windows 7, 10 ve 11 Uyumlu)</div>
+            <div>1. Klavyeden <strong>Win + R</strong> tuşlarına aynı anda basın (<em>Çalıştır</em> penceresi açılır).</div>
+            <div>2. <strong>Ctrl + V</strong> ile komutu yapıştırıp <strong>Tamam (Enter)</strong> tuşuna basın:</div>
+            <input type="text" id="openWithCmdInput" readonly onclick="this.select();" style="width: 100%; margin-top: 6px; padding: 6px 8px; font-family: monospace; font-size: 11px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+            <div style="margin-top: 5px; font-size: 11px; color: var(--text-secondary);">Bu işlem masaüstüne kısayol ekler ve tüm <strong>Word (.docx)</strong>, <strong>Sunum (.pptx)</strong> ve <strong>PDF</strong> dosyalarını <em>Birlikte Aç</em> menüsüne bağlar.</div>
           </div>
 
           <!-- Windows Offline Single-File ZIP Card -->
@@ -1211,7 +1242,7 @@
             <div class="suite-card-details">
               <div class="suite-card-platform">Windows Çevrimdışı Paket (.zip)</div>
               <div class="suite-card-sub">Tek Dosya Taşınabilir Stüdyo (Kalpten Kaleme.html)</div>
-              <div class="suite-card-meta">Akıllı Denetim engellemez · İnternetsiz çalışır · 1.5 MB</div>
+              <div class="suite-card-meta">Akıllı Denetim engellemez · İnternetsiz çalışır · 1.3 MB</div>
             </div>
             <div class="suite-card-action">
               <span class="suite-dl-badge">

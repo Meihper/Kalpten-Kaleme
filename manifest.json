@@ -1,8 +1,8 @@
 {
   "id": "./index.html",
-  "name": "Kalpten Kaleme — Belge & Ofis Stüdyosu",
+  "name": "Kalpten Kaleme — Word, Sunum & PDF Stüdyosu",
   "short_name": "Kalpten Kaleme",
-  "description": "Word, PDF ve Sunum Düzenleme Stüdyosu",
+  "description": "Word (.docx), PowerPoint (.pptx) ve PDF Düzenleme Stüdyosu",
   "start_url": "./index.html?mode=desktop",
   "scope": "./",
   "display": "standalone",
@@ -27,6 +27,36 @@
       "src": "favicon.ico",
       "sizes": "16x16 32x32 48x48 64x64 128x128 256x256",
       "type": "image/x-icon"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "./index.html?mode=desktop",
+      "name": "Word Belgesi",
+      "accept": {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+        "application/msword": [".doc"],
+        "application/rtf": [".rtf"],
+        "text/plain": [".txt", ".md"]
+      },
+      "launch_type": "single-client"
+    },
+    {
+      "action": "./index.html?mode=desktop",
+      "name": "PowerPoint Sunumu",
+      "accept": {
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+        "application/vnd.ms-powerpoint": [".ppt"]
+      },
+      "launch_type": "single-client"
+    },
+    {
+      "action": "./index.html?mode=desktop",
+      "name": "PDF Belgesi",
+      "accept": {
+        "application/pdf": [".pdf"]
+      },
+      "launch_type": "single-client"
     }
   ]
 }

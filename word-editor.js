@@ -1010,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.loadPdfFromBuffer) window.loadPdfFromBuffer(arrayBuffer, fileName, fileMeta);
       return;
     }
-    const allowedWordExts = ['docx', 'doc', 'txt', 'md', 'html', 'htm'];
+    const allowedWordExts = ['docx', 'doc', 'rtf', 'txt', 'md', 'html', 'htm'];
     if (!allowedWordExts.includes(ext)) {
       return;
     }
@@ -1119,6 +1119,20 @@ document.addEventListener('DOMContentLoaded', () => {
         finalizeWordLoad(paragraphs, `"${fileName}" açıldı.`);
       } catch (err) {
         showToast('Metin dosyası açılamadı: ' + err.message, 'error');
+      }
+    } else if (ext === 'rtf') {
+      try {
+        const raw = new TextDecoder('windows-1254', { fatal: false }).decode(arrayBuffer);
+        const plain = raw
+          .replace(/\\par\b/g, '\n')
+          .replace(/\\'([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+          .replace(/\\[a-zA-Z]+-?\d*\s?/g, '')
+          .replace(/[{}]/g, '')
+          .trim();
+        const paragraphs = plain.split(/\r?\n/).map(line => `<p>${escapeHtml(line) || '<br>'}</p>`).join('');
+        finalizeWordLoad(paragraphs || '<p></p>', `"${fileName}" Word belgesi açıldı.`);
+      } catch (err) {
+        showToast('RTF belgesi açılamadı: ' + err.message, 'error');
       }
     } else if (ext === 'html' || ext === 'htm') {
       try {

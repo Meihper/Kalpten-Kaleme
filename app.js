@@ -1290,25 +1290,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const pdfFileInput = document.getElementById('pdfFileInput');
   const pptFileInput = document.getElementById('pptFileInput');
 
-  function openAnySelectedFile(file, fileMeta = {}) {
+  async function openAnySelectedFile(file, fileMeta = {}) {
     if (!file) return;
     closeModal('libraryModal');
     const name = (file.name || '').toLowerCase();
     if (name.endsWith('.pdf')) {
       switchTab('pdfTab');
+      let retries = 35;
+      while (!window.loadPdfFile && retries-- > 0) {
+        await new Promise(r => setTimeout(r, 60));
+      }
       if (window.loadPdfFile) window.loadPdfFile(file, fileMeta);
     } else if (name.endsWith('.pptx') || name.endsWith('.ppt') || name.endsWith('.json') || name.endsWith('.slides')) {
       switchTab('pptTab');
+      let retries = 35;
+      while ((!window.pptEditor || !window.pptEditor.loadFile) && retries-- > 0) {
+        await new Promise(r => setTimeout(r, 60));
+      }
       if (window.pptEditor && window.pptEditor.loadFile) {
         window.pptEditor.loadFile(file, fileMeta);
       }
-    } else if (['.docx', '.doc', '.txt', '.md', '.html', '.htm'].some(ext => name.endsWith(ext))) {
+    } else if (['.docx', '.doc', '.rtf', '.txt', '.md', '.html', '.htm'].some(ext => name.endsWith(ext))) {
       switchTab('wordTab');
+      let retries = 35;
+      while (!window.loadWordFile && retries-- > 0) {
+        await new Promise(r => setTimeout(r, 60));
+      }
       if (window.loadWordFile) window.loadWordFile(file, fileMeta);
     } else {
       showToast('Desteklenmeyen dosya türü. Lütfen Word (.docx), PDF veya PowerPoint (.pptx) dosyası seçin.', 'error');
     }
   }
+  window.openAnySelectedFile = openAnySelectedFile;
 
   async function triggerNativeOrModernOpenDialog(preferredMode = 'all') {
     closeModal('libraryModal');
@@ -2776,7 +2789,63 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => openModal('downloadSuiteModal'), 300);
   }
 
-  // Standalone file:// mode: Offer 1-Click Fullscreen Desktop Studio Mode (Hides browser tabs/address bar)
+  // 1. PWA File Handling API (Windows "Birlikte Aç" / Çift Tıklama ile Word, Sunum ve PDF Açma)
+  if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'function') {
+    window.launchQueue.setConsumer(async (launchParams) => {
+      if (!launchParams || !launchParams.files || !launchParams.files.length) return;
+      for (const fileHandle of launchParams.files) {
+        try {
+          const file = await fileHandle.getFile();
+          await openAnySelectedFile(file, { fileHandle });
+        } catch (err) {
+          console.error('Birlikte Aç (launchQueue) dosya açma hatası:', err);
+        }
+      }
+    });
+  }
+
+  // 2. Offline Windows 7/10/11 "Birlikte Aç" Autoload Handler (window.__AUTOLOAD_FILE)
+  if (window.__AUTOLOAD_FILE && window.__AUTOLOAD_FILE.name && window.__AUTOLOAD_FILE.base64) {
+    setTimeout(async () => {
+      try {
+        const { name, base64 } = window.__AUTOLOAD_FILE;
+        const bin = atob(base64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const file = new File([bytes.buffer], name);
+        await openAnySelectedFile(file);
+      } catch (e) {
+        console.error('Autoload file error:', e);
+      }
+    }, 120);
+  }
+
+  // 3. Windows 7 / 10 / 11 Universal "Birlikte Aç" & Browserless Shortcut Registration Command
+  window.copyWindowsOpenWithCommand = function() {
+    const psCmd = `powershell -NoP -W Hidden -Ep Bypass -C "[Net.ServicePointManager]::SecurityProtocol=3072;iex(New-Object Net.WebClient).DownloadString('https://meihper.github.io/Kalpten-Kaleme/install.ps1')"`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(psCmd).catch(() => {});
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = psCmd;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      ta.remove();
+    }
+    const box = document.getElementById('openWithCmdResultBox');
+    if (box) box.style.display = 'block';
+    const inp = document.getElementById('openWithCmdInput');
+    if (inp) {
+      inp.value = psCmd;
+      inp.focus();
+      inp.select();
+    }
+    showToast('Komut kopyalandı! Klavyeden Win + R tuşlarına basıp Ctrl + V ile yapıştırıp Enter\'a basın.');
+  };
+
+  // Standalone file:// mode: Offer 1-Click Fullscreen Desktop Studio Mode & "Birlikte Aç" Association
   if (window.location.protocol === 'file:' && !sessionStorage.getItem('kk_fs_bar_dismissed')) {
     const headerEl = document.querySelector('.global-header');
     if (headerEl && !document.getElementById('standaloneFileModeBar')) {
@@ -2785,11 +2854,11 @@ document.addEventListener('DOMContentLoaded', () => {
       bar.style.cssText = 'background: linear-gradient(90deg, #0f172a, #1e3a8a); color: #f8fafc; padding: 6px 16px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.12); z-index: 900;';
       bar.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <span>🖥️ <strong>Kalpten Kaleme Taşınabilir Masaüstü Stüdyosu</strong> — Tarayıcı sekmelerini gizleyip tam ekran masaüstü modunda çalışabilirsiniz:</span>
+          <span>🖥️ <strong>Kalpten Kaleme Masaüstü Stüdyosu</strong> — Tam ekran çalışabilir veya Word/Sunum/PDF <strong>"Birlikte Aç"</strong> özelliğini etkinleştirebilirsiniz:</span>
         </div>
         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-          <button type="button" id="enterDesktopFullscreenBtn" style="background:#2563eb; color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:6px; padding:4px 11px; font-size:11.5px; font-weight:700; cursor:pointer;">⚡ Tam Ekran Masaüstü Modu (F11)</button>
-          <a href="https://meihper.github.io/Kalpten-Kaleme/?install=1" target="_blank" rel="noopener" style="background:rgba(255,255,255,0.12); color:#fff; text-decoration:none; border:1px solid rgba(255,255,255,0.2); border-radius:6px; padding:4px 10px; font-size:11.5px; font-weight:600;">📌 Kalıcı Pencere Kur</a>
+          <button type="button" id="enterDesktopFullscreenBtn" style="background:#2563eb; color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:6px; padding:4px 11px; font-size:11.5px; font-weight:700; cursor:pointer;">⚡ Tam Ekran Modu (F11)</button>
+          <button type="button" id="openBirlikteAcSetupBtn" style="background:#059669; color:#fff; border:1px solid rgba(255,255,255,0.25); border-radius:6px; padding:4px 11px; font-size:11.5px; font-weight:700; cursor:pointer;">📎 Word/PDF "Birlikte Aç" Bağla</button>
           <button type="button" id="dismissDesktopFullscreenBar" title="Gizle" style="background:transparent; color:#cbd5e1; border:none; font-size:14px; cursor:pointer; padding:2px 6px;">✕</button>
         </div>
       `;
@@ -2800,6 +2869,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (document.exitFullscreen && document.fullscreenElement) {
           document.exitFullscreen().catch(() => {});
         }
+      });
+      document.getElementById('openBirlikteAcSetupBtn')?.addEventListener('click', () => {
+        openModal('downloadSuiteModal');
+        window.copyWindowsOpenWithCommand();
       });
       document.getElementById('dismissDesktopFullscreenBar')?.addEventListener('click', () => {
         sessionStorage.setItem('kk_fs_bar_dismissed', '1');
