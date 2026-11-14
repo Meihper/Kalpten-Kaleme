@@ -54,6 +54,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
         <span class="btn-text">Kütüphanem</span>
       </button>
+      <span class="local-file-badge" id="localFileBadge" style="display: none;" title="Doğrudan yerel disk dosyasına bağlı (Ctrl+S üzerine kaydeder)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="flex-shrink: 0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span id="localFileBadgeText"></span>
+      </span>
     </div>
 
     <!-- Center: Segmented Navigation -->
@@ -68,9 +72,14 @@
 
     <!-- Right: Streamlined Action Buttons -->
     <div class="header-right">
-      <button class="pill-btn pill-btn-primary" id="globalSaveBtn" title="Kaydet (Ctrl+S)">
+      <button class="pill-btn pill-btn-primary" id="globalSaveBtn" title="Kaydet — Açık dosyanın üzerine yazar (Ctrl+S)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
         <span class="btn-text">Kaydet</span>
+      </button>
+
+      <button class="pill-btn pill-btn-secondary desktop-only-btn" id="globalSaveAsBtn" title="Farklı Kaydet — Bilgisayarda konum ve ad seçerek kaydet (Ctrl+Shift+S / F12)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4z"></path><circle cx="12" cy="14" r="3"></circle><path d="M7 3v5h8"></path></svg>
+        <span class="btn-text">Farklı Kaydet</span>
       </button>
 
       <button class="pill-btn pill-btn-secondary" id="zenModeBtn" title="Odaklanma Modu (F11)">
@@ -217,6 +226,7 @@
         <button class="tool-item" data-command="bold" title="Kalın (Ctrl+B)"><b>B</b></button>
         <button class="tool-item" data-command="italic" title="İtalik (Ctrl+I)"><i>I</i></button>
         <button class="tool-item" data-command="underline" title="Altı Çizili (Ctrl+U)"><u>U</u></button>
+        <button class="tool-item desktop-only-btn" data-command="strikeThrough" title="Üstü Çizili"><s>S</s></button>
 
         <!-- Text Color with Instant Presets & Custom Picker -->
         <div class="color-dropdown-container">
@@ -283,6 +293,10 @@
           </div>
         </div>
 
+        <button class="tool-item desktop-only-btn" data-command="removeFormat" title="Biçimlendirmeyi Temizle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"></path><path d="M5 20h6"></path><path d="M13 4 8 20"></path><path d="m15 15 5 5"></path><path d="m20 15-5 5"></path></svg>
+        </button>
+
         <div class="tool-sep"></div>
 
         <button class="tool-item" data-command="justifyLeft" title="Sola Yasla">
@@ -290,6 +304,9 @@
         </button>
         <button class="tool-item" data-command="justifyCenter" title="Ortala">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="18" y1="18" x2="6" y2="18"></line></svg>
+        </button>
+        <button class="tool-item desktop-only-btn" data-command="justifyRight" title="Sağa Yasla">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg>
         </button>
         <button class="tool-item" data-command="justifyFull" title="İki Yana Yasla (Kitap Düzeni)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="21" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
@@ -308,6 +325,12 @@
         </button>
         <button class="tool-item" data-command="insertOrderedList" title="Numaralı Liste">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
+        </button>
+        <button class="tool-item desktop-only-btn" data-command="outdent" title="Girintiyi Azalt (Shift+Tab)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 8 3 12 7 16"></polyline><line x1="21" y1="12" x2="11" y2="12"></line><line x1="21" y1="6" x2="11" y2="6"></line><line x1="21" y1="18" x2="11" y2="18"></line></svg>
+        </button>
+        <button class="tool-item desktop-only-btn" data-command="indent" title="Girintiyi Artır (Tab)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 8 7 12 3 16"></polyline><line x1="21" y1="12" x2="11" y2="12"></line><line x1="21" y1="6" x2="11" y2="6"></line><line x1="21" y1="18" x2="11" y2="18"></line></svg>
         </button>
 
         <div class="tool-sep"></div>
@@ -377,6 +400,34 @@
 
       <!-- Word Workspace (A4 Canvas) -->
       <div class="word-workspace" id="wordWorkspaceArea">
+        <!-- Contextual Floating Toolbar for Selected Image -->
+        <div class="word-context-toolbar" id="wordImageToolbar" style="display: none;">
+          <span class="ctx-label">🖼️ Görsel:</span>
+          <button type="button" class="ctx-btn" data-img-size="25%">%25</button>
+          <button type="button" class="ctx-btn" data-img-size="50%">%50</button>
+          <button type="button" class="ctx-btn" data-img-size="75%">%75</button>
+          <button type="button" class="ctx-btn" data-img-size="100%">%100</button>
+          <span class="ctx-sep"></span>
+          <button type="button" class="ctx-btn" data-img-align="left" title="Sola Hizala">Sol</button>
+          <button type="button" class="ctx-btn" data-img-align="center" title="Ortala">Orta</button>
+          <button type="button" class="ctx-btn" data-img-align="right" title="Sağa Hizala">Sağ</button>
+          <span class="ctx-sep"></span>
+          <button type="button" class="ctx-btn ctx-btn-danger" data-img-action="delete" title="Görseli Sil">🗑️ Sil</button>
+        </div>
+
+        <!-- Contextual Floating Toolbar for Active Table -->
+        <div class="word-context-toolbar" id="wordTableToolbar" style="display: none;">
+          <span class="ctx-label">📊 Tablo:</span>
+          <button type="button" class="ctx-btn" data-tbl-action="addRowAbove">+ Üste Satır</button>
+          <button type="button" class="ctx-btn" data-tbl-action="addRowBelow">+ Alta Satır</button>
+          <button type="button" class="ctx-btn" data-tbl-action="addColLeft">+ Sola Sütun</button>
+          <button type="button" class="ctx-btn" data-tbl-action="addColRight">+ Sağa Sütun</button>
+          <span class="ctx-sep"></span>
+          <button type="button" class="ctx-btn" data-tbl-action="delRow">Satır Sil</button>
+          <button type="button" class="ctx-btn" data-tbl-action="delCol">Sütun Sil</button>
+          <button type="button" class="ctx-btn ctx-btn-danger" data-tbl-action="delTable">🗑️ Tablo Sil</button>
+        </div>
+
         <div class="editor-page-container" id="editorContainer">
           <div class="word-canvas-sheet" id="wordEditor" contenteditable="true" spellcheck="true"></div>
         </div>
@@ -397,7 +448,15 @@
           <span>•</span>
           <span id="readingTimeStat">1 dk</span>
         </div>
-        <div id="wordSaveState">Tüm değişiklikler kaydedildi</div>
+        <div class="word-status-right">
+          <div id="wordSaveState">Tüm değişiklikler kaydedildi</div>
+          <div class="word-zoom-controls desktop-only-btn" title="Sayfa Yakınlaştırma (Ctrl + Fare Tekerleği)">
+            <button type="button" class="zoom-step-btn" id="wordZoomOutBtn" title="Uzaklaştır">−</button>
+            <input type="range" class="word-zoom-slider" id="wordZoomSlider" min="50" max="200" step="10" value="100">
+            <button type="button" class="zoom-step-btn" id="wordZoomInBtn" title="Yakınlaştır">+</button>
+            <span class="word-zoom-label" id="wordZoomLabel" title="Varsayılan boyuta (%100) sıfırlamak için tıklayın">%100</span>
+          </div>
+        </div>
       </footer>
 
     </section>

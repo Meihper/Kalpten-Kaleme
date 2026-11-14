@@ -601,7 +601,8 @@ const docManager = {
   updateActiveDocTitle(newTitle) {
     const activeDoc = this.getActiveDoc();
     if (activeDoc) {
-      activeDoc.title = newTitle || (activeDoc.type === 'pdf' ? 'Belge.pdf' : 'Yeni Yazı.docx');
+      const defTitle = activeDoc.type === 'ppt' ? 'Sunum 1.pptx' : (activeDoc.type === 'pdf' ? 'Belge.pdf' : 'Yeni Yazı.docx');
+      activeDoc.title = newTitle || defTitle;
       activeDoc.isDefault = false;
       this.renderTabs();
     }
@@ -774,7 +775,7 @@ const docManager = {
     showToast(`"${newDoc.title}" sunumu açıldı.`);
   },
 
-  onWordLoaded(fileName, content, arrayBuffer) {
+  onWordLoaded(fileName, content, arrayBuffer, fileMeta = {}) {
     const editor = document.getElementById('wordEditor');
     const wordTitle = document.getElementById('wordDocTitle');
 
@@ -786,6 +787,9 @@ const docManager = {
       activeDoc.title = fileName;
       activeDoc.content = content;
       activeDoc.rawBytes = arrayBuffer;
+      activeDoc.filePath = fileMeta?.filePath || null;
+      activeDoc.fileHandle = fileMeta?.fileHandle || null;
+      activeDoc.isDirty = false;
       activeDoc.isDefault = false;
       this.renderTabs();
       switchTab('wordTab');
@@ -795,10 +799,13 @@ const docManager = {
       return;
     }
 
-    const existing = this.docs.find(d => d.title.toLowerCase() === fileName.toLowerCase());
+    const existing = this.docs.find(d => d.title.toLowerCase() === fileName.toLowerCase() && (!fileMeta?.filePath || !d.filePath || d.filePath === fileMeta.filePath));
     if (existing) {
       existing.content = content;
       existing.rawBytes = arrayBuffer;
+      if (fileMeta?.filePath) existing.filePath = fileMeta.filePath;
+      if (fileMeta?.fileHandle) existing.fileHandle = fileMeta.fileHandle;
+      existing.isDirty = false;
       this.activeDocId = existing.id;
       this.renderTabs();
       switchTab('wordTab');
@@ -815,6 +822,9 @@ const docManager = {
       type: 'word',
       content: content,
       rawBytes: arrayBuffer,
+      filePath: fileMeta?.filePath || null,
+      fileHandle: fileMeta?.fileHandle || null,
+      isDirty: false,
       isDefault: false
     };
     this.docs.push(newDoc);
@@ -826,7 +836,7 @@ const docManager = {
     if (window.updateWordStats) window.updateWordStats();
   },
 
-  onPdfLoaded(fileName, arrayBuffer) {
+  onPdfLoaded(fileName, arrayBuffer, fileMeta = {}) {
     const activeDoc = this.getActiveDoc();
     const editor = document.getElementById('wordEditor');
     const currentText = (activeDoc?.type === 'word' && editor) ? editor.innerText.trim() : '';
@@ -836,6 +846,9 @@ const docManager = {
       activeDoc.title = fileName;
       activeDoc.type = 'pdf';
       activeDoc.rawBytes = arrayBuffer;
+      activeDoc.filePath = fileMeta?.filePath || null;
+      activeDoc.fileHandle = fileMeta?.fileHandle || null;
+      activeDoc.isDirty = false;
       activeDoc.isDefault = false;
       this.renderTabs();
       switchTab('pdfTab');
@@ -847,6 +860,9 @@ const docManager = {
     const existing = this.docs.find(d => d.title.toLowerCase() === fileName.toLowerCase());
     if (existing) {
       existing.rawBytes = arrayBuffer;
+      if (fileMeta?.filePath) existing.filePath = fileMeta.filePath;
+      if (fileMeta?.fileHandle) existing.fileHandle = fileMeta.fileHandle;
+      existing.isDirty = false;
       this.activeDocId = existing.id;
       this.renderTabs();
       switchTab('pdfTab');
@@ -861,6 +877,9 @@ const docManager = {
       title: fileName,
       type: 'pdf',
       rawBytes: arrayBuffer,
+      filePath: fileMeta?.filePath || null,
+      fileHandle: fileMeta?.fileHandle || null,
+      isDirty: false,
       isDefault: false
     };
     this.docs.push(newDoc);
@@ -871,7 +890,7 @@ const docManager = {
     if (pdfTitle) pdfTitle.value = fileName;
   },
 
-  onPptLoaded(fileName, pptState) {
+  onPptLoaded(fileName, pptState, fileMeta = {}) {
     if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
     const activeDoc = this.getActiveDoc();
     const editor = document.getElementById('wordEditor');
@@ -882,6 +901,9 @@ const docManager = {
       activeDoc.title = fileName;
       activeDoc.type = 'ppt';
       activeDoc.pptStateSnapshot = JSON.parse(JSON.stringify(pptState));
+      activeDoc.filePath = fileMeta?.filePath || null;
+      activeDoc.fileHandle = fileMeta?.fileHandle || null;
+      activeDoc.isDirty = false;
       activeDoc.isDefault = false;
       this.renderTabs();
       switchTab('pptTab');
@@ -893,6 +915,9 @@ const docManager = {
     const existing = this.docs.find(d => d.title.toLowerCase() === fileName.toLowerCase() && d.type === 'ppt');
     if (existing) {
       existing.pptStateSnapshot = JSON.parse(JSON.stringify(pptState));
+      if (fileMeta?.filePath) existing.filePath = fileMeta.filePath;
+      if (fileMeta?.fileHandle) existing.fileHandle = fileMeta.fileHandle;
+      existing.isDirty = false;
       this.activeDocId = existing.id;
       this.renderTabs();
       switchTab('pptTab');
@@ -907,6 +932,9 @@ const docManager = {
       title: fileName,
       type: 'ppt',
       pptStateSnapshot: JSON.parse(JSON.stringify(pptState)),
+      filePath: fileMeta?.filePath || null,
+      fileHandle: fileMeta?.fileHandle || null,
+      isDirty: false,
       isDefault: false
     };
     this.docs.push(newDoc);
@@ -925,6 +953,9 @@ const docManager = {
       title: fileName,
       type: 'ppt',
       pptStateSnapshot: window.pptEditor ? JSON.parse(JSON.stringify(window.pptEditor.state)) : null,
+      filePath: null,
+      fileHandle: null,
+      isDirty: false,
       isDefault: false
     };
     this.docs.push(newDoc);
@@ -959,6 +990,9 @@ const docManager = {
         doc.type = 'word';
         doc.content = '';
         doc.isDefault = true;
+        doc.isDirty = false;
+        doc.filePath = null;
+        doc.fileHandle = null;
         doc.pdfStateSnapshot = null;
         doc.pptStateSnapshot = null;
         doc.rawBytes = null;
@@ -1062,10 +1096,12 @@ const docManager = {
         typeLabel = 'PPTX';
       }
       const safeTitle = escapeHtml(doc.title);
+      const dirtyMark = doc.isDirty ? '<span style="color:var(--accent-coral);margin-right:3px;">●</span>' : '';
+      const pathHint = doc.filePath ? `\nKonum: ${escapeHtml(doc.filePath)}` : '';
       return `
-        <div class="doc-tab ${isActive ? 'active' : ''}" data-id="${doc.id}" title="${safeTitle}">
+        <div class="doc-tab ${isActive ? 'active' : ''}" data-id="${doc.id}" title="${safeTitle}${pathHint}">
           <img src="${iconSrc}" class="doc-tab-type-img" alt="${typeLabel}">
-          <span class="doc-tab-title">${safeTitle}</span>
+          <span class="doc-tab-title">${dirtyMark}${safeTitle}</span>
           <button class="doc-tab-close" data-id="${doc.id}" title="Belgeyi Kapat (Ctrl+W)">✕</button>
         </div>
       `;
@@ -1085,9 +1121,63 @@ const docManager = {
         this.closeDoc(closeBtn.dataset.id, e);
       });
     });
+
+    if (typeof window.updateLocalFileBadge === 'function') window.updateLocalFileBadge();
+    if (typeof window.updateDesktopWindowTitle === 'function') window.updateDesktopWindowTitle();
   }
 };
 window.docManager = docManager;
+
+window.updateLocalFileBadge = function() {
+  const badge = document.getElementById('localFileBadge');
+  const textEl = document.getElementById('localFileBadgeText');
+  if (!badge || !textEl) return;
+  const activeDoc = window.docManager ? window.docManager.getActiveDoc() : null;
+  if (activeDoc && (activeDoc.filePath || activeDoc.fileHandle)) {
+    badge.style.display = 'inline-flex';
+    if (activeDoc.filePath) {
+      textEl.textContent = activeDoc.filePath;
+      badge.title = `Yerel Dosya Konumu: ${activeDoc.filePath}\n(Ctrl+S doğrudan bu dosyanın üzerine kaydeder)`;
+    } else if (activeDoc.fileHandle) {
+      textEl.textContent = activeDoc.fileHandle.name || activeDoc.title;
+      badge.title = `Yerel Dosya Bağlantısı: ${activeDoc.fileHandle.name || activeDoc.title}\n(Ctrl+S doğrudan bu dosyanın üzerine kaydeder)`;
+    }
+  } else {
+    badge.style.display = 'none';
+    textEl.textContent = '';
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('localFileBadge')?.addEventListener('click', () => {
+    const activeDoc = window.docManager ? window.docManager.getActiveDoc() : null;
+    const loc = activeDoc?.filePath || activeDoc?.fileHandle?.name;
+    if (loc) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(loc).catch(() => {});
+      }
+      showToast(`Bağlı dosya: ${loc} (Ctrl+S doğrudan üzerine yazar)`);
+    }
+  });
+});
+
+let lastSentWinTitle = '';
+window.updateDesktopWindowTitle = function() {
+  const activeDoc = window.docManager ? window.docManager.getActiveDoc() : null;
+  const docName = (activeDoc && activeDoc.title) ? activeDoc.title : 'Yeni Yazı.docx';
+  const dirtyPrefix = (activeDoc && activeDoc.isDirty) ? '● ' : '';
+  const fullTitle = `${dirtyPrefix}${docName} — Kalpten Kaleme`;
+  document.title = fullTitle;
+  if (isOnlineServer && fullTitle !== lastSentWinTitle) {
+    lastSentWinTitle = fullTitle;
+    fetch('/api/window-title', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: fullTitle
+    }).catch(() => {});
+  }
+};
+
 
 document.addEventListener('DOMContentLoaded', () => {
   syncMobileAppMode();
@@ -1168,38 +1258,96 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Global Header Actions: Aç (Open File)
+  // Global Header Actions: Aç (Open File) & Farklı Kaydet (Save As)
   const wordFileInput = document.getElementById('wordFileInput');
   const pdfFileInput = document.getElementById('pdfFileInput');
   const pptFileInput = document.getElementById('pptFileInput');
 
-  function openAnySelectedFile(file) {
+  function openAnySelectedFile(file, fileMeta = {}) {
     if (!file) return;
     closeModal('libraryModal');
     const name = (file.name || '').toLowerCase();
     if (name.endsWith('.pdf')) {
       switchTab('pdfTab');
-      if (window.loadPdfFile) window.loadPdfFile(file);
+      if (window.loadPdfFile) window.loadPdfFile(file, fileMeta);
     } else if (name.endsWith('.pptx') || name.endsWith('.ppt') || name.endsWith('.json') || name.endsWith('.slides')) {
       switchTab('pptTab');
       if (window.pptEditor && window.pptEditor.loadFile) {
-        window.pptEditor.loadFile(file);
+        window.pptEditor.loadFile(file, fileMeta);
       }
     } else if (['.docx', '.doc', '.txt', '.md', '.html', '.htm'].some(ext => name.endsWith(ext))) {
       switchTab('wordTab');
-      if (window.loadWordFile) window.loadWordFile(file);
+      if (window.loadWordFile) window.loadWordFile(file, fileMeta);
     } else {
       showToast('Desteklenmeyen dosya türü. Lütfen Word (.docx), PDF veya PowerPoint (.pptx) dosyası seçin.', 'error');
     }
   }
 
-  function triggerUnifiedFilePicker() {
+  async function triggerNativeOrModernOpenDialog(preferredMode = 'all') {
     closeModal('libraryModal');
-    const input = document.getElementById('wordFileInput');
-    if (input) {
-      input.setAttribute('accept', '.docx,.doc,.txt,.html,.md,.pdf,.pptx,.ppt,.json');
-      input.click();
+
+    // 1. Desktop Native Server Dialog (BelgeDuzenleyici.cs / server.ps1)
+    if (isOnlineServer) {
+      try {
+        const res = await fetch('/api/native-open-dialog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ mode: preferredMode })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.cancelled || data.canceled)) return;
+          if (data && data.success) {
+            await checkForOpenedFile();
+            return;
+          }
+        }
+      } catch (_) {}
     }
+
+    // 2. Modern Chromium File System Access API (Standalone Desktop Mode)
+    // Allows direct Ctrl+S in-place overwrite via FileSystemFileHandle!
+    if (typeof window.showOpenFilePicker === 'function' && !AppPlatform.isAndroid) {
+      try {
+        const [fileHandle] = await window.showOpenFilePicker({
+          multiple: false,
+          types: [
+            {
+              description: 'Ofis Belgeleri (.docx, .pdf, .pptx, .txt)',
+              accept: {
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+                'application/pdf': ['.pdf'],
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+                'text/plain': ['.txt', '.md'],
+                'text/html': ['.html', '.htm'],
+                'application/json': ['.json']
+              }
+            }
+          ]
+        });
+        if (fileHandle) {
+          const file = await fileHandle.getFile();
+          openAnySelectedFile(file, { fileHandle });
+          return;
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+    }
+
+    // 3. Classic <input type="file"> fallback
+    if (preferredMode === 'ppt' && pptFileInput) {
+      pptFileInput.click();
+    } else if (preferredMode === 'pdf' && pdfFileInput) {
+      pdfFileInput.click();
+    } else if (wordFileInput) {
+      wordFileInput.setAttribute('accept', '.docx,.doc,.txt,.html,.md,.pdf,.pptx,.ppt,.json');
+      wordFileInput.click();
+    }
+  }
+
+  function triggerUnifiedFilePicker() {
+    triggerNativeOrModernOpenDialog('all');
   }
   window.triggerUnifiedFilePicker = triggerUnifiedFilePicker;
 
@@ -1225,17 +1373,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('pptOpenBtn')?.addEventListener('click', () => {
-    pptFileInput?.click();
+    triggerNativeOrModernOpenDialog('ppt');
   });
 
   document.getElementById('globalOpenBtn')?.addEventListener('click', () => {
-    if (appState.currentTab === 'pptTab' && pptFileInput) {
-      pptFileInput.click();
-    } else if (appState.currentTab === 'pdfTab' && pdfFileInput) {
-      pdfFileInput.click();
-    } else {
-      wordFileInput?.click();
-    }
+    const mode = appState.currentTab === 'pptTab' ? 'ppt' : (appState.currentTab === 'pdfTab' ? 'pdf' : 'word');
+    triggerNativeOrModernOpenDialog(mode);
   });
 
   function triggerSaveFeedback() {
@@ -1257,18 +1400,31 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('globalSaveBtn')?.addEventListener('click', () => {
     triggerSaveFeedback();
     if (appState.currentTab === 'pdfTab') {
-      if (window.savePdfDocument) window.savePdfDocument();
+      if (window.savePdfDocument) window.savePdfDocument({ saveAs: false });
     } else if (appState.currentTab === 'pptTab') {
       if (window.pptEditor && typeof window.pptEditor.savePresentationDocument === 'function') {
-        window.pptEditor.savePresentationDocument();
+        window.pptEditor.savePresentationDocument({ saveAs: false });
       } else if (window.pptEditor) {
         window.pptEditor.saveToStorage();
         showToast('Sunum otomatik korundu ve kaydedildi.');
       }
     } else {
-      if (window.saveWordDocument) window.saveWordDocument();
+      if (window.saveWordDocument) window.saveWordDocument({ saveAs: false });
     }
   });
+
+  document.getElementById('globalSaveAsBtn')?.addEventListener('click', () => {
+    if (appState.currentTab === 'pdfTab') {
+      if (window.savePdfDocument) window.savePdfDocument({ saveAs: true });
+    } else if (appState.currentTab === 'pptTab') {
+      if (window.pptEditor && typeof window.pptEditor.savePresentationDocument === 'function') {
+        window.pptEditor.savePresentationDocument({ saveAs: true });
+      }
+    } else {
+      if (window.saveWordDocument) window.saveWordDocument({ saveAs: true });
+    }
+  });
+
 
   // ========================================================================
   // Unified Clean Print Engine (Word, PowerPoint, PDF)
@@ -1409,9 +1565,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Global Keyboard Shortcuts
   window.addEventListener('keydown', (e) => {
+    if (e.key === 'F12' && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      document.getElementById('globalSaveAsBtn')?.click();
+      return;
+    }
+
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();
-      document.getElementById('globalSaveBtn')?.click();
+      if (e.shiftKey) {
+        document.getElementById('globalSaveAsBtn')?.click();
+      } else {
+        document.getElementById('globalSaveBtn')?.click();
+      }
     }
 
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
@@ -1607,6 +1773,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (dataRes.ok) {
             const buffer = await dataRes.arrayBuffer();
             const ext = (info.ext || '').toLowerCase();
+            const fileMeta = { filePath: info.path || null };
             if (ext === 'pdf') {
               switchTab('pdfTab');
               addRecentDocument(info.filename, 'pdf');
@@ -1615,7 +1782,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await new Promise(r => setTimeout(r, 80));
               }
               if (window.loadPdfFromBuffer) {
-                window.loadPdfFromBuffer(buffer, info.filename);
+                window.loadPdfFromBuffer(buffer, info.filename, fileMeta);
               }
             } else if (ext === 'pptx' || ext === 'ppt' || ext === 'json' || ext === 'slides') {
               switchTab('pptTab');
@@ -1626,7 +1793,7 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               if (window.pptEditor && window.pptEditor.loadFile) {
                 const file = new File([buffer], info.filename);
-                window.pptEditor.loadFile(file);
+                window.pptEditor.loadFile(file, fileMeta);
               }
             } else if (['docx', 'doc', 'txt', 'md', 'html', 'htm'].includes(ext)) {
               switchTab('wordTab');
@@ -1636,7 +1803,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await new Promise(r => setTimeout(r, 80));
               }
               if (window.loadWordFromBuffer) {
-                window.loadWordFromBuffer(buffer, info.filename);
+                window.loadWordFromBuffer(buffer, info.filename, fileMeta);
               }
             }
           }
@@ -1648,6 +1815,7 @@ document.addEventListener('DOMContentLoaded', () => {
       isCheckingFile = false;
     }
   }
+
 
   if (isOnlineServer) {
     checkForOpenedFile();

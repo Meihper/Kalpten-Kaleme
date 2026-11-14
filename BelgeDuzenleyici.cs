@@ -27,6 +27,7 @@ namespace BelgeDuzenleyici
 
         public KalptenKalemeForm(int port, string baseDir, string verifyShotPath = null)
         {
+            Program.MainFormInstance = this;
             this.serverPort = port;
             this.appDir = baseDir;
             this.verifyScreenshotPath = verifyShotPath;
@@ -203,6 +204,7 @@ namespace BelgeDuzenleyici
 
     public static class Program
     {
+        public static KalptenKalemeForm MainFormInstance = null;
         private const int DefaultPort = 52480;
         private static int activePort = DefaultPort;
         public static string CustomAppDir = null;
@@ -268,7 +270,7 @@ namespace BelgeDuzenleyici
                     {
                         if (p.Id != currentId && p.MainWindowHandle != IntPtr.Zero && !string.IsNullOrEmpty(p.MainWindowTitle))
                         {
-                            if (p.MainWindowTitle.StartsWith("Kalpten Kaleme", StringComparison.OrdinalIgnoreCase))
+                            if (p.MainWindowTitle.IndexOf("Kalpten Kaleme", StringComparison.OrdinalIgnoreCase) >= 0)
                             {
                                 ShowWindow(p.MainWindowHandle, SW_RESTORE);
                                 SetForegroundWindow(p.MainWindowHandle);
@@ -694,10 +696,13 @@ namespace BelgeDuzenleyici
                     string json;
                     if (!string.IsNullOrEmpty(currentFilePath) && File.Exists(currentFilePath) && IsSupportedDocumentPath(currentFilePath))
                     {
-                        string fn = Path.GetFileName(currentFilePath);
-                        string ext = Path.GetExtension(currentFilePath).TrimStart('.').ToLower();
-                        json = string.Format("{{\"hasFile\":true,\"filename\":\"{0}\",\"ext\":\"{1}\"}}", 
-                            fn.Replace("\\", "\\\\").Replace("\"", "\\\""), ext);
+                        string fullPath = Path.GetFullPath(currentFilePath);
+                        string fn = Path.GetFileName(fullPath);
+                        string ext = Path.GetExtension(fullPath).TrimStart('.').ToLower();
+                        json = string.Format("{{\"hasFile\":true,\"filename\":\"{0}\",\"ext\":\"{1}\",\"path\":\"{2}\"}}", 
+                            fn.Replace("\\", "\\\\").Replace("\"", "\\\""),
+                            ext,
+                            fullPath.Replace("\\", "\\\\").Replace("\"", "\\\""));
                     }
                     else
                     {
@@ -705,6 +710,248 @@ namespace BelgeDuzenleyici
                         json = "{\"hasFile\":false}";
                     }
 
+                    respBytes = Encoding.UTF8.GetBytes(json);
+                    res.ContentType = "application/json; charset=utf-8";
+                    res.StatusCode = 200;
+                    res.OutputStream.Write(respBytes, 0, respBytes.Length);
+                    res.Close();
+                    return;
+                }
+
+                if (rawUrl == "/api/window-title" && req.HttpMethod == "POST")
+                {
+                    using (var reader = new StreamReader(req.InputStream, Encoding.UTF8))
+                    {
+                        string newTitle = reader.ReadToEnd().Trim();
+                        if (!string.IsNullOrEmpty(newTitle) && MainFormInstance != null && !MainFormInstance.IsDisposed)
+                        {
+                            try
+                            {
+                                MainFormInstance.BeginInvoke((Action)(() =>
+                                {
+                                    try { MainFormInstance.Text = newTitle; } catch {}
+                                }));
+                            }
+                            catch {}
+                        }
+                    }
+                    respBytes = Encoding.UTF8.GetBytes("{\"success\":true}");
+                    res.ContentType = "application/json; charset=utf-8";
+                    res.StatusCode = 200;
+                    res.OutputStream.Write(respBytes, 0, respBytes.Length);
+                    res.Close();
+                    return;
+                }
+
+                if (rawUrl == "/api/save-to-path" && req.HttpMethod == "POST")
+                {
+                    string targetPath = req.QueryString["path"];
+                    bool savedOk = false;
+                    string savedFn = "";
+                    string savedFull = "";
+
+                    if (!string.IsNullOrEmpty(targetPath) && IsSupportedDocumentPath(targetPath))
+                    {
+                        try
+                        {
+                            savedFull = Path.GetFullPath(targetPath);
+                            savedFn = Path.GetFileName(savedFull);
+                            string dir = Path.GetDirectoryName(savedFull);
+                            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                            using (var fs = new FileStream(savedFull, FileMode.Create, FileAccess.Write))
+                            {
+                                byte[] buffer = new byte[8192];
+                                int bytesRead;
+                                while ((bytesRead = req.InputStream.Read(buffer, 0, buffer.Length)) > 0)
+                                {
+                                    fs.Write(buffer, 0, bytesRead);
+                                }
+                            }
+                            savedOk = true;
+                        }
+                        catch {}
+                    }
+
+                    string json = savedOk
+                        ? string.Format("{{\"success\":true,\"path\":\"{0}\",\"filename\":\"{1}\"}}",
+                            savedFull.Replace("\\", "\\\\").Replace("\"", "\\\""),
+                            savedFn.Replace("\\", "\\\\").Replace("\"", "\\\""))
+                        : "{\"success\":false}";
+                    respBytes = Encoding.UTF8.GetBytes(json);
+                    res.ContentType = "application/json; charset=utf-8";
+                    res.StatusCode = 200;
+                    res.OutputStream.Write(respBytes, 0, respBytes.Length);
+                    res.Close();
+                    return;
+                }
+
+                if (rawUrl == "/api/native-open-dialog" && req.HttpMethod == "POST")
+                {
+                    string mode = "all";
+                    try
+                    {
+                        using (var reader = new StreamReader(req.InputStream, Encoding.UTF8))
+                        {
+                            string body = reader.ReadToEnd();
+                            if (body.Contains("\"pdf\"")) mode = "pdf";
+                            else if (body.Contains("\"ppt\"")) mode = "ppt";
+                            else if (body.Contains("\"word\"")) mode = "word";
+                        }
+                    }
+                    catch {}
+
+                    string selectedFile = null;
+                    bool cancelled = true;
+                    Action runOpenDialog = () =>
+                    {
+                        try
+                        {
+                            using (var ofd = new OpenFileDialog())
+                            {
+                                ofd.Title = "Kalpten Kaleme — Belge Aç";
+                                if (mode == "pdf")
+                                    ofd.Filter = "PDF Belgeleri (*.pdf)|*.pdf|Tüm Desteklenen Belgeler|*.docx;*.doc;*.pdf;*.pptx;*.ppt;*.txt;*.md;*.html;*.json";
+                                else if (mode == "ppt")
+                                    ofd.Filter = "Sunum Dosyaları (*.pptx;*.ppt;*.json)|*.pptx;*.ppt;*.json|Tüm Desteklenen Belgeler|*.docx;*.doc;*.pdf;*.pptx;*.ppt;*.txt;*.md;*.html;*.json";
+                                else if (mode == "word")
+                                    ofd.Filter = "Word & Yazı Belgeleri (*.docx;*.doc;*.txt;*.md;*.html)|*.docx;*.doc;*.txt;*.md;*.html|Tüm Desteklenen Belgeler|*.docx;*.doc;*.pdf;*.pptx;*.ppt;*.txt;*.md;*.html;*.json";
+                                else
+                                    ofd.Filter = "Tüm Desteklenen Belgeler|*.docx;*.doc;*.pdf;*.pptx;*.ppt;*.txt;*.md;*.html;*.json";
+
+                                DialogResult dr = (MainFormInstance != null && !MainFormInstance.IsDisposed && MainFormInstance.IsHandleCreated)
+                                    ? ofd.ShowDialog(MainFormInstance)
+                                    : ofd.ShowDialog();
+                                if (dr == DialogResult.OK && !string.IsNullOrEmpty(ofd.FileName))
+                                {
+                                    selectedFile = Path.GetFullPath(ofd.FileName);
+                                    cancelled = false;
+                                }
+                            }
+                        }
+                        catch {}
+                    };
+
+                    if (MainFormInstance != null && !MainFormInstance.IsDisposed && MainFormInstance.IsHandleCreated)
+                    {
+                        try { MainFormInstance.Invoke(runOpenDialog); } catch {}
+                    }
+                    else
+                    {
+                        Thread staThread = new Thread(new ThreadStart(runOpenDialog));
+                        staThread.SetApartmentState(ApartmentState.STA);
+                        staThread.Start();
+                        staThread.Join(120000);
+                    }
+
+                    string json;
+                    if (!cancelled && !string.IsNullOrEmpty(selectedFile) && File.Exists(selectedFile))
+                    {
+                        currentFilePath = selectedFile;
+                        string fn = Path.GetFileName(selectedFile);
+                        json = string.Format("{{\"success\":true,\"path\":\"{0}\",\"filename\":\"{1}\"}}",
+                            selectedFile.Replace("\\", "\\\\").Replace("\"", "\\\""),
+                            fn.Replace("\\", "\\\\").Replace("\"", "\\\""));
+                    }
+                    else
+                    {
+                        json = "{\"success\":false,\"cancelled\":true}";
+                    }
+                    respBytes = Encoding.UTF8.GetBytes(json);
+                    res.ContentType = "application/json; charset=utf-8";
+                    res.StatusCode = 200;
+                    res.OutputStream.Write(respBytes, 0, respBytes.Length);
+                    res.Close();
+                    return;
+                }
+
+                if (rawUrl == "/api/native-save-dialog" && req.HttpMethod == "POST")
+                {
+                    string suggestedName = req.QueryString["filename"];
+                    if (string.IsNullOrEmpty(suggestedName)) suggestedName = "Yeni Yazı.docx";
+                    suggestedName = Path.GetFileName(suggestedName);
+                    string ext = Path.GetExtension(suggestedName).ToLower();
+
+                    byte[] fileData;
+                    using (var ms = new MemoryStream())
+                    {
+                        byte[] buf = new byte[8192];
+                        int read;
+                        while ((read = req.InputStream.Read(buf, 0, buf.Length)) > 0)
+                        {
+                            ms.Write(buf, 0, read);
+                        }
+                        fileData = ms.ToArray();
+                    }
+
+                    string chosenPath = null;
+                    bool cancelled = true;
+                    Action runSaveDialog = () =>
+                    {
+                        try
+                        {
+                            using (var sfd = new SaveFileDialog())
+                            {
+                                sfd.Title = "Kalpten Kaleme — Farklı Kaydet";
+                                sfd.FileName = suggestedName;
+                                if (ext == ".pdf")
+                                {
+                                    sfd.DefaultExt = "pdf";
+                                    sfd.Filter = "PDF Belgesi (*.pdf)|*.pdf|Tüm Dosyalar (*.*)|*.*";
+                                }
+                                else if (ext == ".pptx")
+                                {
+                                    sfd.DefaultExt = "pptx";
+                                    sfd.Filter = "PowerPoint Sunumu (*.pptx)|*.pptx|Tüm Dosyalar (*.*)|*.*";
+                                }
+                                else if (ext == ".json")
+                                {
+                                    sfd.DefaultExt = "json";
+                                    sfd.Filter = "Sunum Projesi (*.json)|*.json|Tüm Dosyalar (*.*)|*.*";
+                                }
+                                else
+                                {
+                                    sfd.DefaultExt = "docx";
+                                    sfd.Filter = "Microsoft Word Belgesi (*.docx)|*.docx|Metin Dosyası (*.txt)|*.txt|HTML Belgesi (*.html)|*.html";
+                                }
+
+                                DialogResult dr = (MainFormInstance != null && !MainFormInstance.IsDisposed && MainFormInstance.IsHandleCreated)
+                                    ? sfd.ShowDialog(MainFormInstance)
+                                    : sfd.ShowDialog();
+                                if (dr == DialogResult.OK && !string.IsNullOrEmpty(sfd.FileName))
+                                {
+                                    chosenPath = Path.GetFullPath(sfd.FileName);
+                                    cancelled = false;
+                                }
+                            }
+                        }
+                        catch {}
+                    };
+
+                    if (MainFormInstance != null && !MainFormInstance.IsDisposed && MainFormInstance.IsHandleCreated)
+                    {
+                        try { MainFormInstance.Invoke(runSaveDialog); } catch {}
+                    }
+                    else
+                    {
+                        Thread staThread = new Thread(new ThreadStart(runSaveDialog));
+                        staThread.SetApartmentState(ApartmentState.STA);
+                        staThread.Start();
+                        staThread.Join(120000);
+                    }
+
+                    string json;
+                    if (!cancelled && !string.IsNullOrEmpty(chosenPath))
+                    {
+                        File.WriteAllBytes(chosenPath, fileData);
+                        string fn = Path.GetFileName(chosenPath);
+                        json = string.Format("{{\"success\":true,\"path\":\"{0}\",\"filename\":\"{1}\"}}",
+                            chosenPath.Replace("\\", "\\\\").Replace("\"", "\\\""),
+                            fn.Replace("\\", "\\\\").Replace("\"", "\\\""));
+                    }
+                    else
+                    {
+                        json = "{\"success\":false,\"cancelled\":true}";
+                    }
                     respBytes = Encoding.UTF8.GetBytes(json);
                     res.ContentType = "application/json; charset=utf-8";
                     res.StatusCode = 200;
@@ -894,7 +1141,8 @@ namespace BelgeDuzenleyici
                 if (rawUrl == "/api/select-sync-folder")
                 {
                     string selected = null;
-                    Thread staThread = new Thread(() =>
+                    string curFolder = GetSyncFolder();
+                    Action runFolderDialog = () =>
                     {
                         try
                         {
@@ -902,19 +1150,30 @@ namespace BelgeDuzenleyici
                             {
                                 fbd.Description = "Kalpten Kaleme - Google Drive veya Yazı Klasörünü Seçin";
                                 fbd.ShowNewFolderButton = true;
-                                string cur = GetSyncFolder();
-                                if (Directory.Exists(cur)) fbd.SelectedPath = cur;
-                                if (fbd.ShowDialog() == DialogResult.OK)
+                                if (Directory.Exists(curFolder)) fbd.SelectedPath = curFolder;
+                                DialogResult dr = (MainFormInstance != null && !MainFormInstance.IsDisposed && MainFormInstance.IsHandleCreated)
+                                    ? fbd.ShowDialog(MainFormInstance)
+                                    : fbd.ShowDialog();
+                                if (dr == DialogResult.OK)
                                 {
                                     selected = fbd.SelectedPath;
                                 }
                             }
                         }
                         catch {}
-                    });
-                    staThread.SetApartmentState(ApartmentState.STA);
-                    staThread.Start();
-                    staThread.Join(60000);
+                    };
+
+                    if (MainFormInstance != null && !MainFormInstance.IsDisposed && MainFormInstance.IsHandleCreated)
+                    {
+                        try { MainFormInstance.Invoke(runFolderDialog); } catch {}
+                    }
+                    else
+                    {
+                        Thread staThread = new Thread(new ThreadStart(runFolderDialog));
+                        staThread.SetApartmentState(ApartmentState.STA);
+                        staThread.Start();
+                        staThread.Join(60000);
+                    }
 
                     if (!string.IsNullOrEmpty(selected) && Directory.Exists(selected))
                     {

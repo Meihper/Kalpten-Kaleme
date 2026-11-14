@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Kalpten Kaleme - Local Server & Desktop App Launcher
 # Supports Windows "Open With" (Birlikte Aç) and Command-Line File Arguments
 # ==============================================================================
@@ -175,6 +175,28 @@ function Get-CloudProvider($folder) {
     return "local"
 }
 
+function Invoke-WinFormsStaDialog([string]$ScriptText, $ArgValue) {
+    if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -eq [System.Threading.ApartmentState]::STA) {
+        $sb = [scriptblock]::Create($ScriptText)
+        return (& $sb $ArgValue)
+    }
+    $rs = [runspacefactory]::CreateRunspace()
+    $rs.ApartmentState = [System.Threading.ApartmentState]::STA
+    $rs.ThreadOptions = "ReuseThread"
+    $rs.Open()
+    $ps = $null
+    try {
+        $ps = [System.Management.Automation.PowerShell]::Create()
+        $ps.Runspace = $rs
+        [void]$ps.AddScript($ScriptText).AddArgument($ArgValue)
+        return $ps.Invoke()
+    } finally {
+        if ($ps) { $ps.Dispose() }
+        $rs.Close()
+        $rs.Dispose()
+    }
+}
+
 # Robust Request Loop with Automatic Lifecycle & Self-Termination on Exit
 $hasEverConnected = $false
 $startupGraceSeconds = 90
@@ -252,9 +274,10 @@ while ($listener.IsListening) {
             if (Test-Path $openFileRecord) {
                 $targetFile = [System.IO.File]::ReadAllText($openFileRecord, [System.Text.Encoding]::UTF8).Trim()
                 if (![string]::IsNullOrWhiteSpace($targetFile) -and (Test-Path $targetFile)) {
-                    $fileName = [System.IO.Path]::GetFileName($targetFile)
-                    $ext = [System.IO.Path]::GetExtension($targetFile).ToLower().TrimStart('.')
-                    $jsonObj = @{ hasFile = $true; filename = $fileName; ext = $ext }
+                    $fullPath = [System.IO.Path]::GetFullPath($targetFile)
+                    $fileName = [System.IO.Path]::GetFileName($fullPath)
+                    $ext = [System.IO.Path]::GetExtension($fullPath).ToLower().TrimStart('.')
+                    $jsonObj = @{ hasFile = $true; filename = $fileName; ext = $ext; path = $fullPath }
                     $json = $jsonObj | ConvertTo-Json -Compress
                     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
                     $response.OutputStream.Write($bytes, 0, $bytes.Length)
@@ -265,6 +288,170 @@ while ($listener.IsListening) {
 
             $emptyBytes = [System.Text.Encoding]::UTF8.GetBytes('{"hasFile":false}')
             $response.OutputStream.Write($emptyBytes, 0, $emptyBytes.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($relPath -eq "api/window-title" -and $request.HttpMethod -eq "POST") {
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"success":true}')
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($relPath -eq "api/save-to-path" -and $request.HttpMethod -eq "POST") {
+            $targetPath = $request.QueryString["path"]
+            $savedOk = $false
+            $savedFull = ""
+            $savedFn = ""
+            if (![string]::IsNullOrWhiteSpace($targetPath)) {
+                try {
+                    $savedFull = [System.IO.Path]::GetFullPath($targetPath)
+                    $savedFn = [System.IO.Path]::GetFileName($savedFull)
+                    $dir = [System.IO.Path]::GetDirectoryName($savedFull)
+                    if (![string]::IsNullOrWhiteSpace($dir) -and !(Test-Path $dir)) {
+                        [System.IO.Directory]::CreateDirectory($dir) | Out-Null
+                    }
+                    $fs = New-Object System.IO.FileStream($savedFull, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
+                    $request.InputStream.CopyTo($fs)
+                    $fs.Close()
+                    $savedOk = $true
+                } catch {}
+            }
+            $jsonObj = @{ success = $savedOk; path = $savedFull; filename = $savedFn }
+            $json = $jsonObj | ConvertTo-Json -Compress
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($relPath -eq "api/native-open-dialog" -and $request.HttpMethod -eq "POST") {
+            $mode = "all"
+            try {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $bodyText = $reader.ReadToEnd()
+                $reader.Close()
+                if ($bodyText -match '"pdf"') { $mode = "pdf" }
+                elseif ($bodyText -match '"ppt"') { $mode = "ppt" }
+                elseif ($bodyText -match '"word"') { $mode = "word" }
+            } catch {}
+
+            $openScript = @'
+param($dialogMode)
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true
+$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+$owner.Location = New-Object System.Drawing.Point(-32000, -32000)
+$owner.Size = New-Object System.Drawing.Size(1, 1)
+$owner.ShowInTaskbar = $false
+$ofd = New-Object System.Windows.Forms.OpenFileDialog
+$ofd.Title = "Kalpten Kaleme — Belge Aç"
+if ($dialogMode -eq "pdf") {
+    $ofd.Filter = "PDF Belgeleri (*.pdf)|*.pdf|Tüm Desteklenen Belgeler|*.docx;*.doc;*.pdf;*.pptx;*.ppt;*.txt;*.md;*.html;*.json"
+} elseif ($dialogMode -eq "ppt") {
+    $ofd.Filter = "Sunum Dosyaları (*.pptx;*.ppt;*.json)|*.pptx;*.ppt;*.json|Tüm Desteklenen Belgeler|*.docx;*.doc;*.pdf;*.pptx;*.ppt;*.txt;*.md;*.html;*.json"
+} elseif ($dialogMode -eq "word") {
+    $ofd.Filter = "Word & Yazı Belgeleri (*.docx;*.doc;*.txt;*.md;*.html)|*.docx;*.doc;*.txt;*.md;*.html|Tüm Desteklenen Belgeler|*.docx;*.doc;*.pdf;*.pptx;*.ppt;*.txt;*.md;*.html;*.json"
+} else {
+    $ofd.Filter = "Tüm Desteklenen Belgeler|*.docx;*.doc;*.pdf;*.pptx;*.ppt;*.txt;*.md;*.html;*.json"
+}
+try {
+    $dr = $ofd.ShowDialog($owner)
+    if ($dr -eq [System.Windows.Forms.DialogResult]::OK -and ![string]::IsNullOrWhiteSpace($ofd.FileName)) {
+        return [System.IO.Path]::GetFullPath($ofd.FileName)
+    }
+    return $null
+} finally {
+    $ofd.Dispose()
+    $owner.Dispose()
+}
+'@
+            $selectedRaw = Invoke-WinFormsStaDialog $openScript $mode
+            $selPath = ($selectedRaw | Select-Object -Last 1)
+            if ($selPath -and ![string]::IsNullOrWhiteSpace([string]$selPath)) {
+                $selPath = [string]$selPath
+                [System.IO.File]::WriteAllText($openFileRecord, $selPath, [System.Text.Encoding]::UTF8)
+                $jsonObj = @{ success = $true; path = $selPath; filename = [System.IO.Path]::GetFileName($selPath) }
+            } else {
+                $jsonObj = @{ success = $false; cancelled = $true }
+            }
+            $json = $jsonObj | ConvertTo-Json -Compress
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.Close()
+            continue
+        }
+
+        if ($relPath -eq "api/native-save-dialog" -and $request.HttpMethod -eq "POST") {
+            $suggestedName = $request.QueryString["filename"]
+            if ([string]::IsNullOrWhiteSpace($suggestedName)) { $suggestedName = "Yeni Yazı.docx" }
+            $suggestedName = [System.IO.Path]::GetFileName($suggestedName)
+            $ms = New-Object System.IO.MemoryStream
+            $request.InputStream.CopyTo($ms)
+            $fileData = $ms.ToArray()
+            $ms.Close()
+
+            $saveScript = @'
+param($sugName)
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true
+$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+$owner.Location = New-Object System.Drawing.Point(-32000, -32000)
+$owner.Size = New-Object System.Drawing.Size(1, 1)
+$owner.ShowInTaskbar = $false
+$sfd = New-Object System.Windows.Forms.SaveFileDialog
+$sfd.Title = "Kalpten Kaleme — Farklı Kaydet"
+$sfd.FileName = $sugName
+$ext = [System.IO.Path]::GetExtension($sugName).ToLower()
+if ($ext -eq ".pdf") {
+    $sfd.DefaultExt = "pdf"
+    $sfd.Filter = "PDF Belgesi (*.pdf)|*.pdf|Tüm Dosyalar (*.*)|*.*"
+} elseif ($ext -eq ".pptx") {
+    $sfd.DefaultExt = "pptx"
+    $sfd.Filter = "PowerPoint Sunumu (*.pptx)|*.pptx|Tüm Dosyalar (*.*)|*.*"
+} elseif ($ext -eq ".json") {
+    $sfd.DefaultExt = "json"
+    $sfd.Filter = "Sunum Projesi (*.json)|*.json|Tüm Dosyalar (*.*)|*.*"
+} else {
+    $sfd.DefaultExt = "docx"
+    $sfd.Filter = "Microsoft Word Belgesi (*.docx)|*.docx|Metin Dosyası (*.txt)|*.txt|HTML Belgesi (*.html)|*.html"
+}
+try {
+    $dr = $sfd.ShowDialog($owner)
+    if ($dr -eq [System.Windows.Forms.DialogResult]::OK -and ![string]::IsNullOrWhiteSpace($sfd.FileName)) {
+        return [System.IO.Path]::GetFullPath($sfd.FileName)
+    }
+    return $null
+} finally {
+    $sfd.Dispose()
+    $owner.Dispose()
+}
+'@
+            $chosenRaw = Invoke-WinFormsStaDialog $saveScript $suggestedName
+            $chosenPath = ($chosenRaw | Select-Object -Last 1)
+            if ($chosenPath -and ![string]::IsNullOrWhiteSpace([string]$chosenPath)) {
+                $chosenPath = [string]$chosenPath
+                [System.IO.File]::WriteAllBytes($chosenPath, $fileData)
+                $jsonObj = @{ success = $true; path = $chosenPath; filename = [System.IO.Path]::GetFileName($chosenPath) }
+            } else {
+                $jsonObj = @{ success = $false; cancelled = $true }
+            }
+            $json = $jsonObj | ConvertTo-Json -Compress
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.AddHeader("Access-Control-Allow-Origin", "*")
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
             $response.Close()
             continue
         }
@@ -497,13 +684,34 @@ while ($listener.IsListening) {
         # ====================================================================
         if ($relPath -eq "api/select-sync-folder") {
             try {
-                Add-Type -AssemblyName System.Windows.Forms
-                $fbd = New-Object System.Windows.Forms.FolderBrowserDialog
-                $fbd.Description = "Kalpten Kaleme Belgelerinizin Eşitleneceği Klasörü Seçin (Google Drive / OneDrive / Belgeler)"
-                $fbd.ShowNewFolderButton = $true
-                $dialogResult = $fbd.ShowDialog()
-                if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK -and !([string]::IsNullOrWhiteSpace($fbd.SelectedPath))) {
-                    [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot "cloud_sync_config.txt"), $fbd.SelectedPath, [System.Text.Encoding]::UTF8)
+                $folderScript = @'
+param($unused)
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true
+$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+$owner.Location = New-Object System.Drawing.Point(-32000, -32000)
+$owner.Size = New-Object System.Drawing.Size(1, 1)
+$owner.ShowInTaskbar = $false
+$fbd = New-Object System.Windows.Forms.FolderBrowserDialog
+$fbd.Description = "Kalpten Kaleme Belgelerinizin Eşitleneceği Klasörü Seçin (Google Drive / OneDrive / Belgeler)"
+$fbd.ShowNewFolderButton = $true
+try {
+    $dialogResult = $fbd.ShowDialog($owner)
+    if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK -and !([string]::IsNullOrWhiteSpace($fbd.SelectedPath))) {
+        return $fbd.SelectedPath
+    }
+    return $null
+} finally {
+    $fbd.Dispose()
+    $owner.Dispose()
+}
+'@
+                $selectedFolderRaw = Invoke-WinFormsStaDialog $folderScript $null
+                $selectedFolder = ($selectedFolderRaw | Select-Object -Last 1)
+                if ($selectedFolder -and !([string]::IsNullOrWhiteSpace([string]$selectedFolder))) {
+                    [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot "cloud_sync_config.txt"), [string]$selectedFolder, [System.Text.Encoding]::UTF8)
                 }
             } catch {}
 

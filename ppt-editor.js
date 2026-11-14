@@ -1770,6 +1770,13 @@ const pptEditor = {
   },
 
   debounceSave() {
+    if (window.docManager) {
+      const activeDoc = window.docManager.getActiveDoc();
+      if (activeDoc && activeDoc.type === 'ppt') {
+        activeDoc.isDirty = true;
+        if (typeof window.updateDesktopWindowTitle === 'function') window.updateDesktopWindowTitle();
+      }
+    }
     clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => {
       this.saveToStorage();
@@ -2239,37 +2246,35 @@ const pptEditor = {
   // ========================================================================
   // Presentation Export & Import Tools (.PPTX, .HTML, .PDF, .JSON)
   // ========================================================================
-  async exportPptx() {
+  async buildPptxBlob() {
     this.syncCurrentSlideFromDOM();
     if (!window.JSZip) {
-      if (window.showToast) window.showToast('PPTX oluşturucu hazırlanıyor, lütfen tekrar deneyin.', 'warning');
-      return;
+      throw new Error('PPTX motoru henüz yüklenmedi.');
     }
 
-    try {
-      const zip = new window.JSZip();
-      const slides = this.state.slides || [];
-      const title = this.state.fileName ? this.state.fileName.replace(/\.[^/.]+$/, '') : 'Kalpten_Kaleme_Sunum';
+    const zip = new window.JSZip();
+    const slides = this.state.slides || [];
+    const title = this.state.fileName ? this.state.fileName.replace(/\.[^/.]+$/, '') : 'Kalpten_Kaleme_Sunum';
 
-      const stripHtml = (html) => {
-        const tmp = document.createElement('div');
-        tmp.innerHTML = html || '';
-        return (tmp.textContent || tmp.innerText || '').trim();
-      };
+    const stripHtml = (html) => {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html || '';
+      return (tmp.textContent || tmp.innerText || '').trim();
+    };
 
-      const xmlEscape = (str) => String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
+    const xmlEscape = (str) => String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
 
-      // 1. [Content_Types].xml
-      const slideOverrides = slides.map((_, i) =>
-        `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`
-      ).join('\n  ');
+    // 1. [Content_Types].xml
+    const slideOverrides = slides.map((_, i) =>
+      `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`
+    ).join('\n  ');
 
-      zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
@@ -2277,28 +2282,28 @@ const pptEditor = {
   ${slideOverrides}
 </Types>`);
 
-      // 2. _rels/.rels
-      zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    // 2. _rels/.rels
+    zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>
 </Relationships>`);
 
-      // 3. ppt/_rels/presentation.xml.rels
-      const presRels = slides.map((_, i) =>
-        `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i + 1}.xml"/>`
-      ).join('\n  ');
+    // 3. ppt/_rels/presentation.xml.rels
+    const presRels = slides.map((_, i) =>
+      `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i + 1}.xml"/>`
+    ).join('\n  ');
 
-      zip.file('ppt/_rels/presentation.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    zip.file('ppt/_rels/presentation.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   ${presRels}
 </Relationships>`);
 
-      // 4. ppt/presentation.xml
-      const sldIdLst = slides.map((_, i) =>
-        `<p:sldId id="${256 + i}" r:id="rId${i + 1}"/>`
-      ).join('\n    ');
+    // 4. ppt/presentation.xml
+    const sldIdLst = slides.map((_, i) =>
+      `<p:sldId id="${256 + i}" r:id="rId${i + 1}"/>`
+    ).join('\n    ');
 
-      zip.file('ppt/presentation.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    zip.file('ppt/presentation.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
   <p:sldIdLst>
     ${sldIdLst}
@@ -2307,30 +2312,30 @@ const pptEditor = {
   <p:notesSz cx="6858000" cy="9144000"/>
 </p:presentation>`);
 
-      // 5. Each slide XML: ppt/slides/slide{N}.xml
-      slides.forEach((s, i) => {
-        const heading = stripHtml(s.title || s.quote || `Slayt ${i + 1}`);
-        const bodyParts = [
-          stripHtml(s.subtitle),
-          stripHtml(s.content),
-          stripHtml(s.leftCol),
-          stripHtml(s.rightCol),
-          stripHtml(s.card1),
-          stripHtml(s.card2),
-          stripHtml(s.card3),
-          stripHtml(s.author)
-        ].filter(Boolean);
+    // 5. Each slide XML: ppt/slides/slide{N}.xml
+    slides.forEach((s, i) => {
+      const heading = stripHtml(s.title || s.quote || `Slayt ${i + 1}`);
+      const bodyParts = [
+        stripHtml(s.subtitle),
+        stripHtml(s.content),
+        stripHtml(s.leftCol),
+        stripHtml(s.rightCol),
+        stripHtml(s.card1),
+        stripHtml(s.card2),
+        stripHtml(s.card3),
+        stripHtml(s.author)
+      ].filter(Boolean);
 
-        (s.elements || []).forEach(el => {
-          const t = stripHtml(el.html);
-          if (t) bodyParts.push(t);
-        });
+      (s.elements || []).forEach(el => {
+        const t = stripHtml(el.html);
+        if (t) bodyParts.push(t);
+      });
 
-        const paragraphsXml = bodyParts.length > 0
-          ? bodyParts.map(p => `<a:p><a:r><a:rPr lang="tr-TR" sz="2000"/><a:t>${xmlEscape(p)}</a:t></a:r></a:p>`).join('')
-          : `<a:p><a:r><a:rPr lang="tr-TR" sz="2000"/><a:t></a:t></a:r></a:p>`;
+      const paragraphsXml = bodyParts.length > 0
+        ? bodyParts.map(p => `<a:p><a:r><a:rPr lang="tr-TR" sz="2000"/><a:t>${xmlEscape(p)}</a:t></a:r></a:p>`).join('')
+        : `<a:p><a:r><a:rPr lang="tr-TR" sz="2000"/><a:t></a:t></a:r></a:p>`;
 
-        zip.file(`ppt/slides/slide${i + 1}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+      zip.file(`ppt/slides/slide${i + 1}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
   <p:cSld>
     <p:spTree>
@@ -2349,12 +2354,32 @@ const pptEditor = {
     </p:spTree>
   </p:cSld>
 </p:sld>`);
-      });
+    });
 
-      const blob = await zip.generateAsync({
-        type: 'blob',
-        mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-      });
+    // 6. Embed lossless Kalpten Kaleme presentation state inside .pptx for 100% round-trip fidelity
+    zip.file('ppt/kalpten_state.json', JSON.stringify({
+      slides: this.state.slides,
+      theme: this.state.theme,
+      aspectRatio: this.state.aspectRatio || '16:9',
+      fileName: `${title}.pptx`
+    }, null, 2));
+
+    return await zip.generateAsync({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    });
+  },
+
+  async exportPptx() {
+    this.syncCurrentSlideFromDOM();
+    if (!window.JSZip) {
+      if (window.showToast) window.showToast('PPTX oluşturucu hazırlanıyor, lütfen tekrar deneyin.', 'warning');
+      return;
+    }
+
+    try {
+      const title = this.state.fileName ? this.state.fileName.replace(/\.[^/.]+$/, '') : 'Kalpten_Kaleme_Sunum';
+      const blob = await this.buildPptxBlob();
       await this.saveOrDownloadExport(
         blob,
         `${title}.pptx`,
@@ -2589,23 +2614,144 @@ const pptEditor = {
     }
   },
 
-  async savePresentationDocument() {
+  async savePresentationDocument(options = {}) {
     this.syncCurrentSlideFromDOM();
     this.saveToStorage();
-    const rawName = (this.state.fileName || 'Sunum').replace(/\.[^/.]+$/, '');
-    const fileName = `${rawName}.json`;
-    const payload = JSON.stringify({
-      slides: this.state.slides,
-      theme: this.state.theme,
-      aspectRatio: this.state.aspectRatio || '16:9',
-      fileName: this.state.fileName
-    }, null, 2);
+    const isSaveAs = Boolean(options && options.saveAs);
+    const activeDoc = window.docManager ? window.docManager.getActiveDoc() : null;
+    const rawName = (this.state.fileName || activeDoc?.title || 'Sunum 1').replace(/\.[^/.]+$/, '');
+    const extHint = (activeDoc?.filePath || activeDoc?.fileHandle?.name || this.state.fileName || '').toLowerCase();
+    const wantsJson = extHint.endsWith('.json') || !window.JSZip;
+    let fileName = wantsJson ? `${rawName}.json` : `${rawName}.pptx`;
 
-    const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
-    if (window.kalptenVault) {
-      await window.kalptenVault.saveFile(fileName, blob, 'json');
+    let blob;
+    let payloadStr = '';
+    if (wantsJson) {
+      payloadStr = JSON.stringify({
+        slides: this.state.slides,
+        theme: this.state.theme,
+        aspectRatio: this.state.aspectRatio || '16:9',
+        fileName
+      }, null, 2);
+      blob = new Blob([payloadStr], { type: 'application/json;charset=utf-8' });
+    } else {
+      blob = await this.buildPptxBlob();
     }
+
+    const saveExt = fileName.toLowerCase().endsWith('.json') ? 'json' : 'pptx';
+    const saveMime = saveExt === 'json'
+      ? 'application/json'
+      : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
     const wordSaveStatus = document.getElementById('wordSaveStatus');
+    const pptTitleInput = document.getElementById('pptDocTitle');
+
+    // 0A. Save As Dialog
+    if (isSaveAs) {
+      if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+        try {
+          const resp = await fetch('/api/native-save-dialog?filename=' + encodeURIComponent(fileName), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: blob
+          });
+          if (resp.ok) {
+            const resData = await resp.json();
+            if (resData && (resData.cancelled || resData.canceled)) return false;
+            if (resData && resData.success && resData.path) {
+              fileName = resData.filename || fileName;
+              this.state.fileName = fileName;
+              if (pptTitleInput) pptTitleInput.value = fileName;
+              if (activeDoc) {
+                activeDoc.title = fileName;
+                activeDoc.filePath = resData.path;
+                activeDoc.fileHandle = null;
+                activeDoc.isDirty = false;
+                activeDoc.isDefault = false;
+                if (window.docManager) window.docManager.renderTabs();
+              }
+              if (window.kalptenVault) await window.kalptenVault.saveFile(fileName, blob, saveExt);
+              if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
+              if (window.loadDriveFiles) window.loadDriveFiles();
+              if (window.showToast) window.showToast(`"${fileName}" seçilen konuma kaydedildi.`);
+              return true;
+            }
+          }
+        } catch (_) {}
+      } else if (typeof window.showSaveFilePicker === 'function') {
+        try {
+          const pickerType = saveExt === 'json'
+            ? { description: 'Sunum Projesi (.json)', accept: { 'application/json': ['.json'] } }
+            : { description: 'PowerPoint Sunumu (.pptx)', accept: { 'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'] } };
+          const handle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [pickerType]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          fileName = handle.name || fileName;
+          this.state.fileName = fileName;
+          if (pptTitleInput) pptTitleInput.value = fileName;
+          if (activeDoc) {
+            activeDoc.title = fileName;
+            activeDoc.fileHandle = handle;
+            activeDoc.filePath = null;
+            activeDoc.isDirty = false;
+            activeDoc.isDefault = false;
+            if (window.docManager) window.docManager.renderTabs();
+          }
+          if (window.kalptenVault) await window.kalptenVault.saveFile(fileName, blob, saveExt);
+          if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
+          if (window.showToast) window.showToast(`"${fileName}" bilgisayarınıza kaydedildi.`);
+          return true;
+        } catch (err) {
+          if (err && err.name === 'AbortError') return false;
+        }
+      }
+    }
+
+    // 0B. In-Place Overwrite on Ctrl+S if file was opened from local disk
+    if (!isSaveAs && activeDoc) {
+      if (activeDoc.fileHandle && typeof activeDoc.fileHandle.createWritable === 'function') {
+        try {
+          const writable = await activeDoc.fileHandle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          activeDoc.isDirty = false;
+          if (window.docManager) window.docManager.renderTabs();
+          if (window.kalptenVault) await window.kalptenVault.saveFile(fileName, blob, saveExt);
+          if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
+          if (window.showToast) window.showToast(`"${activeDoc.fileHandle.name || fileName}" doğrudan kendi dosyasının üzerine kaydedildi!`);
+          return true;
+        } catch (_) {}
+      } else if (activeDoc.filePath && typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+        const lowerBound = activeDoc.filePath.toLowerCase();
+        if (lowerBound.endsWith('.pptx') || lowerBound.endsWith('.json')) {
+          try {
+            const resp = await fetch('/api/save-to-path?path=' + encodeURIComponent(activeDoc.filePath), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/octet-stream' },
+              body: blob
+            });
+            if (resp.ok) {
+              const resData = await resp.json();
+              if (resData && resData.success) {
+                activeDoc.isDirty = false;
+                if (window.docManager) window.docManager.renderTabs();
+                if (window.kalptenVault) await window.kalptenVault.saveFile(fileName, blob, saveExt);
+                if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
+                if (window.showToast) window.showToast(`"${fileName}" doğrudan kendi dosyasının üzerine kaydedildi!`);
+                return true;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (window.kalptenVault) {
+      await window.kalptenVault.saveFile(fileName, blob, saveExt);
+    }
     if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
       try {
         const resp = await fetch('/api/save-document?filename=' + encodeURIComponent(fileName), {
@@ -2615,6 +2761,16 @@ const pptEditor = {
         if (resp.ok) {
           const resData = await resp.json();
           if (resData && resData.success) {
+            fileName = resData.filename || fileName;
+            this.state.fileName = fileName;
+            if (pptTitleInput) pptTitleInput.value = fileName;
+            if (activeDoc) {
+              activeDoc.title = fileName;
+              if (resData.path) activeDoc.filePath = resData.path;
+              activeDoc.isDirty = false;
+              activeDoc.isDefault = false;
+              if (window.docManager) window.docManager.renderTabs();
+            }
             const timeStr = resData.time || new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
             if (wordSaveStatus) {
               if (resData.cloudProvider === 'gdrive' || resData.isGoogleDrive) {
@@ -2626,12 +2782,12 @@ const pptEditor = {
               }
             }
             if (window.addRecentDocument) {
-              window.addRecentDocument(resData.filename || fileName, 'ppt');
+              window.addRecentDocument(fileName, 'ppt');
             }
             if (window.loadDriveFiles) {
               window.loadDriveFiles();
             }
-            if (window.showToast) window.showToast(`"${resData.filename || fileName}" başarıyla kaydedildi.`);
+            if (window.showToast) window.showToast(`"${fileName}" başarıyla kaydedildi.`);
             return true;
           }
         }
@@ -2640,11 +2796,15 @@ const pptEditor = {
 
     if (window.AndroidBridge && window.AndroidBridge.saveBase64File) {
       try {
-        const bytes = new TextEncoder().encode(payload);
+        const bytes = new Uint8Array(await blob.arrayBuffer());
         let binary = '';
         for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
         const base64Data = btoa(binary);
-        window.AndroidBridge.saveBase64File(fileName, base64Data, 'application/json');
+        window.AndroidBridge.saveBase64File(fileName, base64Data, saveMime);
+        if (activeDoc) {
+          activeDoc.isDirty = false;
+          if (window.docManager) window.docManager.renderTabs();
+        }
         if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
         if (wordSaveStatus) wordSaveStatus.textContent = '● Telefona Kaydedildi';
         if (window.showToast) window.showToast(`"${fileName}" telefonunuzdaki "Belgeler/Kalpten Kaleme" klasörüne kaydedildi!`);
@@ -2652,6 +2812,10 @@ const pptEditor = {
       } catch (_) {}
     }
 
+    if (activeDoc) {
+      activeDoc.isDirty = false;
+      if (window.docManager) window.docManager.renderTabs();
+    }
     if (window.addRecentDocument) window.addRecentDocument(fileName, 'ppt');
     if (window.loadDriveFiles) window.loadDriveFiles();
     const url = URL.createObjectURL(blob);
@@ -2667,7 +2831,7 @@ const pptEditor = {
     return true;
   },
 
-  async loadFile(file) {
+  async loadFile(file, fileMeta = {}) {
     if (!file) return;
     if (typeof switchTab === 'function') switchTab('pptTab');
     const name = (file.name || '').toLowerCase();
@@ -2688,7 +2852,7 @@ const pptEditor = {
           this.saveToStorage();
           this.render();
           if (window.docManager) {
-            window.docManager.onPptLoaded(file.name, this.state);
+            window.docManager.onPptLoaded(file.name, this.state, fileMeta);
           }
           if (window.showToast) window.showToast(`"${file.name}" sunumu başarıyla yüklendi.`);
           return;
@@ -2702,6 +2866,31 @@ const pptEditor = {
         }
         if (window.JSZip) {
           const zip = await window.JSZip.loadAsync(file);
+
+          // Check for embedded Kalpten Kaleme state first (100% lossless round-trip)
+          const kalptenStateEntry = zip.file('ppt/kalpten_state.json');
+          if (kalptenStateEntry) {
+            try {
+              const stateJson = await kalptenStateEntry.async('text');
+              const data = JSON.parse(stateJson);
+              if (data && Array.isArray(data.slides) && data.slides.length > 0) {
+                this.state.slides = data.slides;
+                this.state.theme = data.theme || 'theme-clean-light';
+                this.state.aspectRatio = data.aspectRatio || '16:9';
+                this.state.fileName = file.name;
+                this.state.currentIndex = 0;
+                this.normalizeSlides();
+                this.saveToStorage();
+                this.render();
+                if (window.docManager) {
+                  window.docManager.onPptLoaded(file.name, this.state, fileMeta);
+                }
+                if (window.showToast) window.showToast(`"${file.name}" sunumu tam düzeniyle yüklendi.`);
+                return;
+              }
+            } catch (_) {}
+          }
+
           const slideFiles = Object.keys(zip.files).filter(k => /^ppt\/slides\/slide\d+\.xml$/i.test(k.replace(/\\/g, '/')));
           if (slideFiles.length > 0) {
             slideFiles.sort((a, b) => {
@@ -2753,7 +2942,7 @@ const pptEditor = {
               this.saveToStorage();
               this.render();
               if (window.docManager) {
-                window.docManager.onPptLoaded(file.name, this.state);
+                window.docManager.onPptLoaded(file.name, this.state, fileMeta);
               }
               if (window.showToast) window.showToast(`"${file.name}" dosyasından ${parsedSlides.length} slayt aktarıldı.`);
               return;
@@ -2797,7 +2986,7 @@ const pptEditor = {
         this.saveToStorage();
         this.render();
         if (window.docManager) {
-          window.docManager.onPptLoaded(file.name, this.state);
+          window.docManager.onPptLoaded(file.name, this.state, fileMeta);
         }
         if (window.showToast) window.showToast(`"${file.name}" dosyasından ${parsed.length} slayt oluşturuldu.`);
       }

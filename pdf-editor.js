@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ========================================================================
   // 2. Open PDF (File Picker & Windows "Open With" API)
   // ========================================================================
-  window.loadPdfFromBuffer = async function(arrayBuffer, fileName) {
+  window.loadPdfFromBuffer = async function(arrayBuffer, fileName, fileMeta = {}) {
     if (!arrayBuffer || arrayBuffer.byteLength === 0) {
       showToast('Seçilen PDF dosyası boş veya okunamadı.', 'error');
       return;
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateToolButtons();
       showToast(`"${pdfState.fileName}" açıldı.`);
       if (window.docManager) {
-        window.docManager.onPdfLoaded(pdfState.fileName, arrayBuffer);
+        window.docManager.onPdfLoaded(pdfState.fileName, arrayBuffer, fileMeta);
       }
     } catch (err) {
       console.error('PDF load error:', err);
@@ -166,10 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  window.loadPdfFile = function(file) {
+  window.loadPdfFile = function(file, fileMeta = {}) {
     const reader = new FileReader();
     reader.onload = function(e) {
-      window.loadPdfFromBuffer(e.target.result, file.name);
+      window.loadPdfFromBuffer(e.target.result, file.name, fileMeta);
     };
     reader.readAsArrayBuffer(file);
   };
@@ -2072,18 +2072,115 @@ document.addEventListener('DOMContentLoaded', () => {
     return new Blob([bytes], { type: 'application/pdf' });
   };
 
-  window.savePdfDocument = async function() {
+  window.savePdfDocument = async function(options = {}) {
     if (!pdfState.rawBytes || !window.PDFLib) {
       showToast('PDF motoru hazır değil veya açık bir PDF yok.', 'error');
       return;
     }
 
+    const isSaveAs = Boolean(options && options.saveAs);
+    const activeDoc = window.docManager ? window.docManager.getActiveDoc() : null;
+
     try {
       showToast('Değişiklikler işleniyor ve PDF oluşturuluyor...');
       const pdfBytes = await generateExportPdfBytes();
       if (!pdfBytes) throw new Error('PDF verisi oluşturulamadı.');
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const rawName = (pdfState.fileName || 'Belge.pdf').trim();
-      const pdfFileName = rawName.toLowerCase().endsWith('.pdf') ? rawName : rawName + '.pdf';
+      let pdfFileName = rawName.toLowerCase().endsWith('.pdf') ? rawName : rawName + '.pdf';
+
+      let savedDirectly = false;
+
+      // 0A. Save As Dialog (Native Server OR File System Access API)
+      if (isSaveAs) {
+        if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+          try {
+            const resp = await fetch(`/api/native-save-dialog?filename=${encodeURIComponent(pdfFileName)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/octet-stream' },
+              body: blob
+            });
+            if (resp.ok) {
+              const resData = await resp.json();
+              if (resData && (resData.cancelled || resData.canceled)) return;
+              if (resData && resData.success) {
+                savedDirectly = true;
+                pdfFileName = resData.filename || pdfFileName;
+                pdfState.fileName = pdfFileName;
+                if (docTitleEl) docTitleEl.value = pdfFileName;
+                if (activeDoc) {
+                  activeDoc.title = pdfFileName;
+                  activeDoc.filePath = resData.path || activeDoc.filePath;
+                  activeDoc.isDirty = false;
+                  window.docManager.renderTabs();
+                }
+                showToast(`"${pdfFileName}" seçilen konuma kaydedildi!`);
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (!savedDirectly && typeof window.showSaveFilePicker === 'function') {
+          try {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: pdfFileName,
+              types: [{
+                description: 'PDF Belgesi (.pdf)',
+                accept: { 'application/pdf': ['.pdf'] }
+              }]
+            });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            savedDirectly = true;
+            pdfFileName = handle.name || pdfFileName;
+            pdfState.fileName = pdfFileName;
+            if (docTitleEl) docTitleEl.value = pdfFileName;
+            if (activeDoc) {
+              activeDoc.title = pdfFileName;
+              activeDoc.fileHandle = handle;
+              activeDoc.isDirty = false;
+              window.docManager.renderTabs();
+            }
+            showToast(`"${pdfFileName}" bilgisayarınıza kaydedildi!`);
+          } catch (err) {
+            if (err && err.name === 'AbortError') return;
+          }
+        }
+      }
+
+      // 0B. In-Place Overwrite on Ctrl+S if file was opened from local disk
+      if (!savedDirectly && !isSaveAs && activeDoc) {
+        if (activeDoc.fileHandle && typeof activeDoc.fileHandle.createWritable === 'function') {
+          try {
+            const writable = await activeDoc.fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            savedDirectly = true;
+            activeDoc.isDirty = false;
+            window.docManager.renderTabs();
+            showToast(`"${pdfFileName}" doğrudan kendi dosyasının üzerine kaydedildi!`);
+          } catch (_) {}
+        } else if (activeDoc.filePath && typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+          try {
+            const resp = await fetch(`/api/save-to-path?path=${encodeURIComponent(activeDoc.filePath)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/octet-stream' },
+              body: blob
+            });
+            if (resp.ok) {
+              const resData = await resp.json();
+              if (resData && resData.success) {
+                savedDirectly = true;
+                activeDoc.isDirty = false;
+                window.docManager.renderTabs();
+                showToast(`"${pdfFileName}" doğrudan kendi dosyasının üzerine kaydedildi!`);
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
       if (window.kalptenVault) {
         await window.kalptenVault.saveFile(pdfFileName, pdfBytes, 'pdf');
       }
@@ -2091,12 +2188,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addRecentDocument(pdfFileName, 'pdf');
       }
 
-      let savedDirectly = false;
-
       // 1. Direct Server Save (Writes straight to sync/documents folder)
-      if (typeof isOnlineServer !== 'undefined' && isOnlineServer) {
+      if (!savedDirectly && typeof isOnlineServer !== 'undefined' && isOnlineServer) {
         try {
-          const blob = new Blob([pdfBytes], { type: 'application/pdf' });
           const resp = await fetch(`/api/save-document?filename=${encodeURIComponent(pdfFileName)}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/octet-stream' },
@@ -2106,6 +2200,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const resData = await resp.json();
             if (resData.success) {
               savedDirectly = true;
+              if (activeDoc) {
+                if (resData.path) activeDoc.filePath = resData.path;
+                activeDoc.isDirty = false;
+                window.docManager.renderTabs();
+              }
               if (window.addRecentDocument) {
                 window.addRecentDocument(resData.filename || pdfFileName, 'pdf');
               }
@@ -2147,7 +2246,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 3. Browser File Download Fallback
       if (!savedDirectly) {
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -2156,6 +2254,10 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        if (activeDoc) {
+          activeDoc.isDirty = false;
+          window.docManager.renderTabs();
+        }
         showToast(`"${pdfFileName}" başarıyla kaydedildi.`);
       }
     } catch (err) {
