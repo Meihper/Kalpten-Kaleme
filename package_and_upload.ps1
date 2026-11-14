@@ -83,7 +83,7 @@ Write-Host "`n=========================================="
 Write-Host "2. COMMITTING AND PUSHING TO GITHUB"
 Write-Host "=========================================="
 
-git add .gitignore index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js manifest.json check_compile.ps1 build_windows_standalone.ps1 package_and_upload.ps1 "Kalpten Kaleme.html" Kurulum_Baslat.bat Baslat.bat Baslat.ps1 Baslat.vbs launcher.vbs KalptenKaleme.ps1 server.ps1 BelgeDuzenleyici.cs Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 KULLANIM_KILAVUZU.txt README.md
+git add .gitignore index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js manifest.json check_compile.ps1 build_windows_standalone.ps1 package_and_upload.ps1 "Kalpten Kaleme.html" KalptenKaleme-Windows.zip Kurulum_Baslat.bat Baslat.bat Baslat.ps1 Baslat.vbs launcher.vbs KalptenKaleme.ps1 server.ps1 BelgeDuzenleyici.cs Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 KULLANIM_KILAVUZU.txt README.md
 $status = git status --porcelain
 if ($status) {
     git commit -m 'feat(windows): package browserless SAC-safe desktop studio in KalptenKaleme-Windows.zip'

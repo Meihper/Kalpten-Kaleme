@@ -9,7 +9,7 @@
 | Platform | İndirme / Erişim Bağlantısı | Kurulum Açıklaması |
 | :--- | :--- | :--- |
 | **📱 Android Telefon / Tablet (APK)** | [**KalptenKaleme.apk İndir (Son Sürüm)**](https://github.com/Meihper/Kalpten-Kaleme/releases/latest/download/KalptenKaleme.apk) | Telefona indirip dokunarak kurun. Belgeleriniz `Belgeler/Kalpten Kaleme` klasörüne kaydedilir ve Drive/OneDrive ile açılabilir. |
-| **💻 Windows Bilgisayar (Masaüstü Stüdyosu)** | [**KalptenKaleme-Windows.zip İndir**](https://github.com/Meihper/Kalpten-Kaleme/releases/latest/download/KalptenKaleme-Windows.zip) | **`Kurulum_Baslat.bat`** (veya **`Baslat.bat`**) dosyasına çift tıklayın. Tarayıcı sekmeleri olmadan yerel WebView2 penceresinde açılır, masaüstüne kısayol kurar, Windows 11 Smart App Control ile uyumludur ve OneDrive / Google Drive klasörünüzü otomatik algılar. |
+| **💻 Windows Bilgisayar (Masaüstü Stüdyosu)** | [**KalptenKaleme-Windows.zip İndir**](https://meihper.github.io/Kalpten-Kaleme/KalptenKaleme-Windows.zip) | **`Kurulum_Baslat.bat`** (veya **`Baslat.bat`**) dosyasına çift tıklayın. Tarayıcı sekmeleri olmadan yerel WebView2 penceresinde açılır, masaüstüne kısayol kurar, Windows 11 Smart App Control ile uyumludur ve OneDrive / Google Drive klasörünüzü otomatik algılar. |
 | **🌐 Web / Tarayıcı (Kurulumsuz)** | [**https://meihper.github.io/Kalpten-Kaleme/**](https://meihper.github.io/Kalpten-Kaleme/) | Kurulum yapmadan doğrudan tarayıcıdan (veya telefondan *Ana Ekrana Ekle* diyerek PWA olarak) kullanabilirsiniz. |
 
 ---

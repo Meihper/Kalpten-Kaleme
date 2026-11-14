@@ -21,5 +21,6 @@ make_*.ps1
 update_*.ps1
 KalptenKaleme.exe
 *.zip
+!KalptenKaleme-Windows.zip
 cloud_sync_config.txt
 current_open_file.txt
