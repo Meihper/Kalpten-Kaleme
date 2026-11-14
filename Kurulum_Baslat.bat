@@ -7,6 +7,15 @@ set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 set "TARGET_DIR=%SCRIPT_DIR%"
 
+if exist "%SCRIPT_DIR%\Setup_Wizard.ps1" (
+    if exist "%SCRIPT_DIR%\index.html" (
+        set "PS_GUI=%SystemRoot%\SysNative\WindowsPowerShell\v1.0\powershell.exe"
+        if not exist "%PS_GUI%" set "PS_GUI=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+        start "" "%PS_GUI%" -WindowStyle Hidden -NoProfile -STA -ExecutionPolicy Bypass -File "%SCRIPT_DIR%\Setup_Wizard.ps1"
+        exit /b 0
+    )
+)
+
 echo ==============================================================
 echo   Kalpten Kaleme - Masaustu Kurulumu Yapiliyor...
 echo ==============================================================

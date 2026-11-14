@@ -27,6 +27,7 @@ $winFiles = @(
     "KalptenKaleme.ps1",
     "server.ps1",
     "BelgeDuzenleyici.cs",
+    "Setup_Wizard.ps1",
     "Microsoft.Web.WebView2.Core.dll",
     "Microsoft.Web.WebView2.WinForms.dll",
     "WebView2Loader.dll",
@@ -44,20 +45,12 @@ $winFiles = @(
     "manifest.json",
     "app.ico",
     "app.png",
-    "BelgeDuzenleyici.ico",
     "favicon.ico",
-    "favicon.png",
     "icon-192.png",
-    "icon-512.png",
     "docx_file.png",
     "pdf_file.png",
     "pptx_file.png",
     "tools_file.png",
-    "kk_lux_app.ico",
-    "kk_lux_app.png",
-    "kk_lux_docx.png",
-    "kk_lux_pdf.png",
-    "kalpten_kaleme_logo3.ico",
     "KULLANIM_KILAVUZU.txt"
 )
 
@@ -73,17 +66,57 @@ if (Test-Path $vendorSrc) {
     Copy-Item $vendorSrc (Join-Path $stageDir "vendor") -Recurse -Force
 }
 
-if (Test-Path $projectZip) { Remove-Item $projectZip -Force }
-Compress-Archive -Path "$stageDir\*" -DestinationPath $projectZip -Force
+$innerZip = Join-Path $env:TEMP "KK_Inner_Payload.zip"
+if (Test-Path $innerZip) { Remove-Item $innerZip -Force }
+Compress-Archive -Path "$stageDir\*" -DestinationPath $innerZip -Force
 Remove-Item $stageDir -Recurse -Force
 
-Write-Host "Windows Desktop Suite ZIP created at $projectZip ($([Math]::Round((Get-Item $projectZip).Length / 1MB, 2)) MB)"
+# Build single-file GUI installer (Kalpten_Kaleme_Setup.bat)
+$wizardBytes = [System.IO.File]::ReadAllBytes((Join-Path $rootDir "Setup_Wizard.ps1"))
+$wizardB64 = [Convert]::ToBase64String($wizardBytes)
+$payloadBytes = [System.IO.File]::ReadAllBytes($innerZip)
+$payloadB64 = [Convert]::ToBase64String($payloadBytes)
+Remove-Item $innerZip -Force -ErrorAction SilentlyContinue
+
+$sbBat = New-Object System.Text.StringBuilder
+[void]$sbBat.AppendLine("@echo off")
+[void]$sbBat.AppendLine("title Kalpten Kaleme - Kurulum Sihirbazi")
+[void]$sbBat.AppendLine("setlocal EnableExtensions")
+[void]$sbBat.AppendLine("set `"KK_SETUP_FILE=%~f0`"")
+[void]$sbBat.AppendLine("set `"PS_EXE=%SystemRoot%\SysNative\WindowsPowerShell\v1.0\powershell.exe`"")
+[void]$sbBat.AppendLine("if not exist `"%PS_EXE%`" set `"PS_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`"")
+[void]$sbBat.AppendLine("start `"`" `"%PS_EXE%`" -WindowStyle Hidden -NoProfile -STA -ExecutionPolicy Bypass -Command `"`$lines = [System.IO.File]::ReadAllLines(`$env:KK_SETUP_FILE, [System.Text.Encoding]::ASCII); `$sb = New-Object System.Text.StringBuilder; `$inW = `$false; foreach (`$l in `$lines) { if (`$l -eq '::KK_WIZARD_BEGIN') { `$inW = `$true; continue }; if (`$l -eq '::KK_WIZARD_END') { break }; if (`$inW -and `$l.StartsWith('::')) { [void]`$sb.Append(`$l.Substring(2).Trim()) } }; `$wizPath = Join-Path `$env:TEMP 'KK_Setup_Wizard.ps1'; [System.IO.File]::WriteAllBytes(`$wizPath, [Convert]::FromBase64String(`$sb.ToString())); & `$wizPath`"")
+[void]$sbBat.AppendLine("exit /b 0")
+[void]$sbBat.AppendLine("::KK_WIZARD_BEGIN")
+for ($i = 0; $i -lt $wizardB64.Length; $i += 120) {
+    $len = [Math]::Min(120, $wizardB64.Length - $i)
+    [void]$sbBat.AppendLine("::" + $wizardB64.Substring($i, $len))
+}
+[void]$sbBat.AppendLine("::KK_WIZARD_END")
+[void]$sbBat.AppendLine("::KK_PAYLOAD_BEGIN")
+for ($i = 0; $i -lt $payloadB64.Length; $i += 120) {
+    $len = [Math]::Min(120, $payloadB64.Length - $i)
+    [void]$sbBat.AppendLine("::" + $payloadB64.Substring($i, $len))
+}
+[void]$sbBat.AppendLine("::KK_PAYLOAD_END")
+
+$setupStageDir = Join-Path $env:TEMP "KK_Single_Setup_Stage"
+if (Test-Path $setupStageDir) { Remove-Item $setupStageDir -Recurse -Force }
+New-Item -ItemType Directory -Path $setupStageDir -Force | Out-Null
+$singleSetupPath = Join-Path $setupStageDir "Kalpten_Kaleme_Setup.bat"
+[System.IO.File]::WriteAllBytes($singleSetupPath, [System.Text.Encoding]::ASCII.GetBytes($sbBat.ToString()))
+
+if (Test-Path $projectZip) { Remove-Item $projectZip -Force }
+Compress-Archive -Path $singleSetupPath -DestinationPath $projectZip -Force
+Remove-Item $setupStageDir -Recurse -Force
+
+Write-Host "Windows Single-File Setup ZIP created at $projectZip ($([Math]::Round((Get-Item $projectZip).Length / 1MB, 2)) MB)"
 
 Write-Host "`n=========================================="
 Write-Host "2. COMMITTING AND PUSHING TO GITHUB"
 Write-Host "=========================================="
 
-git add .gitignore index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js manifest.json check_compile.ps1 build_windows_standalone.ps1 package_and_upload.ps1 "Kalpten Kaleme.html" KalptenKaleme-Windows.zip Kurulum_Baslat.bat Baslat.bat Baslat.ps1 Baslat.vbs launcher.vbs KalptenKaleme.ps1 server.ps1 BelgeDuzenleyici.cs Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 KULLANIM_KILAVUZU.txt README.md
+git add .gitignore index.html styles.css app.js word-editor.js ppt-editor.js pdf-editor.js pdf-tools.js manifest.json check_compile.ps1 build_windows_standalone.ps1 package_and_upload.ps1 Setup_Wizard.ps1 "Kalpten Kaleme.html" KalptenKaleme-Windows.zip Kurulum_Baslat.bat Baslat.bat Baslat.ps1 Baslat.vbs launcher.vbs KalptenKaleme.ps1 server.ps1 BelgeDuzenleyici.cs Masaustu_Kisayol_Olustur.ps1 register_open_with.ps1 apply_file_icons.ps1 apply_3d_system_icons.ps1 KULLANIM_KILAVUZU.txt README.md
 $status = git status --porcelain
 if ($status) {
     git commit -m 'feat(windows): package browserless SAC-safe desktop studio in KalptenKaleme-Windows.zip'
